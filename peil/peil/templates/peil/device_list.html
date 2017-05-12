@@ -1,0 +1,39 @@
+{% extends 'peil/base.html' %}
+{% block title %}Peilstokken{% endblock %}
+{% block navbar %}
+{% endblock %}
+{% block content %}
+<table class="table">
+<thead>
+<tr>
+<th colspan=3>Peilstok</th>
+<th colspan=5>Messages</th>
+</tr>
+<tr>
+<th>Naam</th>
+<th>Mac adres</th>
+<th>Aangemeld</th>
+<th>Aantal berichten</th>
+<th>Status</th>
+<th>EC</th>
+<th>Druk</th>
+<th>Laatste bericht</th>
+</tr>
+</thead>
+<tbody>
+{% for p in object_list %}
+<tr>
+<td>{{ p.devid }}</td>
+<td>{{ p.serial }}</td>
+<td>{{ p.created }}</td>
+<td>{{ p.count }}</td>
+<td>{{ p.count_status }}</td>
+<td>{{ p.count_ec }}</td>
+<td>{{ p.count_pressure }}</td>
+<td>{{ p.last }}</td>
+</tr>
+{% empty %}
+Geen peilstokken gevonden.
+{% endfor %}
+</tbody>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends 'peil/base.html' %}
+{% block script %}
+{{ block.super }}
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/modules/exporting.js"></script>
+<script src="https://code.highcharts.com/modules/offline-exporting.js"></script>
+<script>
+Highcharts.setOptions({
+  lang: {
+  	shortMonths : ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dec"],
+	months: ["Januari", "Februari", "Maart", "April", "Mei", "Juni",  "Juli", "Augustus", "September", "Oktober", "November", "December"],
+	weekdays: ["Zondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag"],
+	printChart: "Afdrukken",
+	downloadJPEG: "Download als JPG",
+	downloadPNG: "Download als PNG",
+	downloadPDF: "Download als PDF",
+	downloadSVG: "Download als SVG",
+  }
+});
+
+$(function () {
+	  $('#chart1').highcharts({{ options1|safe }});
+	  $('#chart2').highcharts({{ options2|safe }});
+});
+</script>
+{% endblock %}
+{% block content %}
+<div class="container-fluid">
+<div id="chart1"></div>
+<div id="chart2"></div>
+</div>
+{% endblock %}

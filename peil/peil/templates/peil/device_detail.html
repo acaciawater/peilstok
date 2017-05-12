@@ -1,0 +1,13 @@
+{% extends 'peil/highcharts.html' %}
+{% block title %}Device {{object}}{% endblock %}
+{% block style %}
+{{block.super}}
+<style>
+#chart1, #chart2 {
+  width: 90%;
+  height: 400 px;
+}
+</style>
+{% endblock %}
+{% block navbar %}
+{% endblock %}

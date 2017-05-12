@@ -1,0 +1,86 @@
+{% load staticfiles %}
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+<!--  	<link href="{% static "img/favicon.ico" %}" rel="icon" type="image/x-ico" /> -->
+	<title>{% block title %}{{object.name}}{% endblock %}</title>
+	{% block script %}
+	<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+	{% endblock %}
+	{% block style %}
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+		#footer > .navbar {padding-top: 10px; min-height:32px !important;}
+		body > .wrapper {padding-bottom: 42px; padding-top: 70px;}
+		.nav > .breadcrumb {float: left; margin-top: 8px; padding-bottom: 0px;}
+    </style>
+	{% endblock %}
+  </head>
+{% csrf_token %}
+<body>
+    <div class="wrapper">
+	<nav class="navbar navbar-default navbar-fixed-top" role="navigation">
+	  <div class="container-fluid">
+	    {% block navbar-header %}
+	    <div class="navbar-header">
+	      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+	        <span class="sr-only">Toggle navigation</span>
+	        <span class="icon-bar"></span>
+	        <span class="icon-bar"></span>
+	        <span class="icon-bar"></span>
+	      </button>
+	      {% block brandname %}{% endblock brandname %}
+	    </div>
+	    {% endblock navbar-header %}
+	    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+	      {% block navbar %} 
+		      <ul class="nav navbar-nav">
+			    {% block breadcrumbs %}
+			      <ol class="breadcrumb">
+				    <li><a href="{% url 'home' %}">Home</a></li>
+			      </ol>
+			    {% endblock breadcrumbs %}
+		      </ul>
+	      {% endblock navbar %}
+	      {% block navbar-auth %}
+	      <ul class="nav navbar-nav navbar-right">
+	        {% block navbar-right %}{% endblock navbar-right %}
+	        <li><a href="{% block admin_url %}/admin/meetnet{% endblock admin_url %}">Beheer</a></li>
+	        {% if user.is_authenticated %}
+	        <li class="dropdown">
+	          <a href="#" class="dropdown-toggle" data-toggle="dropdown">{% filter force_escape %}{% firstof user.first_name user.username %}{% endfilter %}
+	          <b class="caret"></b></a>
+	          <ul class="dropdown-menu">
+	            <li><a href="/accounts/logout">Uitloggen</a></li>
+	            <li><a href="/accounts/password/change">Wachtwoord veranderen</a></li>
+	          </ul>
+	        </li>
+          	{% else %}
+	        <li><a href="/accounts/login">Inloggen</a></li>
+          	{% endif %}
+	      </ul>
+	      {% endblock navbar-auth %}
+	    </div><!-- /.navbar-collapse -->
+	  </div><!-- /.container-fluid -->
+	</nav>
+    {% block content %}
+    {% endblock content %}
+	</div> <!-- wrapper -->
+    {% block footer %}
+	<div id="footer" class="container">
+	    <nav class="navbar navbar-default navbar-fixed-bottom">
+	        <div class="navbar-inner navbar-content-center">
+    			{% block footer-text %}
+	            <p class="text-muted text-center credit"><a href="http://www.acaciawater.com">Acacia Water</a> • Jan van Beaumontstraat 1 • 2805 RN Gouda • The Netherlands • Tel: +31 (0)182 - 686424 • Mail: <a href="mailto:info@acaciawater.com">info@acaciawater.com</a>.</p>
+    			{% endblock footer-text %}
+	        </div>
+	    </nav>
+	</div>
+    {% endblock footer %}
+  </body>
+</html>
