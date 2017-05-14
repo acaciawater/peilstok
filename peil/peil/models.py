@@ -7,12 +7,17 @@ from django.db import models
 from django.db.models import Q
 import pandas as pd
 
-# Module types
+# Message types
+GNSS_MESSAGE = 1
+EC_MESSAGE = 2
+PRESSURE_MESSAGE = 3
+STATUS_MESSAGE = 6
+
 TYPE_CHOICES = (
-    (1,'GNSS'),
-    (2,'EC'),
-    (3,'Pressure'),
-    (6,'Master'),
+    (GNSS_MESSAGE,      'GNSS'),
+    (EC_MESSAGE,        'EC'),
+    (PRESSURE_MESSAGE,  'Pressure'),
+    (STATUS_MESSAGE,    'Master'),
     )
 
 # Factor to convert raw ADC-pressure value to N/m2
@@ -27,7 +32,7 @@ class CalibrationSeries(models.Model):
     # optional description
     description = models.TextField(blank=True,null=True)    
     
-    #date/time the calratio series was created
+    #date/time the series was created
     created = models.DateTimeField(auto_now_add = True)
     
     # date/time when this series was last modified/updated
@@ -128,12 +133,16 @@ class Device(models.Model):
         """ Get time series as array of tuples
         
             parameters:
-                * Module: Module class to query
-                * entity: Entity (fieldname) for query 
+            
+                * `Module`: Module class to query
+                * `entity`: Entity (fieldname) for query 
         
-            examples: 
-                device.get_series(ECModule,"adc1",position=2) gets timeseries of adc1 values from EC Module at position 2
-                device.get_series(MasterModule,"battery") gets timeseries of battery status from Master module
+            examples:
+             
+                * device.get_series(ECModule,"adc1",position=2)
+                  gets timeseries of adc1 values from EC Module at position 2
+                * device.get_series(MasterModule,"battery")
+                  gets timeseries of battery status from Master module
         """ 
         
         q = Module.objects.filter(device = self)
@@ -154,23 +163,23 @@ class Device(models.Model):
     last.short_description = 'Laatse bericht'
 
     def count(self):
-        # returns last message received
+        # returns number of messages
         return self.basemodule_set.count()
     count.short_description = 'Aantal berichten'
 
     def count_status(self):
-        # returns last message received
-        return self.basemodule_set.filter(type=6).count()
+        # returns number of status messages
+        return self.basemodule_set.filter(type=STATUS_MESSAGE).count()
     count_status.short_description = 'Aantal status berichten'
 
     def count_ec(self):
-        # returns last message received
-        return self.basemodule_set.filter(type=2).count()
+        # returns number of ec messages
+        return self.basemodule_set.filter(type=EC_MESSAGE).count()
     count_ec.short_description = 'Aantal EC metingen'
     
     def count_pressure(self):
-        # returns last message received
-        return self.basemodule_set.filter(type=3).count()
+        # returns number of pressure messages
+        return self.basemodule_set.filter(type=PRESSURE_MESSAGE).count()
     count_pressure.short_description = 'Aantal druk metingen'
 
     def __unicode__(self):
@@ -180,7 +189,7 @@ class BaseModule(models.Model):
     """ Base class for all modules in a device """
     
     device = models.ForeignKey(Device)
-    appid = models.CharField(max_length=20)
+    #appid = models.CharField(max_length=20,default='peilstok')
  
     # time received by server
     time = models.DateTimeField()
@@ -189,7 +198,7 @@ class BaseModule(models.Model):
     type = models.PositiveSmallIntegerField(choices=TYPE_CHOICES)
 
     # position of module
-    #position = models.PositiveSmallIntegerField(default=0)
+    position = models.PositiveSmallIntegerField(default=0)
 
 class MasterModule(BaseModule):
     """ Contains information about the state of the device itself, not its sensors """
@@ -256,9 +265,6 @@ class ECModule(BaseModule):
 
     # raw ADC value 11x gain
     adc2 = models.IntegerField()
-
-    # position of this module
-    position = models.PositiveSmallIntegerField()
     
     # calibrated EC-value
     def EC(self):
@@ -274,9 +280,6 @@ class PressureModule(BaseModule):
     # raw ADC pressure value
     adc = models.IntegerField()
 
-    # position of this module
-    position = models.PositiveSmallIntegerField()
-    
     def pressure(self):
         # returns pressure in N/m2
         return self.adc * ADC_NM2
