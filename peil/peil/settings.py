@@ -23,7 +23,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*.acaciadata.com','localhost']
 
 # Application definition
 
@@ -108,5 +108,49 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 TASTYPIE_DEFAULT_FORMATS = ['json']
+
+LOGGING_ROOT = os.path.join(BASE_DIR, 'logs')
+
+# Logging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': os.path.join(LOGGING_ROOT, 'peil.log'),
+            'when': 'D',
+            'interval': 1, # every day a new file
+            'backupCount': 0,
+            'formatter': 'default'
+        },
+        'django': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': os.path.join(LOGGING_ROOT, 'django.log'),
+            'when': 'D',
+            'interval': 1, # every day a new file
+            'backupCount': 0,
+        },
+    },
+    'formatters': {
+        'default': {
+            'format': '%(levelname)s %(asctime)s %(name)s: %(message)s'
+        },
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': ['django'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'peil': {
+            'handlers': ['file',],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
 
 from secrets import *
