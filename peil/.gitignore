@@ -1,2 +1,5 @@
 /doc/
+/.settings/
 *.pyc
+*.settings
+
