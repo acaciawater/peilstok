@@ -1,3 +1,4 @@
 *.pyc
 /migrations/
 /secrets.py
+/secrets_server.py
