@@ -35,7 +35,7 @@ def update_or_create(manager, **kwargs):
 def parse_ttn(ttn):
     """ parse json from ttn server with peilstok data """
 
-    devid = ttn['devid']
+    devid = ttn['device_id']
     time = parse_datetime(ttn['time'])
     type = ttn['type']
     
@@ -74,4 +74,7 @@ def parse_ttn(ttn):
     
     else:
         raise Exception('Unknown module type:'+ str(type))
+    
+    return (mod, created, updated)
+
     

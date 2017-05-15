@@ -13,6 +13,7 @@ from peil.models import ECModule, PressureModule, MasterModule
 
 @csrf_exempt
 def ttn(request):
+    """ push data from TTN server and update database """
     if request.method == 'POST':
         print 'Received', request.body
         return HttpResponse('Success')
