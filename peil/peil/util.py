@@ -5,6 +5,7 @@ from .models import Device, MasterModule, ECModule, PressureModule, GNSSModule
 from .models import GNSS_MESSAGE, EC_MESSAGE, STATUS_MESSAGE, PRESSURE_MESSAGE
 
 import logging
+from peil.models import CalibrationSeries
 logger = logging.getLogger(__name__)
 
 def update_or_create(manager, **kwargs):
@@ -32,8 +33,41 @@ def update_or_create(manager, **kwargs):
             except:
                 raise e
 
-def parse_ttn(ttn):
-    """ parse json from ttn server with peilstok data """
+def parse_payload(device,time,type,payload):
+    if type == STATUS_MESSAGE:
+        return update_or_create(MasterModule.objects,device=device,time=time,type=type,defaults = {
+            'angle': payload['angle'],
+            'battery': payload['battery'],
+            'air': payload['pressure'],
+            'total': payload['total']})
+        
+    elif type == GNSS_MESSAGE:
+        return update_or_create(GNSSModule.objects,device=device,time=time,type=type, defaults = {
+            'gnsstime': payload['time'],
+            'lat': payload['latitude'],
+            'lon': payload['longitude'],
+            'alt': payload['height'],
+            'vacc': payload['vAcc'],
+            'hacc': payload['hAcc'],
+            'msl': payload['hMSL']})
+        
+    elif type == EC_MESSAGE:
+        return update_or_create(ECModule.objects,device=device,time=time,type=type, defaults = {
+            'position': payload['position'],
+            'adc1': payload['ec1'],
+            'adc2': payload['ec2'],
+            'temperature': payload['temperature']})
+
+    elif type == PRESSURE_MESSAGE:
+        return update_or_create(PressureModule.objects,device=device,time=time,type=type, defaults = {
+            'position': payload['position'],
+            'adc': payload['pressure']})
+    
+    else:
+        raise Exception('Unknown module type:'+ str(type))
+    
+def parse_fiware(ttn):
+    """ parse json from fiware server with peilstok data """
 
     devid = ttn['device_id']
     time = parse_datetime(ttn['time'])
@@ -43,38 +77,32 @@ def parse_ttn(ttn):
 
     device = Device.objects.get(devid=devid)
 
-    if type == STATUS_MESSAGE:
-        mod,created,updated = update_or_create(MasterModule.objects,device=device,time=time,type=type,defaults = {
-            'angle': ttn['angle'],
-            'battery': ttn['battery'],
-            'air': ttn['pressure'],
-            'total': ttn['total']})
-        
-    elif type == GNSS_MESSAGE:
-        mod,created,updated = update_or_create(GNSSModule.objects,device=device,time=time,type=type, defaults = {
-            'gnsstime': ttn['time'],
-            'lat': ttn['latitude'],
-            'lon': ttn['longitude'],
-            'alt': ttn['height'],
-            'vacc': ttn['vAcc'],
-            'hacc': ttn['hAcc'],
-            'msl': ttn['hMSL']})
-        
-    elif type == EC_MESSAGE:
-        mod,created,updated = update_or_create(ECModule.objects,device=device,time=time,type=type, defaults = {
-            'position': ttn['position'],
-            'adc1': ttn['ec1'],
-            'adc2': ttn['ec2'],
-            'temperature': ttn['temperature']})
+    return parse_payload(device, time, type, ttn)
 
-    elif type == PRESSURE_MESSAGE:
-        mod,created,updated = update_or_create(PressureModule.objects,device=device,time=time,type=type, defaults = {
-            'position': ttn['position'],
-            'adc': ttn['pressure']})
-    
-    else:
-        raise Exception('Unknown module type:'+ str(type))
-    
-    return (mod, created, updated)
+def parse_ttn(ttn):
+    """ parse json from ttn server with peilstok data """
 
+    try:
+        serial = ttn['hardware_serial']
+        devid = ttn['dev_id']
+        appid = ttn['app_id']
+        meta = ttn['metadata']
+        time = parse_datetime(meta['time'])
+        pf = ttn['payload_fields']
+        type = pf['type']
+    except Exception as e:
+        logger.error('Error parsing TTN json' + str(e))
+        raise e
+
+    logger.debug('{},{},{}'.format(devid, time, type))
+    cal_default = CalibrationSeries.objects.first()
+    device, created = Device.objects.get_or_create(serial=serial,devid=devid, defaults={'cal':cal_default.pk})
+    
+    return parse_payload(device, time, type, pf)
+    
+def handle_post_data(json):
+    # start background process that handles post data from TTN server
+    from threading import Thread
+    t = Thread(target=parse_ttn, args=[json,])
+    t.start()
     

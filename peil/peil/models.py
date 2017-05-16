@@ -157,10 +157,29 @@ class Device(models.Model):
         dates,values=zip(*data)
         return pd.Series(values,index=dates)
     
-    def last(self):
+    def last(self,messagetype=''):
         # returns last message received
-        return self.basemodule_set.order_by('time').last().time
+        queryset = self.basemodule_set
+        if messagetype:
+            queryset = queryset.filter(type=messagetype)
+        last = queryset.order_by('time').last()
+        return last
     last.short_description = 'Laatse bericht'
+
+    def last_ec(self):
+        # returns last EC message received
+        return self.last(EC_MESSAGE).ecmodule
+    last_ec.short_description = 'Laatse EC'
+
+    def last_status(self):
+        # returns last Status message received
+        return self.last(STATUS_MESSAGE).mastermodule
+    last_status.short_description = 'Laatste Status bericht'
+
+    def last_pressure(self):
+        # returns last pressure message received
+        return self.last(PRESSURE_MESSAGE).pressuremodule
+    last_status.short_description = 'Laatste Drukmeting'
 
     def count(self):
         # returns number of messages

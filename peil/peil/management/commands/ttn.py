@@ -13,11 +13,11 @@ from django.db import transaction
 from django.utils.dateparse import parse_datetime
 from django.conf import settings
 import requests
-from peil.util import parse_ttn
+from peil.util import parse_fiware
 
 def download_ttn(devid,since):
     """ download data from The Things Network """
-    url = settings.TTN_URL
+    url = settings.TTN_URL + 'query'
     if devid:
         url += '/' + devid
     if since:
@@ -45,7 +45,7 @@ class Command(BaseCommand):
         since = options.get('since','1h')
         device = Device.objects.get(devid=devid)
         last = device.last()
-        print 'Last message at {:%Y-%m-%d %H:%M:%S}'.format(last)
+        print 'Last message at {:%Y-%m-%d %H:%M:%S}'.format(last.time)
         response = download_ttn(devid, since)
         if not response.ok:
             print response.reason
@@ -55,9 +55,8 @@ class Command(BaseCommand):
         for ttn in ttns:
             row += 1
             try:
-                mod, created, updated = parse_ttn(ttn)
-                print 'Created' if created else 'Updated' if updated else '?'
-            
+                mod, created, updated = parse_fiware(ttn)
+                print '{}, {}, {}'.format(mod.type, mod.time, 'Created' if created else 'Updated' if updated else '?')
             except Exception as e:
                 print row, e
                 continue

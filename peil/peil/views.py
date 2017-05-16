@@ -3,31 +3,42 @@ Created on Apr 25, 2017
 
 @author: theo
 '''
-from django.http.response import HttpResponse
+from django.http.response import HttpResponse, HttpResponseBadRequest,\
+    HttpResponseServerError
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.detail import DetailView
 from django.views.generic.list import ListView
-from .models import Device
+from django.conf import settings
+
 import json, time
-from peil.models import ECModule, PressureModule, MasterModule
+from peil.models import ECModule, PressureModule, MasterModule, Device
+from peil.util import handle_post_data
+from django.views.generic.base import TemplateView
 
 @csrf_exempt
 def ttn(request):
     """ push data from TTN server and update database """
     if request.method == 'POST':
-        print 'Received', request.body
-        return HttpResponse('Success')
-    return HttpResponse('Fail')
+        try:
+            data = json.loads(request.body)
+            handle_post_data(data)
+            return HttpResponse(status_code=200) 
+        except:
+            return HttpResponseServerError()
+    return HttpResponseBadRequest()
 
-class DeviceListView(ListView):
-
+class MapView(ListView):
     model = Device
+    template_name = 'peil/device_map.html'
 
     def get_context_data(self, **kwargs):
-        context = super(DeviceListView, self).get_context_data(**kwargs)
-#         device = self.get_object()
-#         context['last'] = device.last() 
+        context = super(MapView, self).get_context_data(**kwargs)
+        context['api_key'] = settings.GOOGLE_MAPS_API_KEY
+        context['maptype'] = "ROADMAP"
         return context
+    
+class DeviceListView(ListView):
+    model = Device
     
 class DeviceView(DetailView):
     """ Shows raw sensor data in Highcharts """
