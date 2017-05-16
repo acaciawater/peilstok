@@ -25,6 +25,9 @@ def download_ttn(devid,since):
     else:
         params = None
     headers = {'Authorization': 'key '+settings.TTN_KEY, 'Accept': 'application/json'}
+    print 'url=', url
+    print 'headers=', headers
+    print 'paras=', params
     response = requests.get(url,params=params,headers=headers)
     return response
     
