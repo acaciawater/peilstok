@@ -23,7 +23,8 @@ def ttn(request):
             data = json.loads(request.body)
             handle_post_data(data)
             return HttpResponse(status_code=200) 
-        except:
+        except Exception as e:
+            print e
             return HttpResponseServerError()
     return HttpResponseBadRequest()
 
