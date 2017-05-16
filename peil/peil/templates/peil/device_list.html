@@ -2,22 +2,40 @@
 {% block title %}Peilstokken{% endblock %}
 {% block navbar %}
 {% endblock %}
+{% block style %}
+{{ block.super }}
+<!-- <style> -->
+/* body, .content { */
+/*   color: #000099; */
+/* } */
+/* .navbar, .footer { */
+/* 	/*background: #004d99;*/ */
+/* 	background: #ff9966; */
+/* 	color: #004d99; */
+/* } */
+/* .navbar-fixed-top { */
+/* 	border-color: #004d99; */
+/* 	border-width: 0 0 2px; */
+/* } */
+<!-- </style> -->
+{% endblock %}
 {% block content %}
 <table class="table">
 <thead>
 <tr>
 <th colspan=3>Peilstok</th>
-<th colspan=5>Messages</th>
+<th colspan=5>Berichten</th>
 </tr>
 <tr>
 <th>Naam</th>
 <th>Mac adres</th>
 <th>Aangemeld</th>
-<th>Aantal berichten</th>
-<th>Status</th>
-<th>EC</th>
-<th>Druk</th>
 <th>Laatste bericht</th>
+<th>Aantal berichten</th>
+<th>Batterij (mV)</th>
+<th>Luchtdruk (hPa)</th>
+<th>Waterdruk (hPa)</th>
+<th>EC (uS/cm)</th>
 </tr>
 </thead>
 <tbody>
@@ -26,11 +44,16 @@
 <td>{{ p.devid }}</td>
 <td>{{ p.serial }}</td>
 <td>{{ p.created }}</td>
+<td>{{ p.last.time }}</td>
 <td>{{ p.count }}</td>
-<td>{{ p.count_status }}</td>
-<td>{{ p.count_ec }}</td>
-<td>{{ p.count_pressure }}</td>
-<td>{{ p.last }}</td>
+{% with p.last_status as status %}
+<td>{{ status.battery }}</td>
+<td>{{ status.hPa }}</td>
+{% endwith %}
+<td>{{ p.last_pressure.hPa }}</td>
+{% with p.last_ec as ec %}
+<td>{{ ec.EC }} (EC{{ ec.position }})</td>
+{% endwith %}
 </tr>
 {% empty %}
 Geen peilstokken gevonden.
