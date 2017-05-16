@@ -22,7 +22,7 @@ def ttn(request):
         try:
             data = json.loads(request.body)
             handle_post_data(data)
-            return HttpResponse(status_code=200) 
+            return HttpResponse("OK") 
         except Exception as e:
             print e
             return HttpResponseServerError()
