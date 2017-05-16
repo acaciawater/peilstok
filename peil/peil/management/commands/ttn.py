@@ -50,6 +50,7 @@ class Command(BaseCommand):
         if not response.ok:
             print response.reason
             return
+        print 'received', len(response.content), 'bytes'
         ttns = response.json()
         row = 0
         for ttn in ttns:
