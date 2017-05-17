@@ -4,16 +4,12 @@ Created on Apr 26, 2017
 @author: theo
 '''
 from django.core.management.base import BaseCommand
-import json
-from peil.models import MasterModule, ECModule, PressureModule, GNSSModule,\
-    Device, BaseModule
-from peil.models import GNSS_MESSAGE, STATUS_MESSAGE, EC_MESSAGE, PRESSURE_MESSAGE
-from django.db.utils import IntegrityError
-from django.db import transaction
-from django.utils.dateparse import parse_datetime
 from django.conf import settings
 import requests
 from peil.util import parse_fiware
+
+import logging
+logger = logging.getLogger(__name__)
 
 def download_ttn(devid,since):
     """ download data from The Things Network """
@@ -25,9 +21,9 @@ def download_ttn(devid,since):
     else:
         params = None
     headers = {'Authorization': 'key '+settings.TTN_KEY, 'Accept': 'application/json'}
-    print 'url=', url
-    print 'headers=', headers
-    print 'paras=', params
+    logger.debug('url={}'.format(url))
+    logger.debug('headers={}'.format(headers))
+    logger.debug('params={}'.format(params))
     response = requests.get(url,params=params,headers=headers)
     return response
     
@@ -46,14 +42,11 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         devid = options.get('devid')
         since = options.get('since','1h')
-        device = Device.objects.get(devid=devid)
-        last = device.last()
-        print 'Last message at {:%Y-%m-%d %H:%M:%S}'.format(last.time)
         response = download_ttn(devid, since)
         if not response.ok:
-            print response.reason
+            logger.error('TTN server responds with code={}: {}'.format(response.status_code, response.reason))
             return
-        print 'received', len(response.content), 'bytes'
+        logger.debug('received {} bytes'.format(len(response.content)))
         ttns = response.json()
         row = 0
         for ttn in ttns:

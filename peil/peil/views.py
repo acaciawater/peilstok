@@ -13,7 +13,9 @@ from django.conf import settings
 import json, time
 from peil.models import ECModule, PressureModule, MasterModule, Device
 from peil.util import handle_post_data
-from django.views.generic.base import TemplateView
+
+import logging
+logger = logging.getLogger(__name__)
 
 @csrf_exempt
 def ttn(request):
@@ -23,8 +25,8 @@ def ttn(request):
             data = json.loads(request.body)
             handle_post_data(data)
             return HttpResponse("OK") 
-        except Exception as e:
-            print e
+        except:
+            logger.exception('Cannot parse POST data')
             return HttpResponseServerError()
     return HttpResponseBadRequest()
 
