@@ -23,7 +23,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*.acaciadata.com','localhost']
+ALLOWED_HOSTS = ['peil.acaciadata.com','localhost']
 
 # Application definition
 
@@ -35,7 +35,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'tastypie',
-    'peil.apps.PeilConfig'
+    'peil.apps.PeilConfig',
+    'django_extensions', # for debugging ssl with runserver_plus
 ]
 
 MIDDLEWARE = [
