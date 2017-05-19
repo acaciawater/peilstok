@@ -95,9 +95,10 @@ def parse_ttn(ttn):
         raise e
 
     logger.debug('{},{},{}'.format(devid, time, type))
-    cal_default = CalibrationSeries.objects.first()
-    device, created = Device.objects.get_or_create(serial=serial,devid=devid, defaults={'cal':cal_default.pk})
-    
+    cal_default = CalibrationSeries.objects.get(name='default')
+    device, created = Device.objects.get_or_create(serial=serial,devid=devid, defaults={'cal':cal_default})
+    if created:
+        logger.debug('device {} created'.format(devid))
     return parse_payload(device, time, type, pf)
     
 def handle_post_data(json):
