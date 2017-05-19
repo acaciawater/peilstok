@@ -164,12 +164,17 @@ class Device(models.Model):
             queryset = queryset.filter(type=messagetype)
         last = queryset.order_by('time').last()
         return last
-    last.short_description = 'Laatse bericht'
+    last.short_description = 'Laatste bericht'
+
+    def last_time(self,messagetype=''):
+        # returns time of last message received
+        return self.last(messagetype).time
+    last_time.short_description = 'Laatste update'
 
     def last_ec(self):
         # returns last EC message received
         return self.last(EC_MESSAGE).ecmodule
-    last_ec.short_description = 'Laatse EC'
+    last_ec.short_description = 'Laatste EC-meting'
 
     def last_status(self):
         # returns last Status message received
@@ -194,12 +199,12 @@ class Device(models.Model):
     def count_ec(self):
         # returns number of ec messages
         return self.basemodule_set.filter(type=EC_MESSAGE).count()
-    count_ec.short_description = 'Aantal EC metingen'
+    count_ec.short_description = 'Aantal EC-metingen'
     
     def count_pressure(self):
         # returns number of pressure messages
         return self.basemodule_set.filter(type=PRESSURE_MESSAGE).count()
-    count_pressure.short_description = 'Aantal druk metingen'
+    count_pressure.short_description = 'Aantal drukmetingen'
 
     def __unicode__(self):
         return self.devid
@@ -218,6 +223,7 @@ class BaseModule(models.Model):
 
     # position of module
     position = models.PositiveSmallIntegerField(default=0)
+            
 
 class MasterModule(BaseModule):
     """ Contains information about the state of the device itself, not its sensors """
@@ -285,9 +291,31 @@ class ECModule(BaseModule):
     # raw ADC value 11x gain
     adc2 = models.IntegerField()
     
-    # calibrated EC-value
+    def _calec(self):
+        """calibration with polynomals """
+        def p2(c,x):
+            return c[0]*x*x + c[1]*x + c[2]
+        
+        #2nd order polynomal coefficients for the two rings
+        c1 = [0.0141, -107.49, 206099] 
+        c2 = [0.0044, -40.808, 91856]
+        
+        if self.adc1 > 3330:
+            ec = p2(c1,self.adc1)
+        elif self.adc2 < 3170:
+            ec = p2(c2,self.adc2)
+        else:
+            r1 = p2(c1,self.adc1)
+            x1 = self.adc1 - 3330
+            r2 = p2(c2,self.adc2)
+            x2 = 3170 - self.adc2
+            ec = (r1 * x2 + r2 * x1) / (x1+x2)
+        return ec
+
+    # calibrated EC-value33
     def EC(self):
-        return int(self.device.cal.calibrate(self))
+        #return int(self.device.cal.calibrate(self))
+        return self._calec()
     
     class Meta:
         verbose_name = 'EC-meting'

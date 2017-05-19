@@ -6,7 +6,7 @@ from peil.models import GNSSModule, Device, CalibrationSeries, CalibrationData
 @admin.register(Device)
 class DeviceAdmin(admin.ModelAdmin):
     model = Device
-    list_display = ('serial', 'devid', 'last')
+    list_display = ('serial', 'devid', 'last_time')
     list_filter = ('serial','devid',)
     fields = ('devid', 'serial', 'created', 'cal')
     
