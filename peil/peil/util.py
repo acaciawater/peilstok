@@ -77,7 +77,9 @@ def parse_fiware(ttn):
 
     device = Device.objects.get(devid=devid)
 
-    return parse_payload(device, time, type, ttn)
+    mod, created, updated = parse_payload(device, time, type, ttn)
+    logger.debug('{} {}'.format(mod,'created' if created else 'updated' if updated else 'ignored'))
+    return mod, created, updated
 
 def parse_ttn(ttn):
     """ parse json from ttn server with peilstok data """
@@ -99,7 +101,10 @@ def parse_ttn(ttn):
     device, created = Device.objects.get_or_create(serial=serial,devid=devid, defaults={'cal':cal_default})
     if created:
         logger.debug('device {} created'.format(devid))
-    return parse_payload(device, time, type, pf)
+
+    mod, created, updated = parse_payload(device, time, type, pf)
+    logger.debug('{} {}'.format(mod,'created' if created else 'updated' if updated else 'ignored'))
+    return mod, created, updated
     
 def handle_post_data(json):
     # start background process that handles post data from TTN server
