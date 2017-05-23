@@ -93,17 +93,28 @@ def parse_ttn(ttn):
         pf = ttn['payload_fields']
         type = pf['type']
     except Exception as e:
-        logger.error('Error parsing TTN json' + str(e))
+        logger.error('Error parsing payload {}\n{}'.format(ttn,e))
         raise e
 
     logger.debug('{},{},{}'.format(devid, time, type))
-    cal_default = CalibrationSeries.objects.get(name='default')
-    device, created = Device.objects.get_or_create(serial=serial,devid=devid, defaults={'cal':cal_default})
-    if created:
-        logger.debug('device {} created'.format(devid))
+    
+    try:
+        cal_default = CalibrationSeries.objects.get(name='default')
+    except CalibrationSeries.DoesNotExist as e:
+        logger.error('Calibration series "default" does not exist')
+        raise e
+    
+    try:
+        device, created = Device.objects.get_or_create(serial=serial,devid=devid, defaults={'cal':cal_default})
 
-    mod, created, updated = parse_payload(device, time, type, pf)
-    logger.debug('{} {}'.format(mod,'created' if created else 'updated' if updated else 'ignored'))
+        if created:
+            logger.debug('device {} created'.format(devid))
+    
+        mod, created, updated = parse_payload(device, time, type, pf)
+        logger.debug('{} {}'.format(mod,'created' if created else 'updated' if updated else 'ignored'))
+    except:
+        logger.excption('Error parsing payload: {}'.format(ttn))
+        raise e
     return mod, created, updated
     
 def handle_post_data(json):
