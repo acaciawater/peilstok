@@ -6,6 +6,7 @@ from .models import GNSS_MESSAGE, EC_MESSAGE, STATUS_MESSAGE, PRESSURE_MESSAGE
 
 import logging
 from peil.models import CalibrationSeries
+from django.http.response import HttpResponse, HttpResponseServerError
 logger = logging.getLogger(__name__)
 
 def update_or_create(manager, **kwargs):
@@ -78,7 +79,7 @@ def parse_fiware(ttn):
     device = Device.objects.get(devid=devid)
 
     mod, created, updated = parse_payload(device, time, type, ttn)
-    logger.debug('{} {}'.format(mod,'created' if created else 'updated' if updated else 'ignored'))
+    logger.debug('{} {}'.format(mod,'added' if created else 'updated' if updated else 'ignored'))
     return mod, created, updated
 
 def parse_ttn(ttn):
@@ -91,13 +92,11 @@ def parse_ttn(ttn):
         meta = ttn['metadata']
         time = parse_datetime(meta['time'])
         pf = ttn['payload_fields']
-        type = pf['type']
+        message_type = pf['type']
     except Exception as e:
         logger.error('Error parsing payload {}\n{}'.format(ttn,e))
         raise e
 
-    logger.debug('{},{},{}'.format(devid, time, type))
-    
     try:
         cal_default = CalibrationSeries.objects.get(name='default')
     except CalibrationSeries.DoesNotExist as e:
@@ -110,16 +109,23 @@ def parse_ttn(ttn):
         if created:
             logger.debug('device {} created'.format(devid))
     
-        mod, created, updated = parse_payload(device, time, type, pf)
-        logger.debug('{} {}'.format(mod,'created' if created else 'updated' if updated else 'ignored'))
+        mod, created, updated = parse_payload(device, time, message_type, pf)
+        logger.debug('{} {} for {} {}'.format(type(mod).__name__, 'created' if created else 'updated' if updated else 'ignored', mod.device, mod.time))
+        return mod, created, updated
     except Exception as e:
         logger.exception('Error parsing payload: {}'.format(ttn))
         raise e
-    return mod, created, updated
     
 def handle_post_data(json):
+    try:
+        mod, created, updated = parse_ttn(json)
+    except Exception as e:
+        return HttpResponseServerError(e)
+    return HttpResponse(unicode(mod),status=201)
+
+def handle_post_data_async(json):
     # start background process that handles post data from TTN server
     from threading import Thread
     t = Thread(target=parse_ttn, args=[json,])
     t.start()
-    
+    return t

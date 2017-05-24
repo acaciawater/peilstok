@@ -23,11 +23,10 @@ def ttn(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            handle_post_data(data)
-            return HttpResponse("OK") 
+            return handle_post_data(data)
         except:
             logger.exception('Cannot parse POST data')
-            return HttpResponseServerError()
+            return HttpResponseServerError(reason='Error parsing POST data')
     return HttpResponseBadRequest()
 
 class MapView(ListView):
