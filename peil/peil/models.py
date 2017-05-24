@@ -127,7 +127,7 @@ class Device(models.Model):
     cal = models.ForeignKey(CalibrationSeries,verbose_name='ijkreeks') 
 
     # date/time created
-    created = models.DateTimeField()
+    created = models.DateTimeField(auto_now_add = True)
     
     def get_series(self, Module, entity, **kwargs):
         """ Get time series as array of tuples

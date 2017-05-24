@@ -112,8 +112,8 @@ def parse_ttn(ttn):
     
         mod, created, updated = parse_payload(device, time, type, pf)
         logger.debug('{} {}'.format(mod,'created' if created else 'updated' if updated else 'ignored'))
-    except:
-        logger.excption('Error parsing payload: {}'.format(ttn))
+    except Exception as e:
+        logger.exception('Error parsing payload: {}'.format(ttn))
         raise e
     return mod, created, updated
     
