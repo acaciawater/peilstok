@@ -13,19 +13,19 @@ class DeviceAdmin(admin.ModelAdmin):
 @admin.register(MasterModule)
 class MasterModuleAdmin(admin.ModelAdmin):
     model = MasterModule
-    list_display = ('device','time','angle','battery','air','hPa')
+    list_display = ('device','time','angle','battery','air')
     list_filter = ('device','time')
 
 @admin.register(ECModule)
 class ECModuleAdmin(admin.ModelAdmin):
     model = ECModule
-    list_display = ('device','time','position', 'adc1','adc2','temperature','EC')
+    list_display = ('device','time','position', 'adc1','adc2','temperature')
     list_filter = ('device','time','position')
     
 @admin.register(PressureModule)
 class PressureModuleAdmin(admin.ModelAdmin):
     model = PressureModule
-    list_display = ('device','time','position', 'adc', 'hPa')
+    list_display = ('device','time','position', 'adc')
     list_filter = ('device','time','position')
     
 @admin.register(GNSSModule)
