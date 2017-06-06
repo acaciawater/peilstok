@@ -11,17 +11,24 @@ import pandas as pd
 GNSS_MESSAGE = 1
 EC_MESSAGE = 2
 PRESSURE_MESSAGE = 3
+ANGLE_MESSAGE = 5
 STATUS_MESSAGE = 6
 
 TYPE_CHOICES = (
     (GNSS_MESSAGE,      'GNSS'),
     (EC_MESSAGE,        'EC'),
     (PRESSURE_MESSAGE,  'Pressure'),
+    (ANGLE_MESSAGE,     'Angle'),
     (STATUS_MESSAGE,    'Master'),
     )
 
-# Factor to convert raw ADC-pressure value to N/m2
-ADC_NM2 = 50.52059198# (ADC * 30) / 4096 * 6897.744825
+# Factor to convert raw ADC-pressure value to hPa for master and slave
+ADC_HPAMASTER = 0.8047603298
+ADC_HPASLAVE = 0.5532727267
+
+# Factor to convert raw ADC-pressure value to psi for master and slave
+ADC_PSIMASTER = 0.01167206175
+ADC_PSISLAVE = 0.008024542455
 
 class CalibrationSeries(models.Model):
     """ Calibration data for EC modules """
@@ -241,12 +248,12 @@ class MasterModule(BaseModule):
     total = models.PositiveSmallIntegerField()
 
     def pressure(self):
-        # returns pressure in N/m2
-        return self.air * ADC_NM2
+        # returns pressure in psi
+        return round(self.air * ADC_PSIMASTER,1)
 
     def hPa(self):
         # returns pressure in hPa
-        return round(self.pressure() / 100.0,1)
+        return round(self.air * ADC_HPAMASTER,1)
 
     class Meta:
         verbose_name = 'Toestand'
@@ -254,7 +261,7 @@ class MasterModule(BaseModule):
 
 class GNSSModule(BaseModule):
     """ Contains data from the on-board GNSS chip (ublox-7P) """
-    gnsstime = models.BigIntegerField()
+    #gnsstime = models.BigIntegerField()
     
     # Latitude * 1e7 
     lat = models.IntegerField()
@@ -328,13 +335,22 @@ class PressureModule(BaseModule):
     adc = models.IntegerField()
 
     def pressure(self):
-        # returns pressure in N/m2
-        return self.adc * ADC_NM2
+        # returns pressure in psi
+        return round(self.adc * ADC_PSISLAVE, 1)
 
     def hPa(self):
         # returns pressure in hPa
-        return round(self.pressure() / 100.0,1)
+        return round(self.adc * ADC_HPASLAVE, 1)
             
     class Meta:
         verbose_name = 'Drukmeting'
         verbose_name_plural = 'Drukmetingen'
+
+class AngleMessage(BaseModule):
+    """ Message generated when angle is more than 45 degrees """
+    angle = models.IntegerField()
+
+    class Meta:
+        verbose_name = 'Beweging'
+        verbose_name_plural = 'Bewegingen'
+    
