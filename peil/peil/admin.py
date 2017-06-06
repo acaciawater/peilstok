@@ -8,7 +8,7 @@ class DeviceAdmin(admin.ModelAdmin):
     model = Device
     list_display = ('serial', 'devid', 'last_time')
     list_filter = ('serial','devid',)
-    fields = ('devid', 'serial', 'created', 'cal')
+    fields = ('devid', 'serial', 'cal')
     
 @admin.register(MasterModule)
 class MasterModuleAdmin(admin.ModelAdmin):
