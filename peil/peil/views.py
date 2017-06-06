@@ -31,7 +31,7 @@ def ttn(request):
 
 class MapView(ListView):
     model = Device
-    template_name = 'peil/device_map.html'
+    template_name = 'peil/leaflet_map.html'
 
     def get_context_data(self, **kwargs):
         context = super(MapView, self).get_context_data(**kwargs)

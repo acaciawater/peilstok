@@ -1,0 +1,83 @@
+{% extends 'peil/base.html' %}
+{% block title %}Kaart{% endblock %}
+{% block navbar %}
+{% endblock %}
+{% block style %}
+{{ block.super }}
+<link rel="stylesheet" href="//unpkg.com/leaflet@1.0.3/dist/leaflet.css"/>
+<style>
+html, body, .wrapper, .full {
+  height: 100%;
+  margin: 0px;
+  padding: 0px;
+}
+#list {
+	padding: 0px 8px 0px 8px;
+	overflow-y: auto;
+}
+
+.adjust {
+	margin: -10px 10px;
+}
+
+table { border: 1px solid white; }
+td:first-child { font-weight: bold; }
+tr:nth-child(odd) { background: Azure; }
+</style>
+{% endblock %}
+{% block script %}
+{{ block.super }}
+<script src="//unpkg.com/leaflet@1.0.3/dist/leaflet.js"></script>
+<script src="//maps.googleapis.com/maps/api/js?key={{api_key}}" async defer></script>
+<script src='//unpkg.com/leaflet.gridlayer.googlemutant@latest/Leaflet.GoogleMutant.js'></script>
+<script>
+$(function() {
+	var osm = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+		maxZoom: 19,
+ 		attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+	});
+	
+	var roads = L.gridLayer.googleMutant({
+	    type: 'roadmap' // valid values are 'roadmap', 'satellite', 'terrain' and 'hybrid'
+	});
+
+	var satellite = L.gridLayer.googleMutant({
+	    type: 'satellite' // valid values are 'roadmap', 'satellite', 'terrain' and 'hybrid'
+	});
+	
+	var topo = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+		attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
+	});
+	
+	var imagery = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+		attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+	});
+
+	var map = L.map('map',{
+		center:[53.08440, 4.80824],
+		zoom: 11
+		});
+	
+	osm.addTo(map);
+	
+ 	baseMaps = {'Openstreetmap': osm, 'Google roads': roads, 'Google satellite': satellite, 'ESRI topo': topo, 'ESRI imagery': imagery};
+	overlayMaps = {};
+	L.control.layers(baseMaps, overlayMaps).addTo(map);
+	
+	$("#list").height($("#map").height());
+});
+</script>
+{% endblock %}
+{% block content %}
+<div class="full adjust container-fluid">
+<div id="map" class="full col-lg-9"></div>
+{% block list %}
+<div id="list" class="list-group scroll col-lg-3">
+<a href="#" class="list-group-item active">Peilstokken<span id="badge" title="Aantal geregistreerde peilstokken" class="badge">{{object_list.count}}</a>
+{% for device in object_list %}
+<a href="#" class="list-group-item">{{device.devid}}<span id="badge" title="Aantal berichten" class="badge">{{device.count}}</a>
+{% endfor %}
+</div>
+{% endblock list %}
+</div>
+{% endblock %}
