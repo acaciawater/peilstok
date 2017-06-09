@@ -124,7 +124,7 @@ class Device(models.Model):
         verbose_name = 'Peilstok'
         verbose_name_plural = 'Peilstokken'
             
-    # serial number (BLE MAC address) of device
+    """ serial number (BLE MAC address) of device """
     serial = models.CharField(max_length=20,unique=True,verbose_name='MAC-adres')
     
     # name or id of device
@@ -175,22 +175,32 @@ class Device(models.Model):
 
     def last_time(self,messagetype=''):
         # returns time of last message received
-        return self.last(messagetype).time
+        last = self.last(messagetype)
+        return last.time if last else None
     last_time.short_description = 'Laatste update'
 
     def last_ec(self):
         # returns last EC message received
-        return self.last(EC_MESSAGE).ecmodule
+        last = self.last(EC_MESSAGE)
+        if last and hasattr(last,'ecmodule'):
+            return last.ecmodule
+        return None
     last_ec.short_description = 'Laatste EC-meting'
 
     def last_status(self):
         # returns last Status message received
-        return self.last(STATUS_MESSAGE).mastermodule
+        last = self.last(STATUS_MESSAGE)
+        if last and hasattr(last,'mastermodule'):
+            return last.mastermodule
+        return None
     last_status.short_description = 'Laatste Status bericht'
 
     def last_pressure(self):
         # returns last pressure message received
-        return self.last(PRESSURE_MESSAGE).pressuremodule
+        last = self.last(PRESSURE_MESSAGE)
+        if last and hasattr(last,'pressuremodule'):
+            return last.pressuremodule
+        return None
     last_status.short_description = 'Laatste Drukmeting'
 
     def count(self):
