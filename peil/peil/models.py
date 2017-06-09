@@ -201,7 +201,15 @@ class Device(models.Model):
         if last and hasattr(last,'pressuremodule'):
             return last.pressuremodule
         return None
-    last_status.short_description = 'Laatste Drukmeting'
+    last_pressure.short_description = 'Laatste Drukmeting'
+
+    def last_angle(self):
+        # returns last angle message received
+        last = self.last(ANGLE_MESSAGE)
+        if last and hasattr(last,'anglemessage'):
+            return last.anglemessage
+        return None
+    last_angle.short_description = 'Laatste Hoekmeting'
 
     def count(self):
         # returns number of messages
