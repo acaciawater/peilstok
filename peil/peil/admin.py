@@ -1,12 +1,13 @@
 from django.conf import settings
 from django.contrib import admin
 from .models import ECModule, PressureModule, MasterModule
-from peil.models import GNSSModule, Device, CalibrationSeries, CalibrationData
+from peil.models import GNSSModule, Device, CalibrationSeries, CalibrationData,\
+    AngleMessage
 
 @admin.register(Device)
 class DeviceAdmin(admin.ModelAdmin):
     model = Device
-    list_display = ('serial', 'devid', 'last_time')
+    list_display = ('serial', 'devid', 'last_seen')
     list_filter = ('serial','devid',)
     fields = ('devid', 'serial', 'cal')
     
@@ -45,4 +46,9 @@ class CalibAdmin(admin.ModelAdmin):
     inlines = [CalibDataInline]
     class Media:
         css = {"all": ('css/hide_admin_original.css',)}
-    
+
+@admin.register(AngleMessage)
+class AngleAdmin(admin.ModelAdmin):
+    model = AngleMessage
+    list_display = ('device','time','angle',)
+        

@@ -11,11 +11,40 @@ from django.views.generic.list import ListView
 from django.conf import settings
 
 import json, time
-from peil.models import ECModule, PressureModule, MasterModule, Device
+from peil.models import ECModule, PressureModule, MasterModule, Device,\
+    GNSS_MESSAGE
 from peil.util import handle_post_data
 
 import logging
 logger = logging.getLogger(__name__)
+
+def json_locations(request):
+    """ return json response with last peilstok locations
+        optionally filter messages on hacc (in mm)
+    """
+    result = []
+    hacc = request.GET.get('hacc',None)
+    for p in Device.objects.all():
+        try:
+            # get GNSS messages
+            gnss = p.basemodule_set.filter(type=GNSS_MESSAGE)
+            # select only valid fixes (with hacc > 0)
+            gnss = gnss.filter(gnssmodule__hacc__gt=0).order_by('time')
+            if hacc:
+                # filter messages on maximum hacc
+                gnss = gnss.filter(gnssmodule__hacc__lt=hacc)
+            # use last valid gnss message
+            g = gnss.last().gnssmodule
+
+            if g.lon > 40*1e7 and g.lat < 10*1e7:
+                # verwisseling lon/lat?
+                t = g.lon
+                g.lon = g.lat
+                g.lat = t
+            result.append({'id': p.devid, 'lon': g.lon*1e-7, 'lat': g.lat*1e-7, 'msl': g.msl*1e-3, 'hacc': g.hacc*1e-3, 'vacc': g.vacc*1e-3, 'time': g.time})
+        except:
+            pass
+    return HttpResponse(json.dumps(result, default=lambda x: time.mktime(x.timetuple())*1000.0), content_type='application/json')
 
 @csrf_exempt
 def ttn(request):
@@ -32,7 +61,8 @@ def ttn(request):
 class MapView(ListView):
     model = Device
     template_name = 'peil/leaflet_map.html'
-
+    ordering = ('-last_seen',)
+    
     def get_context_data(self, **kwargs):
         context = super(MapView, self).get_context_data(**kwargs)
         context['api_key'] = settings.GOOGLE_MAPS_API_KEY

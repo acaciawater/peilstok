@@ -5,6 +5,8 @@
 {% block style %}
 {{ block.super }}
 <link rel="stylesheet" href="//unpkg.com/leaflet@1.0.3/dist/leaflet.css"/>
+<link rel="stylesheet" href="//unpkg.com/leaflet.markercluster@1.0.5/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="//unpkg.com/leaflet.markercluster@1.0.5/dist/MarkerCluster.Default.css"/>
 <style>
 html, body, .wrapper, .full {
   height: 100%;
@@ -20,6 +22,10 @@ html, body, .wrapper, .full {
 	margin: -10px 10px;
 }
 
+.laatste {
+	float:right;
+}
+
 table { border: 1px solid white; }
 td:first-child { font-weight: bold; }
 tr:nth-child(odd) { background: Azure; }
@@ -29,8 +35,29 @@ tr:nth-child(odd) { background: Azure; }
 {{ block.super }}
 <script src="//unpkg.com/leaflet@1.0.3/dist/leaflet.js"></script>
 <script src="//maps.googleapis.com/maps/api/js?key={{api_key}}" async defer></script>
-<script src='//unpkg.com/leaflet.gridlayer.googlemutant@latest/Leaflet.GoogleMutant.js'></script>
+<script src="//unpkg.com/leaflet.gridlayer.googlemutant@latest/Leaflet.GoogleMutant.js"></script>
+<script src="//unpkg.com/leaflet.markercluster@1.0.5/dist/leaflet.markercluster.js"></script>
 <script>
+function addMarkers(map) {
+	$.getJSON('/locs', function(data) {
+		$.each(data, function(key,val) {
+			marker = L.marker([val.lat, val.lon],{title:val.id});
+			marker.bindPopup(val.content);
+			marker.addTo(map);
+		});
+	});
+}
+
+function addMarkerGroup(map) {
+	$.getJSON('/locs', function(data) {
+		var markers = L.markerClusterGroup(); 
+		$.each(data, function(key,val) {
+			markers.addLayer(L.marker([val.lat, val.lon]));
+		});
+		map.addLayer(markers);
+	});
+}
+
 $(function() {
 	var osm = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 		maxZoom: 19,
@@ -65,6 +92,7 @@ $(function() {
 	L.control.layers(baseMaps, overlayMaps).addTo(map);
 	
 	$("#list").height($("#map").height());
+	addMarkers(map);
 });
 </script>
 {% endblock %}
@@ -75,7 +103,9 @@ $(function() {
 <div id="list" class="list-group scroll col-lg-3">
 <a href="#" class="list-group-item active">Peilstokken<span id="badge" title="Aantal geregistreerde peilstokken" class="badge">{{object_list.count}}</a>
 {% for device in object_list %}
-<a href="#" class="list-group-item">{{device.devid}}<span id="badge" title="Aantal berichten" class="badge">{{device.count}}</a>
+<a href="#" class="list-group-item">{{device.devid}}
+<div class='text-muted laatste' title="datum van laatste waarneming"><small>{{device.last_seen|date:"j M Y H:m"|default:""}}</small></div>
+</a>
 {% endfor %}
 </div>
 {% endblock list %}

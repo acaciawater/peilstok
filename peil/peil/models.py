@@ -136,6 +136,8 @@ class Device(models.Model):
     # date/time created
     created = models.DateTimeField(auto_now_add = True)
     
+    last_seen = models.DateTimeField(null=True)
+    
     def get_series(self, Module, entity, **kwargs):
         """ Get time series as array of tuples
         
