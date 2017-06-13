@@ -109,12 +109,16 @@ def parse_ttn(ttn):
         raise e
     
     try:
-        device, created = Device.objects.get_or_create(serial=serial,devid=devid, defaults={'cal':cal_default})
+        device, created = Device.objects.get_or_create(serial=serial,devid=devid, defaults={'cal':cal_default, 'last_seen': server_time})
 
         if created:
             logger.debug('device {} created'.format(devid))
-    
+        else:
+            device.last_seen = server_time
+            device.save(update_fields=('last_seen',))
+        
         mod, created, updated = parse_payload(device, server_time, message_type, pf)
+
         logger.debug('{} {} for {} {}'.format(type(mod).__name__, 'created' if created else 'updated' if updated else 'ignored', mod.device, mod.time))
         return mod, created, updated
     except Exception as e:

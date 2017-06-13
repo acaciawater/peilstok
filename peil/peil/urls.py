@@ -18,7 +18,8 @@ from django.contrib import admin
 from tastypie.api import Api
 from .api import ECResource, PressureResource, MasterResource, GNSSResource, DeviceResource
 from .views import ttn
-from peil.views import DeviceView, DeviceListView, MapView, json_locations
+from peil.views import DeviceView, DeviceListView, MapView, json_locations,\
+    PopupView
 
 v1 = Api(api_name='v1')
 v1.register(DeviceResource())
@@ -34,5 +35,6 @@ urlpatterns = [
     url(r'^device/(?P<pk>\d+)', DeviceView.as_view(), name='device-detail'),
     url(r'^device/', DeviceListView.as_view(), name='device-list'),
     url(r'^locs/', json_locations),
+    url(r'^pop/(?P<pk>\d+)', PopupView.as_view()),
     url(r'^api/', include(v1.urls)),
 ]

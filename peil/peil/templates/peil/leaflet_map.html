@@ -40,11 +40,21 @@ tr:nth-child(odd) { background: Azure; }
 <script>
 function addMarkers(map) {
 	$.getJSON('/locs', function(data) {
+		bounds = new L.LatLngBounds();
 		$.each(data, function(key,val) {
-			marker = L.marker([val.lat, val.lon],{title:val.id});
-			marker.bindPopup(val.content);
+			marker = L.marker([val.lat, val.lon],{title:val.name});
+			marker.bindPopup("Loading...");
+			marker.on("click", function(e) {
+				var popup = e.target.getPopup();
+			    $.get("/pop/"+val.id).done(function(data) {
+			        popup.setContent(data);
+			        popup.update();
+			    });
+			});
 			marker.addTo(map);
+			bounds.extend(marker.getLatLng());
 		});
+		map.fitBounds(bounds);
 	});
 }
 
@@ -103,7 +113,7 @@ $(function() {
 <div id="list" class="list-group scroll col-lg-3">
 <a href="#" class="list-group-item active">Peilstokken<span id="badge" title="Aantal geregistreerde peilstokken" class="badge">{{object_list.count}}</a>
 {% for device in object_list %}
-<a href="#" class="list-group-item">{{device.devid}}
+<a href="{% url 'device-detail' device.id %}" class="list-group-item">{{device.devid}}
 <div class='text-muted laatste' title="datum van laatste waarneming"><small>{{device.last_seen|date:"j M Y H:m"|default:""}}</small></div>
 </a>
 {% endfor %}
