@@ -123,9 +123,10 @@ class Device(models.Model):
     class Meta:
         verbose_name = 'Peilstok'
         verbose_name_plural = 'Peilstokken'
+        unique_together = ('serial', 'devid')
             
     """ serial number (BLE MAC address) of device """
-    serial = models.CharField(max_length=20,unique=True,verbose_name='MAC-adres')
+    serial = models.CharField(max_length=20,verbose_name='MAC-adres')
     
     # name or id of device
     devid = models.CharField(max_length=20,verbose_name='naam')
