@@ -3,15 +3,8 @@ Created on Apr 25, 2017
 
 @author: theo
 '''
-import json
 import struct
-import datetime
-
-GPSFILE = '/home/theo/peilstok/gps.txt'
-UBXFILE = '/home/theo/peilstok/gps.ubx'
-UBX_RXM_RAW = b'\x02\x10'
-UBX_RXM_SFRB = b'\x02\x11'
-UBX_HEADER = b'\xB5\x62'
+import datetime, pytz
 
 def gps2time(week,ms):
     ''' convert gps tow and week to python datetime '''
@@ -39,89 +32,55 @@ def ubxpack(cid, data):
     a,b = checksum(package[2:])
     return package+chr(a)+chr(b)
     
-def testpack():
-    package = ubxpack(UBX_RXM_RAW, 'ABCDEFG')
-    print ' '.join('{:02X}'.format(ord(x)) for x in package)
-    
-def readgps(fname):
-    mes = 0
-    with open(fname,'rb') as gps:
-        gps.read(764)
-        while True:
-            timestamp = gps.readline()
-            if not timestamp: 
-                break
-            print timestamp[:-1]
-            
-            for i in range(32):
-                # 32 messages per chunk?
-                header = gps.read(2)
-                if header != '42':
-                    raise Exception('Format error')
-        
-                header = gps.read(8)
-                rcvTow, week, numSV, reserved1 = struct.unpack('<IHBB',header)
-                if numSV > 0:
-                    mes += 1
-                    print mes, gps2time(week, rcvTow), numSV
-                    for j in range(numSV):
-                        data = gps.read(24)
-                        #cpMes, prMes, doMes, sv, mesQI, cno, lli = struct.unpack('<ddfBbbB',data)
-                        #print cpMes, prMes, doMes, mesQI, cno, lli
-                eoln = gps.read(2)
-                if eoln != '\r\n':
-                    raise Exception('Format error')
+def ubx_raw(data):
+    rcvTow, week, numSV, reserved1 = struct.unpack('<IHBB',data[:8])
+    raw_data = data[8:] # 24 * numSV
+    return rcvTow, week, numSV, bytes(raw_data)
 
-def readgps2(fname,ubxfile):
-    total = 0
-    batch = 0
-    with open(fname,'rb') as gps:
-        with open(ubxfile,'wb') as ubx:
-            gps.seek(598793)
-            while True:
-                timestamp = gps.readline()
-                if not timestamp: 
-                    break
-                serial = gps.readline()
-                if not serial: 
-                    break
-                print serial[:-2], timestamp[:-2]
-                
-                batch += 1
-                for i in range(32):
-                    total += 1
-                    header = gps.read(2)
-                    if header != '42':
-                        raise Exception('Format error')
-            
-                    header = gps.read(8)
-                    rcvTow, week, numSV, reserved1 = struct.unpack('<IHBB',header)
-                    print i+1, total, gps2time(week, rcvTow), numSV
-                    if numSV > 0:
-                        data = gps.read(24 * numSV)
-                        ubx.write(ubxpack(UBX_RXM_RAW, header+data))
-                    eoln = gps.read(2)
-                    if eoln != '\r\n':
-                        offset = gps.tell()
-                        raise Exception('Format error at offset %d' % offset)
-                
-def checkgps(gpsfile):
-    with open(gpsfile,'rb') as f:
-        data = f.read()
-        pos = 0
-        count = 0
+def ubx_sfrb(data):
+    return struct.unpack('<BB10f',data)
+
+def ubx_nav_posllh(data):
+    iTOW, lon, lat, height, hMSL, hAcc, vAcc = struct.unpack('<IiiiiII', data)
+    return iTOW, lon, lat, height, hMSL, hAcc, vAcc
+
+def ubx_nav_pvt(data):
+    iTOW, year, month, day, hour, min, sec, valid, tAcc, nano, fixType, flags, reserved1, \
+        numSV, lon, lat, height, hMSL, hAcc, vAcc, velN, velE, velD, gSpeed, heading, sAcc, \
+        headingAcc, pDOP, reserved2, reserved3 = struct.unpack('<IHBBBBBbIiBbBBiiiiIIiiiiiIIHHI', data)
+    dt = datetime.datetime(year, month, day, hour, min, sec, tzinfo = pytz.utc)
+    return iTOW, str(dt), fixType, numSV, lon, lat, height, hMSL, hAcc, vAcc
+
+UBX_HEADER = 0x62B5
+UBX_RXM_RAW = 0x1002
+UBX_RXM_SFRB = 0x1102
+UBX_NAV_POSLLH = 0x0102
+UBX_NAV_PVT = 0x0701
+
+def readubx(ubxfile):
+    with open(ubxfile,'rb') as ubx:
         while True:
-            pos1 = data.find('42',pos)
-            if pos1 >= 0:
-                count += 1
-                size = (pos1-pos)
-                tow, week = struct.unpack_from('<IH',data,pos1+2)
-                print count, pos1, size, week, tow, gps2time(week,tow)
-                pos = pos1 + 2
-            else:
+            data=ubx.read(6)
+            if len(data) != 6:
                 break
-            
-            
+            hdr, msgid, length = struct.unpack('<HHH',data)
+            print hex(msgid), 
+            if hdr != UBX_HEADER:
+                raise ValueError('UBX header tag expected')
+            data = ubx.read(length)
+            checksum = ubx.read(2)
+            if msgid == UBX_RXM_RAW:
+                print 'UBX-RXM-RAW', ubx_raw(data)
+            elif msgid == UBX_RXM_SFRB:
+                print 'UBX-RXM-SFRB', ubx_sfrb(data)
+            elif msgid == UBX_NAV_POSLLH:
+                print 'UBX-NAV-POSLLH', ubx_nav_posllh(data)
+            elif msgid == UBX_NAV_PVT:
+                print 'UBX-NAV-PVT', ubx_nav_pvt(data)
+            else:
+                raise ValueError('Message not supported: %x' % msgid)
+
+                
 if __name__ == '__main__':
-    readgps2(GPSFILE,UBXFILE)
-    
+    #readubx('/home/theo/peilstok/ubx/0000C9F4BBB8131B-0002.ubx')
+    readubx('/home/theo/peilstok/ubx/0000E13748EBA25A-0001.ubx')
