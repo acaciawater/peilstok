@@ -164,8 +164,10 @@ class Device(models.Model):
         """ Build and return a Pandas time series for a module.entity """
     
         data = list(self.get_series(Module,entity,**kwargs))
-        dates,values=zip(*data)
-        return pd.Series(values,index=dates)
+        if data:
+            dates,values=zip(*data)
+            return pd.Series(values,index=dates)
+        return pd.Series()
     
     def last(self,messagetype=''):
         # returns last message received
