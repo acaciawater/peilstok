@@ -91,7 +91,10 @@ class DeviceView(DetailView):
         device = self.get_object()
         
         def getdata(module, entity, **kwargs):
-            s = device.get_pandas(module,entity,**kwargs).resample(rule='20min').mean()
+            s = device.get_pandas(module,entity,**kwargs)
+            if s.empty:
+                return []
+            s = s.resample(rule='20min').mean()
             return zip(s.index,s.values)
         
         adc1 = getdata(ECModule, 'adc1', position=1)
