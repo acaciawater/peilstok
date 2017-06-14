@@ -10,13 +10,14 @@ from django.views.generic.detail import DetailView
 from django.views.generic.list import ListView
 from django.conf import settings
 
-import json, time
+import os, re, json, time
 from peil.models import ECModule, PressureModule, MasterModule, Device,\
-    GNSS_MESSAGE
+    GNSS_MESSAGE, NavPVT, UBXFile
 from peil.util import handle_post_data
 
 import logging
 from django.shortcuts import get_object_or_404
+from __builtin__ import file
 logger = logging.getLogger(__name__)
 
 def json_locations(request):
@@ -67,6 +68,41 @@ def ttn(request):
             return HttpResponseServerError(reason='Error parsing POST data')
     return HttpResponseBadRequest()
 
+@csrf_exempt
+def ubx(request):
+    """ push ubx data from GNSS chip, create UbxFile instance and save data in media folder """
+    if request.method == 'POST':
+        file = request.FILES['acacia']
+
+        # extract serial number of peilstok from filename
+        match = re.match('(?P<serial>[0-9A-F]+)\-\d+\.\w{3}',file.name)
+        serial = match.group('serial')
+        
+        # find Device
+        try:
+            device = Device.objects.get(serial=serial)
+        except Device.DoesNotExist:
+            return HttpResponseBadRequest('Device {} not found'.format(serial))
+        
+        try:
+            # Replace file if already exists for this device
+            ubx = device.ubxfile_set.get(ubxfile__startswith='ubx/'+file.name)
+            os.remove(unicode(ubx.ubxfile.file))
+            ubx.ubxfile = file
+            ubx.save()
+
+            # remove existing nav messages
+            # ubx.navpvt_set.all().delete()
+
+        except UBXFile.DoesNotExist:
+            # create new instance
+            device.ubxfile_set.create(ubxfile=file)
+        
+        # TODO: schedule creation of new navpvt messages
+
+        return HttpResponse('Done',status=201)
+    return HttpResponseBadRequest()
+    
 class MapView(ListView):
     model = Device
     template_name = 'peil/leaflet_map.html'

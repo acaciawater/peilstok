@@ -17,7 +17,7 @@ from django.conf.urls import url, include
 from django.contrib import admin
 from tastypie.api import Api
 from .api import ECResource, PressureResource, MasterResource, GNSSResource, DeviceResource
-from .views import ttn
+from .views import ttn, ubx
 from peil.views import DeviceView, DeviceListView, MapView, json_locations,\
     PopupView
 
@@ -31,6 +31,7 @@ v1.register(GNSSResource())
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^ttn/', ttn),
+    url(r'^ubx/', ubx),
     url(r'^map/', MapView.as_view(), name='device-map'),
     url(r'^device/(?P<pk>\d+)', DeviceView.as_view(), name='device-detail'),
     url(r'^device/', DeviceListView.as_view(), name='device-list'),

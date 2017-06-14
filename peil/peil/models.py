@@ -376,4 +376,23 @@ class AngleMessage(BaseModule):
     class Meta:
         verbose_name = 'Beweging'
         verbose_name_plural = 'Bewegingen'
+
+class UBXFile(models.Model):
+    """ u-blox GNSS raw datafile """
+    device = models.ForeignKey(Device)
+    ubxfile = models.FileField(upload_to='ubx')
+    created = models.DateTimeField(auto_now_add=True)
+
+class NavPVT(models.Model):
+    """ UBX-NAV-PVT message extracted from ubx file """
+    ubxfile = models.ForeignKey(UBXFile)
+    timestamp = models.DateTimeField()
+    lat = models.DecimalField(max_digits=10, decimal_places=7)
+    lon = models.DecimalField(max_digits=10, decimal_places=7)
+    alt = models.IntegerField() # mm
+    msl = models.IntegerField() # mm
+    hAcc = models.PositiveIntegerField() #mm
+    vAcc = models.PositiveIntegerField() # mm
+    numSV = models.PositiveSmallIntegerField()
+    PDOP = models.DecimalField(max_digits=10, decimal_places=2)
     

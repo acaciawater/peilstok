@@ -1,8 +1,7 @@
-from django.conf import settings
 from django.contrib import admin
 from .models import ECModule, PressureModule, MasterModule
 from peil.models import GNSSModule, Device, CalibrationSeries, CalibrationData,\
-    AngleMessage
+    AngleMessage, UBXFile
 
 @admin.register(Device)
 class DeviceAdmin(admin.ModelAdmin):
@@ -51,4 +50,9 @@ class CalibAdmin(admin.ModelAdmin):
 class AngleAdmin(admin.ModelAdmin):
     model = AngleMessage
     list_display = ('device','time','angle',)
+        
+@admin.register(UBXFile)
+class UBXFileAdmin(admin.ModelAdmin):
+    model = UBXFile
+    list_display = ('device','ubxfile','created')
         
