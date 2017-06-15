@@ -118,7 +118,7 @@ class CalibrationData(models.Model):
         verbose_name_plural = 'ijkpunten'
         
 class Device(models.Model):
-    """ Represents a device with sensors """ 
+    """ Represents a 'Peilstok' device with sensors """ 
 
     class Meta:
         verbose_name = 'Peilstok'
@@ -128,16 +128,16 @@ class Device(models.Model):
     """ serial number (BLE MAC address) of device """
     serial = models.CharField(max_length=20,verbose_name='MAC-adres')
     
-    # name or id of device
+    """ name (or id) of device """
     devid = models.CharField(max_length=20,verbose_name='naam')
     
     # calibration series for EC values
     cal = models.ForeignKey(CalibrationSeries,verbose_name='ijkreeks') 
 
     # date/time created
-    created = models.DateTimeField(auto_now_add = True)
+    created = models.DateTimeField(auto_now_add = True, verbose_name='Geregistreerd')
     
-    last_seen = models.DateTimeField(null=True)
+    last_seen = models.DateTimeField(null=True,verbose_name='Laatste contact')
     
     def get_series(self, Module, entity, **kwargs):
         """ Get time series as array of tuples
@@ -170,7 +170,7 @@ class Device(models.Model):
         return pd.Series()
     
     def last(self,messagetype=''):
-        # returns last message received
+        """ returns last message received """
         queryset = self.basemodule_set
         if messagetype:
             queryset = queryset.filter(type=messagetype)
@@ -242,33 +242,32 @@ class Device(models.Model):
 class BaseModule(models.Model):
     """ Base class for all modules in a device """
     
-    device = models.ForeignKey(Device)
-    #appid = models.CharField(max_length=20,default='peilstok')
+    device = models.ForeignKey(Device,verbose_name='peilstok')
  
     # time received by server
-    time = models.DateTimeField()
+    time = models.DateTimeField(verbose_name='tijdstip')
     
     # type of module
     type = models.PositiveSmallIntegerField(choices=TYPE_CHOICES)
 
     # position of module
-    position = models.PositiveSmallIntegerField(default=0)
+    position = models.PositiveSmallIntegerField(default=0,verbose_name='Sensorpositie')
             
 
 class MasterModule(BaseModule):
     """ Contains information about the state of the device itself, not its sensors """
     
     # Angle in degrees
-    angle = models.IntegerField()
+    angle = models.IntegerField(verbose_name='inclinatiehoek')
 
     # Battery level in mV
-    battery = models.IntegerField()
+    battery = models.IntegerField(verbose_name='Batterijspanning')
     
     # Raw air pressure 12-bit ADC 
-    air = models.IntegerField()
+    air = models.IntegerField(verbose_name='Luchtdruk')
     
     # Max number of modules
-    total = models.PositiveSmallIntegerField()
+    total = models.PositiveSmallIntegerField(verbose_name='maximum aantal sensoren')
 
     def pressure(self):
         # returns pressure in psi
@@ -287,22 +286,22 @@ class GNSSModule(BaseModule):
     #gnsstime = models.BigIntegerField()
     
     # Latitude * 1e7 
-    lat = models.IntegerField()
+    lat = models.IntegerField(verbose_name='breedtegraad')
     
     # Longitude * 1e7 
-    lon = models.IntegerField()
+    lon = models.IntegerField(verbose_name='lengtegraad')
     
     # Height above ellipsoid in mm
-    alt = models.IntegerField()
+    alt = models.IntegerField(verbose_name='ellipsoid',help_text='hoogte ten opzichte van ellipsoid in mm')
     
     # Vertical accuracy in mm
-    vacc = models.IntegerField()
+    vacc = models.IntegerField(verbose_name='vertikale nauwkeurigheid',help_text='vertikale nauwkeurigheid in mm')
     
     # Horizontal accuracy in mm
-    hacc = models.IntegerField()
+    hacc = models.IntegerField(verbose_name='horizontale nauwkeurigheid',help_text='horizontale nauwkeurigheid in mm')
     
     # Height above mean sea level in mm
-    msl = models.IntegerField()
+    msl = models.IntegerField(verbose_name='zeeniveau',help_text='hoogte ten opzichte van zeeniveau in mm')
 
     class Meta:
         verbose_name = 'Locatie'
@@ -313,7 +312,7 @@ class ECModule(BaseModule):
     """ Contains data from the EC sensor """
 
     # temperature in 0.01 degrees C
-    temperature = models.IntegerField()
+    temperature = models.IntegerField(help_text='temperatuur in 0.01 graden Celcius')
 
     # raw ADC value 1x gain
     adc1 = models.IntegerField()
@@ -383,16 +382,35 @@ class UBXFile(models.Model):
     ubxfile = models.FileField(upload_to='ubx')
     created = models.DateTimeField(auto_now_add=True)
 
+    def create_pvts(self):
+        """ parse file and extract UBX-NAV-PVT messages """
+        from peil.util import iterpvt
+        for fields in iterpvt(self.ubxfile):
+            timestamp = fields.pop('timestamp')
+            self.navpvt_set.update_or_create(timestamp=timestamp,defaults=fields)
+            
+    def __unicode__(self):
+        return self.ubxfile.name
+
+    class Meta:
+        verbose_name = 'u-blox bestand'
+        verbose_name_plural = 'u-blox bestanden'
+        
 class NavPVT(models.Model):
     """ UBX-NAV-PVT message extracted from ubx file """
     ubxfile = models.ForeignKey(UBXFile)
-    timestamp = models.DateTimeField()
-    lat = models.DecimalField(max_digits=10, decimal_places=7)
-    lon = models.DecimalField(max_digits=10, decimal_places=7)
-    alt = models.IntegerField() # mm
-    msl = models.IntegerField() # mm
-    hAcc = models.PositiveIntegerField() #mm
-    vAcc = models.PositiveIntegerField() # mm
-    numSV = models.PositiveSmallIntegerField()
-    PDOP = models.DecimalField(max_digits=10, decimal_places=2)
+    timestamp = models.DateTimeField(verbose_name='Tijdstip')
+    lat = models.DecimalField(max_digits=10, decimal_places=7,verbose_name='Breedtegraad')
+    lon = models.DecimalField(max_digits=10, decimal_places=7,verbose_name='Lengtegraad')
+    alt = models.IntegerField(verbose_name='Ellipsoide', help_text='Hoogte tov ellipsoide in mm')
+    msl = models.IntegerField(verbose_name='Zeeniveau', help_text ='Hoogte tov zeeniveau in mm')
+    #nap = models.IntegerField(verbose_name='NAP', help_text='Hoogte tov NAP in mm')
+    hAcc = models.PositiveIntegerField(verbose_name='hAcc', help_text='Horizontale nauwkeurigheid in mm')
+    vAcc = models.PositiveIntegerField(verbose_name='vAcc', help_text='verticale nauwkeurigheid in mm') # mm
+    numSV = models.PositiveSmallIntegerField(verbose_name='satellieten', help_text='Aantal zichtbare satellieten')
+    pDOP = models.DecimalField(max_digits=10, decimal_places=2,verbose_name='DOP', help_text='Dilution of Precision')
+
+    class Meta:
+        verbose_name = 'NAV-PVT message'
+        verbose_name_plural = 'NAV-PVT messages'
     
