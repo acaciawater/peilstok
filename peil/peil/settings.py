@@ -104,7 +104,6 @@ USE_TZ = True
 
 TASTYPIE_DEFAULT_FORMATS = ['json']
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 

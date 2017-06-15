@@ -10,7 +10,7 @@ from django.views.generic.detail import DetailView
 from django.views.generic.list import ListView
 from django.conf import settings
 
-import os, re, json, time
+import os, re, json, time, binascii
 from peil.models import ECModule, PressureModule, MasterModule, Device,\
     GNSS_MESSAGE, NavPVT, UBXFile
 from peil.util import handle_post_data

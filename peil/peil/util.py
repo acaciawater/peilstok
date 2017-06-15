@@ -6,7 +6,7 @@ from .models import GNSS_MESSAGE, EC_MESSAGE, STATUS_MESSAGE, PRESSURE_MESSAGE, 
 
 import datetime, pytz
 import logging
-from peil.models import CalibrationSeries, AngleMessage, NavPVT
+from peil.models import CalibrationSeries, AngleMessage
 from django.http.response import HttpResponse, HttpResponseServerError
 logger = logging.getLogger(__name__)
 
@@ -143,7 +143,7 @@ def handle_post_data_async(json):
 UBX_HEADER = 0x62B5
 UBX_NAV_PVT = 0x0701
 
-def iterpvt(ubxfile):
+def iterpvt(ubx):
     """ iterate over ubx file and yield pvt instances """
 
     import struct
@@ -152,7 +152,7 @@ def iterpvt(ubxfile):
         iTOW, year, month, day, hour, min, sec, valid, tAcc, nano, fixType, flags, reserved1, \
             numSV, lon, lat, height, hMSL, hAcc, vAcc, velN, velE, velD, gSpeed, heading, sAcc, \
             headingAcc, pDOP, reserved2, reserved3 = struct.unpack('<IHBBBBBbIiBbBBiiiiIIiiiiiIIHHI', data)
-        return {'timestamp': datetime.datetime(year, month, day, hour, min, sec, tzinfo = pytz.utc),
+        return fixType, {'timestamp': datetime.datetime(year, month, day, hour, min, sec, tzinfo = pytz.utc),
                 'lat': lat*1e-7, 
                 'lon': lon*1e-7,
                 'alt': height, 
@@ -162,16 +162,16 @@ def iterpvt(ubxfile):
                 'numSV': numSV,
                 'pDOP': pDOP*1e-2}
 
-    with open(ubxfile,'rb') as ubx:
-        while True:
-            data=ubx.read(6)
-            if len(data) != 6:
-                break
-            hdr, msgid, length = struct.unpack('<HHH',data) 
-            if hdr != UBX_HEADER:
-                raise ValueError('UBX header tag expected')
-            data = ubx.read(length)
-            checksum = ubx.read(2) # TODO verify checksum
-            if msgid == UBX_NAV_PVT:
-                fields = decode(data)
-                yield NavPVT(**fields)
+    while True:
+        data=ubx.read(6)
+        if len(data) != 6:
+            break
+        hdr, msgid, length = struct.unpack('<HHH',data) 
+        if hdr != UBX_HEADER:
+            raise ValueError('UBX header tag expected')
+        data = ubx.read(length)
+        checksum = ubx.read(2) # TODO verify checksum
+        if msgid == UBX_NAV_PVT:
+            fix, fields = decode(data)
+            if fix == 3: # Allow only 3D fixes
+                yield fields

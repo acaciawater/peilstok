@@ -1,7 +1,8 @@
 from django.contrib import admin
 from .models import ECModule, PressureModule, MasterModule
 from peil.models import GNSSModule, Device, CalibrationSeries, CalibrationData,\
-    AngleMessage, UBXFile
+    AngleMessage, UBXFile, NavPVT
+from peil.actions import create_pvts
 
 @admin.register(Device)
 class DeviceAdmin(admin.ModelAdmin):
@@ -50,9 +51,23 @@ class CalibAdmin(admin.ModelAdmin):
 class AngleAdmin(admin.ModelAdmin):
     model = AngleMessage
     list_display = ('device','time','angle',)
-        
+
+@admin.register(NavPVT)
+class NAVPVTAdmin(admin.ModelAdmin):
+    model = NavPVT
+    list_filter = ('ubxfile', 'timestamp', 'ubxfile__device__devid')
+    list_display = ('ubxfile','timestamp','numSV', 'lat','lon','msl','hAcc','vAcc')
+
+class NAVPVTInline(admin.TabularInline):
+    model = NavPVT
+    fields = ('timestamp','lat','lon','alt', 'msl','hAcc','vAcc')
+    extra = 0
+    
 @admin.register(UBXFile)
 class UBXFileAdmin(admin.ModelAdmin):
     model = UBXFile
-    list_display = ('device','ubxfile','created')
+    actions = [create_pvts]
+    list_filter = ('device', 'created')
+    list_display = ('__unicode__','device','created')
+    #inlines = [NAVPVTInline]
         
