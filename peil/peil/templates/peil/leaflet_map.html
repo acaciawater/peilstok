@@ -113,7 +113,7 @@ $(function() {
 <div id="list" class="list-group scroll col-lg-3">
 <a href="#" class="list-group-item active">Peilstokken<span id="badge" title="Aantal geregistreerde peilstokken" class="badge">{{object_list.count}}</a>
 {% for device in object_list %}
-<a href="{% url 'device-detail' device.id %}" class="list-group-item">{{device.devid}}
+<a href="{% url 'chart-detail' device.id %}" class="list-group-item">{{device.devid}}
 <div class='text-muted laatste' title="datum van laatste waarneming"><small>{{device.last_seen|date:"j M Y H:i"|default:""}}</small></div>
 </a>
 {% endfor %}
