@@ -37,12 +37,26 @@ tr:nth-child(odd) { background: Azure; }
 <script src="//unpkg.com/leaflet.gridlayer.googlemutant@latest/Leaflet.GoogleMutant.js"></script>
 <script src="//unpkg.com/leaflet.markercluster@1.0.5/dist/leaflet.markercluster.js"></script>
 <script>
-var pinkIcon = L.icon({
+var pinkIcon48 = L.icon({
     iconUrl: '/static/Map-Marker-Ball-Right-Pink-icon48.png',
     iconSize: [48,48],
     iconAnchor: [24, 48],
     popupAnchor: [12, -48],
 });
+var pinkIcon24 = L.icon({
+    iconUrl: '/static/Map-Marker-Ball-Right-Pink-icon48.png',
+    iconSize: [24,24],
+    iconAnchor: [12, 24],
+    popupAnchor: [6, -24],
+});
+var pinkIcon32 = L.icon({
+    iconUrl: '/static/Map-Marker-Ball-Right-Pink-icon48.png',
+    iconSize: [32,32],
+    iconAnchor: [16, 32],
+    popupAnchor: [8, -32],
+});
+
+var pinkIcon = pinkIcon32;
 
 function addMarkers(map) {
 	$.getJSON('/locs', function(data) {
@@ -120,7 +134,7 @@ $(function() {
 <a href="#" class="list-group-item active">Peilstokken<span id="badge" title="Aantal geregistreerde peilstokken" class="badge">{{object_list.count}}</a>
 {% for device in object_list %}
 <a href="{% url 'chart-detail' device.id %}" class="list-group-item">{{device.devid}}
-<div class='text-muted laatste' title="datum van laatste waarneming"><small>{{device.last_seen|date:"j M Y H:i"|default:""}}</small></div>
+<div class='text-muted laatste' title="Tijdstip van laatste waarneming"><small>{{device.last_seen|date:"j M Y H:i"|default:""}}</small></div>
 </a>
 {% endfor %}
 </div>
