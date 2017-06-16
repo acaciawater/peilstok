@@ -212,9 +212,9 @@ class PeilView(DetailView):
             'yAxis': [{'title': {'text': 'EC (mS/cm)'},},
                       {'title': {'text': 'Hoogte (cm)'},'opposite': 1},
                       ],
-            'series': [{'name': 'EC1', 'yAxis': 0, 'data': list(ec1)},
-                        {'name': 'EC2 ', 'yAxis': 0, 'data': list(ec2)},
-                        {'name': 'Waterhoogte', 'yAxis': 1, 'data': list(h)},
+            'series': [{'name': 'EC1', 'yAxis': 0, 'data': list(ec1), 'tooltip': {'valueSuffix': ' mS/cm'}},
+                        {'name': 'EC2 ', 'yAxis': 0, 'data': list(ec2), 'tooltip': {'valueSuffix': ' mS/cm'}},
+                        {'name': 'Waterhoogte', 'yAxis': 1, 'data': list(h), 'tooltip': {'valueSuffix': ' cm'}},
                         ]
                    }
 
