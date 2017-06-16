@@ -6,7 +6,7 @@ from .models import GNSS_MESSAGE, EC_MESSAGE, STATUS_MESSAGE, PRESSURE_MESSAGE, 
 
 import datetime, pytz
 import logging
-from peil.models import CalibrationSeries, AngleMessage
+from peil.models import CalibrationSeries, AngleMessage, UBXFile
 from django.http.response import HttpResponse, HttpResponseServerError
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,8 @@ def update_or_create(manager, **kwargs):
             except:
                 raise e
 
-def parse_payload(device,server_time,message_type,payload):
+def parse_payload(device,server_time,payload):
+    message_type = payload['type']
     if message_type == STATUS_MESSAGE:
         return update_or_create(MasterModule.objects,device=device,time=server_time,type=message_type,defaults = {
             'angle': payload['angle'],
@@ -71,7 +72,7 @@ def parse_payload(device,server_time,message_type,payload):
             'angle': payload['angle']})
     
     else:
-        raise Exception('Unknown module type:'+ str(type))
+        raise Exception('Unknown message type:'+ str(message_type))
     
 def parse_fiware(ttn):
     """ parse json from fiware server with peilstok data """
@@ -83,8 +84,10 @@ def parse_fiware(ttn):
     logger.debug('{},{},{}'.format(devid, server_time, type))
 
     device = Device.objects.get(devid=devid)
+    device.last_seen = server_time
+    device.save(update_fields=('last_seen',))
 
-    mod, created, updated = parse_payload(device, server_time, type, ttn)
+    mod, created, updated = parse_payload(device, server_time, ttn)
     logger.debug('{} {}'.format(mod,'added' if created else 'updated' if updated else 'ignored'))
     return mod, created, updated
 
@@ -98,7 +101,6 @@ def parse_ttn(ttn):
         meta = ttn['metadata']
         server_time = parse_datetime(meta['time'])
         pf = ttn['payload_fields']
-        message_type = pf['type']
     except Exception as e:
         logger.error('Error parsing payload {}\n{}'.format(ttn,e))
         raise e
@@ -118,7 +120,7 @@ def parse_ttn(ttn):
             device.last_seen = server_time
             device.save(update_fields=('last_seen',))
         
-        mod, created, updated = parse_payload(device, server_time, message_type, pf)
+        mod, created, updated = parse_payload(device, server_time, pf)
 
         logger.debug('{} {} for {} {}'.format(type(mod).__name__, 'created' if created else 'updated' if updated else 'ignored', mod.device, mod.time))
         return mod, created, updated
@@ -175,3 +177,54 @@ def iterpvt(ubx):
             fix, fields = decode(data)
             if fix == 3: # Allow only 3D fixes
                 yield fields
+                
+def ubxtime(ubx):
+    """ return time of first and last observation in ubxfile """
+    ubx.seek(0)
+    start = stop = None
+    for pvt in iterpvt(ubx):
+        time = pvt['timestamp']
+        if start == None:
+            start = stop = time
+        else:
+            stop = time
+    return start, stop
+ 
+# GPS time=0
+GPST0 = datetime.datetime(1980,1,6,0,0,0)
+
+def gps2time(week,ms):
+    ''' convert gps tow and week to python datetime '''
+    if ms < -1e9 or ms > 1e9: ms = 0
+    delta1 = datetime.timedelta(weeks=week)
+    delta2 = datetime.timedelta(seconds=ms/1000.0)
+    return GPST0 + delta1 + delta2
+
+def time2gps(time):
+    ''' convert python datetime to gps week and tow '''
+    delta = time - GPST0
+    sec = delta.total_seconds()
+    week = int(sec/(86400*7))
+    tow = sec - week * 86400*7 + delta.seconds # time of week
+    dow = int(tow / 86400)-1 # day of week
+    return week, dow, tow
+
+class TransNAP:
+    ''' transform 3D coordinates from WGS84 to RDNAP '''
+  
+    def __init__(self):
+        import osr
+
+        wgs = osr.SpatialReference()
+        wgs.ImportFromProj4('+init=epsg:4326') # should be 4979, but this works as well
+        #wgs.ImportFromProj4('+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs')
+        rd = osr.SpatialReference()
+        rd.ImportFromProj4('+init=rdnap:rdnap')
+        self.fwd = osr.CoordinateTransformation(wgs,rd)
+        self.inv = osr.CoordinateTransformation(rd,wgs)
+    
+    def to_rdnap(self,x,y,z):
+        return self.fwd.TransformPoint(x,y,z)
+
+    def to_wgs84(self,x,y,z):
+        return self.inv.TransformPoint(x,y,z)

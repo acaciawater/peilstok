@@ -6,13 +6,24 @@ Created on Apr 25, 2017
 import struct
 import datetime, pytz
 
+# GPS time=0
+GPST0 = datetime.datetime(1980,1,6,0,0,0)
+
 def gps2time(week,ms):
     ''' convert gps tow and week to python datetime '''
-    gpst0 = datetime.datetime(1980,1,6,0,0,0)
     if ms < -1e9 or ms > 1e9: ms = 0
     delta1 = datetime.timedelta(weeks=week)
     delta2 = datetime.timedelta(seconds=ms/1000.0)
-    return gpst0 + delta1 + delta2
+    return GPST0 + delta1 + delta2
+
+def time2gps(time):
+    ''' convert python datetime to gps week and tow '''
+    delta = time - GPST0
+    sec = delta.total_seconds()
+    week = int(sec/(86400*7))
+    tow = sec - week * 86400*7 + delta.seconds # time of week
+    dow = int(tow / 86400)-1 # day of week
+    return week, dow, tow
 
 def checksum(bufr):
     ''' return 2 checksum bytes '''
@@ -80,7 +91,47 @@ def readubx(ubxfile):
             else:
                 raise ValueError('Message not supported: %x' % msgid)
 
-                
+class TransNAP:
+    ''' transform 3D coordinates from WGS84 to RDNAP '''
+  
+    def __init__(self):
+        import osr
+
+        wgs = osr.SpatialReference()
+        #wgs.ImportFromProj4('+init=epsg:4326')
+        #wgs.ImportFromEPSG(4979)
+        wgs.ImportFromProj4('+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs')
+        rd = osr.SpatialReference()
+        rd.ImportFromProj4('+init=rdnap:rdnap')
+        self.fwd = osr.CoordinateTransformation(wgs,rd)
+        self.inv = osr.CoordinateTransformation(rd,wgs)
+    
+    def to_rdnap(self,x,y,z):
+        return self.fwd.TransformPoint(x,y,z)
+
+    def to_wgs84(self,x,y,z):
+        return self.inv.TransformPoint(x,y,z)
+    
 if __name__ == '__main__':
-    #readubx('/home/theo/peilstok/ubx/0000C9F4BBB8131B-0002.ubx')
-    readubx('/home/theo/peilstok/ubx/0000E13748EBA25A-0001.ubx')
+    t = TransNAP()
+    y = 53.3374355750
+    x = 7.0274954167
+    z = 56.9441
+    print t.to_rdnap(x, y, z)
+    print (264259.0348,595802.0442,16.4567)
+    y = 52.0213500    
+    x = 4.7104886
+    z = 45.349
+    print 'gouda', t.to_rdnap(x, y, z)
+# if __name__ == '__main__':
+#     print time2gps(datetime.datetime(2017,6,10))
+#     print time2gps(datetime.datetime(2017,6,10,12))
+#     print time2gps(datetime.datetime(2017,6,11,12))
+#     print time2gps(datetime.datetime(2017,6,12,12))
+#     print time2gps(datetime.datetime(2017,6,13,12))
+#     print time2gps(datetime.datetime(2017,6,14,12))
+#     print time2gps(datetime.datetime(2017,6,15,12))
+#     print time2gps(datetime.datetime.now())
+#     #readubx('/home/theo/peilstok/ubx/0000C9F4BBB8131B-0002.ubx')
+#     #readubx('/home/theo/peilstok/ubx/0000E13748EBA25A-0001.ubx')
+#     

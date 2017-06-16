@@ -14,12 +14,29 @@ PRESSURE_MESSAGE = 3
 ANGLE_MESSAGE = 5
 STATUS_MESSAGE = 6
 
-TYPE_CHOICES = (
+MESSAGE_CHOICES = (
     (GNSS_MESSAGE,      'GNSS'),
     (EC_MESSAGE,        'EC'),
     (PRESSURE_MESSAGE,  'Pressure'),
     (ANGLE_MESSAGE,     'Angle'),
     (STATUS_MESSAGE,    'Master'),
+    )
+
+# Sensor types
+GNSS_SENSOR = 0
+EC1_SENSOR = 1
+EC2_SENSOR = 2
+AIRPRESSURE_SENSOR = 3
+WATERPRESSURE_SENSOR = 4
+ANGLE_SENSOR = 5
+
+SENSOR_CHOICES = (
+    (GNSS_SENSOR,   'GPS'),
+    (EC1_SENSOR,    'EC1'),
+    (EC2_SENSOR,    'EC2'),
+    (AIRPRESSURE_SENSOR, 'Luchtdruk'),
+    (WATERPRESSURE_SENSOR, 'Waterdruk'),
+    (ANGLE_SENSOR,  'Inclinometer'),
     )
 
 # Factor to convert raw ADC-pressure value to hPa for master and slave
@@ -239,8 +256,100 @@ class Device(models.Model):
     def __unicode__(self):
         return self.devid
 
+    def calc(self,rule='H'):
+        
+        def getdata(module, entity, **kwargs):
+            s = self.get_pandas(module,entity,**kwargs)
+            if s.empty:
+                return []
+            s[s>4094] = None
+            if s.empty:
+                return []
+            return s.resample(rule=rule).mean()
+            
+        def calcec(adc1,adc2,temp):
+            """calibration with polynomals """
+            def p2(c,x):
+                return c[0]*x*x + c[1]*x + c[2]
+            
+            #2nd order polynomal coefficients for the two rings
+            c1 = [0.0141, -107.49, 206099] 
+            c2 = [0.0044, -40.808, 91856]
+            
+            if adc1 > 3330 and adc1 < 4090:
+                ec = p2(c1,adc1)
+            elif adc2 < 3170:
+                ec = p2(c2,adc2)
+            elif adc1 < 4090 and adc2 < 4090:
+                r1 = p2(c1,adc1)
+                x1 = adc1 - 3330
+                r2 = p2(c2,adc2)
+                x2 = 3170 - adc2
+                ec = (r1 * x2 + r2 * x1) / (x1+x2)
+            else:
+                ec = None
+            return ec
+
+        ec1adc1 = getdata(ECModule, 'adc1', position=1)
+        ec1adc2 = getdata(ECModule, 'adc2', position=1)
+        ec1temp = getdata(ECModule, 'temperature', position=1)
+
+        ec2adc1 = getdata(ECModule, 'adc1', position=2)
+        ec2adc2 = getdata(ECModule, 'adc2', position=2)
+        ec2temp = getdata(ECModule, 'temperature', position=2)
+        
+        p1adc = getdata(MasterModule, 'air')
+        p2adc = getdata(PressureModule, 'adc')
+
+        ec1 = pd.DataFrame({'ec1_adc1': ec1adc1, 'ec1_adc2': ec1adc2, 'ec1_temp': ec1temp})
+        ec2 = pd.DataFrame({'ec2_adc1': ec2adc1, 'ec2_adc2': ec2adc2, 'ec2_temp': ec2temp})
+        druk = pd.DataFrame({'adc1': p1adc, 'adc2': p2adc})
+
+        ec1['ec1'] = ec1.apply(lambda row: calcec(row['ec1_adc1'], row['ec1_adc2'], row['ec1_temp']), axis = 1)
+        ec2['ec2'] = ec2.apply(lambda row: calcec(row['ec2_adc1'], row['ec2_adc2'], row['ec2_temp']), axis = 1)
+        druk['lucht'] = druk[druk['adc1']<4090]['adc1']*ADC_HPAMASTER
+        druk['water'] = druk[druk['adc2']<4090]['adc2']*ADC_HPASLAVE
+        druk['verschil'] = druk['water'] - druk['lucht']
+        druk['cmwater'] = druk['verschil'] / 0.980638
+        return pd.concat([ec1,ec2,druk],axis=1)
+    
+class Sensor(models.Model):
+    """ Sensor in a peilstok """
+    # device this sensor belongs to
+    device = models.ForeignKey(Device)
+    
+    # offset of sensor in mm        
+    offset = models.IntegerField(default = 0, verbose_name = 'afstand', help_text = 'afstand tov antenne in mm')
+
+    # type of sensor
+    type = models.PositiveSmallIntegerField(choices=SENSOR_CHOICES)
+
+    def __unicode__(self):
+        return SENSOR_CHOICES[self.type][1]
+
+class Fix(models.Model):
+    """ GPS fix for a peilstok """
+    sensor = models.ForeignKey(Sensor)
+    time = models.DateTimeField(verbose_name='Tijdstip van fix')
+    lon = models.DecimalField(max_digits=10,decimal_places=7,verbose_name='lengtegraad')
+    lat = models.DecimalField(max_digits=10,decimal_places=7,verbose_name='breedtegraad')
+    alt = models.DecimalField(max_digits=10,decimal_places=3,verbose_name='hoogte tov ellipsoide')
+    x = models.DecimalField(max_digits=10,decimal_places=3,verbose_name='x-coordinaat')
+    y = models.DecimalField(max_digits=10,decimal_places=3,verbose_name='y-coordinaat')
+    z = models.DecimalField(max_digits=10,decimal_places=3,verbose_name='hoogte tov NAP')
+    sdx = models.DecimalField(max_digits=6,decimal_places=3,verbose_name='Fout in x-richting')
+    sdy = models.DecimalField(max_digits=6,decimal_places=3,verbose_name='Fout in y-richting')
+    sdz = models.DecimalField(max_digits=6,decimal_places=3,verbose_name='Fout in hoogte')
+    ahn = models.DecimalField(max_digits=10,decimal_places=3,verbose_name='hoogte volgens AHN')
+
+class Meta:
+    verbose_name = 'Fix'
+    verbose_name_plural = 'Fix'
+    unique_together=('device', 'time')
+    
 class BaseModule(models.Model):
-    """ Base class for all modules in a device """
+    
+    """ Base class for all messages sent by a device """
     
     device = models.ForeignKey(Device,verbose_name='peilstok')
  
@@ -248,12 +357,11 @@ class BaseModule(models.Model):
     time = models.DateTimeField(verbose_name='tijdstip')
     
     # type of module
-    type = models.PositiveSmallIntegerField(choices=TYPE_CHOICES)
+    type = models.PositiveSmallIntegerField(choices=MESSAGE_CHOICES)
 
     # position of module
     position = models.PositiveSmallIntegerField(default=0,verbose_name='Sensorpositie')
-            
-
+        
 class MasterModule(BaseModule):
     """ Contains information about the state of the device itself, not its sensors """
     
@@ -369,7 +477,7 @@ class PressureModule(BaseModule):
         verbose_name_plural = 'Drukmetingen'
 
 class AngleMessage(BaseModule):
-    """ Message generated when angle is more than 45 degrees """
+    """ Message generated when device is tilted is more than 45 degrees """
     angle = models.IntegerField()
 
     class Meta:
@@ -381,7 +489,9 @@ class UBXFile(models.Model):
     device = models.ForeignKey(Device)
     ubxfile = models.FileField(upload_to='ubx')
     created = models.DateTimeField(auto_now_add=True)
-
+    start = models.DateTimeField(null=True,verbose_name = 'Tijdstip eerste observatie')
+    stop = models.DateTimeField(null=True,verbose_name = 'Tijdstip laatste observatie')
+        
     def create_pvts(self):
         """ parse file and extract UBX-NAV-PVT messages """
         from peil.util import iterpvt
@@ -395,7 +505,15 @@ class UBXFile(models.Model):
     class Meta:
         verbose_name = 'u-blox bestand'
         verbose_name_plural = 'u-blox bestanden'
-        
+
+from django.db.models.signals import pre_save
+from django.dispatch.dispatcher import receiver
+
+@receiver(pre_save, sender=UBXFile)
+def ubxfile_save(sender, instance, **kwargs):
+    from peil.util import ubxtime
+    instance.start, instance.stop = ubxtime(instance.ubxfile)
+    
 class NavPVT(models.Model):
     """ UBX-NAV-PVT message extracted from ubx file """
     ubxfile = models.ForeignKey(UBXFile)
@@ -404,7 +522,6 @@ class NavPVT(models.Model):
     lon = models.DecimalField(max_digits=10, decimal_places=7,verbose_name='Lengtegraad')
     alt = models.IntegerField(verbose_name='Ellipsoide', help_text='Hoogte tov ellipsoide in mm')
     msl = models.IntegerField(verbose_name='Zeeniveau', help_text ='Hoogte tov zeeniveau in mm')
-    #nap = models.IntegerField(verbose_name='NAP', help_text='Hoogte tov NAP in mm')
     hAcc = models.PositiveIntegerField(verbose_name='hAcc', help_text='Horizontale nauwkeurigheid in mm')
     vAcc = models.PositiveIntegerField(verbose_name='vAcc', help_text='verticale nauwkeurigheid in mm') # mm
     numSV = models.PositiveSmallIntegerField(verbose_name='satellieten', help_text='Aantal zichtbare satellieten')

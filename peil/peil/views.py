@@ -10,15 +10,15 @@ from django.views.generic.detail import DetailView
 from django.views.generic.list import ListView
 from django.conf import settings
 
-import os, re, json, time, binascii
+import os, re, json, time
 from peil.models import ECModule, PressureModule, MasterModule, Device,\
-    GNSS_MESSAGE, NavPVT, UBXFile
+    GNSS_MESSAGE, UBXFile, ADC_HPAMASTER, ADC_HPASLAVE
 from peil.util import handle_post_data
 
 import logging
-from django.shortcuts import get_object_or_404
-from __builtin__ import file
 logger = logging.getLogger(__name__)
+
+import pandas as pd
 
 def json_locations(request):
     """ return json response with last peilstok locations
@@ -58,7 +58,7 @@ class PopupView(DetailView):
     
 @csrf_exempt
 def ttn(request):
-    """ push data from TTN server and update database """
+    """ handle post from TTN server and update database """
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -70,7 +70,7 @@ def ttn(request):
 
 @csrf_exempt
 def ubx(request):
-    """ push ubx data from GNSS chip, create UbxFile instance and save data in media folder """
+    """ handle post with raw ubx data from GNSS chip, create UbxFile instance and save data in media folder """
     if request.method == 'POST':
         file = request.FILES['acacia']
 
@@ -86,6 +86,7 @@ def ubx(request):
         
         try:
             # Replace file if already exists for this device
+            # TODO: append to existing file
             ubx = device.ubxfile_set.get(ubxfile__startswith='ubx/'+file.name)
             os.remove(unicode(ubx.ubxfile.file))
             ubx.ubxfile = file
@@ -118,7 +119,7 @@ class DeviceListView(ListView):
     model = Device
     
 class DeviceView(DetailView):
-    """ Shows raw sensor data in Highcharts """
+    """ Shows raw sensor data with Highcharts """
 
     model = Device
 
@@ -171,6 +172,53 @@ class DeviceView(DetailView):
             })
         context['options1'] = json.dumps(options1,default=lambda x: time.mktime(x.timetuple())*1000.0)
         context['options2'] = json.dumps(options2,default=lambda x: time.mktime(x.timetuple())*1000.0)
+        context['theme'] = 'None' #ser.theme()
+        return context
+
+class PeilView(DetailView):
+    """ Shows calibrated values """
+    model = Device
+    template_name = 'peil/chart.html'
+
+    def get_context_data(self, **kwargs):
+        context = super(PeilView, self).get_context_data(**kwargs)
+        device = self.get_object()
+        
+        df = device.calc('H')
+
+        def getdata(name,scale=1):
+            s = df[name] * scale
+            return zip(s.index,s.values)
+        
+        ec1 = getdata('ec1',0.001)        
+        ec2 = getdata('ec2',0.001)        
+        h = getdata('cmwater')
+        
+        options1 = {
+            'chart': {'type': 'line', 
+                      'animation': False, 
+                      'zoomType': 'x',
+                      'events': {'load': None},
+                      },
+            'title': {'text': device.devid},
+            'xAxis': {'type': 'datetime'},
+            'legend': {'enabled': True},
+            'tooltip': {'valueDecimals': 2},
+            'plotOptions': {'line': {'marker': {'enabled': False}}},            
+            'credits': {'enabled': True, 
+                        'text': 'acaciawater.com', 
+                        'href': 'http://www.acaciawater.com',
+                       },
+            'yAxis': [{'title': {'text': 'EC (mS/cm)'},},
+                      {'title': {'text': 'Hoogte (cm)'},'opposite': 1},
+                      ],
+            'series': [{'name': 'EC1', 'yAxis': 0, 'data': list(ec1)},
+                        {'name': 'EC2 ', 'yAxis': 0, 'data': list(ec2)},
+                        {'name': 'Waterhoogte', 'yAxis': 1, 'data': list(h)},
+                        ]
+                   }
+
+        context['options1'] = json.dumps(options1,default=lambda x: time.mktime(x.timetuple())*1000.0)
         context['theme'] = 'None' #ser.theme()
         return context
     
