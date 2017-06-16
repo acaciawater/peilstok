@@ -15,8 +15,9 @@
 	{% block style %}
 	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
     <style>
-		#footer > .navbar {padding-top: 10px; min-height:32px !important;}
-		body > .wrapper {padding-bottom: 42px; padding-top: 70px;}
+		.navbar-nav > li > a {padding-top:5px !important; padding-bottom:5px !important;}
+		.navbar {min-height:32px !important}		
+		body > .wrapper {padding-top: 52px;}
 		.nav > .breadcrumb {float: left; margin-top: 8px; padding-bottom: 0px;}
     </style>
 	{% endblock %}
@@ -50,7 +51,7 @@
 	      {% block navbar-auth %}
 	      <ul class="nav navbar-nav navbar-right">
 	        {% block navbar-right %}{% endblock navbar-right %}
-	        <li><a href="{% block admin_url %}/admin/meetnet{% endblock admin_url %}">Beheer</a></li>
+	        <li><a href="{% block admin_url %}/admin/peil{% endblock admin_url %}">Beheer</a></li>
 	        {% if user.is_authenticated %}
 	        <li class="dropdown">
 	          <a href="#" class="dropdown-toggle" data-toggle="dropdown">{% filter force_escape %}{% firstof user.first_name user.username %}{% endfilter %}
@@ -72,15 +73,6 @@
     {% endblock content %}
 	</div> <!-- wrapper -->
     {% block footer %}
-	<div id="footer" class="container">
-	    <nav class="navbar navbar-default navbar-fixed-bottom">
-	        <div class="navbar-inner navbar-content-center">
-    			{% block footer-text %}
-	            <p class="text-muted text-center credit"><a href="http://www.acaciawater.com">Acacia Water</a> • Van Hogendorpplein 4 • 2805 BM Gouda • The Netherlands • Tel: +31 (0)182 - 686424 • Mail: <a href="mailto:info@acaciawater.com">info@acaciawater.com</a>.</p>
-    			{% endblock footer-text %}
-	        </div>
-	    </nav>
-	</div>
     {% endblock footer %}
   </body>
 </html>
