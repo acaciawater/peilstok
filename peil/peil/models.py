@@ -6,6 +6,8 @@ Created on Apr 25, 2017
 from django.db import models
 from django.db.models import Q
 import pandas as pd
+import logging
+logger = logging.getLogger(__name__)
 
 # Message types
 GNSS_MESSAGE = 1
@@ -484,6 +486,31 @@ class AngleMessage(BaseModule):
         verbose_name = 'Beweging'
         verbose_name_plural = 'Bewegingen'
 
+class RTKConfig(models.Model):
+    """ RTKLIB configuration for peilstok app """
+
+    class Meta:
+        verbose_name = 'RTKLIB configuratie'
+        verbose_name_plural = 'RTKLIB configuraties'
+        
+    name = models.CharField(max_length=20)
+    description = models.TextField(null=True,blank=True)
+    
+    #RTKLIB commands
+    convbin = models.CharField(max_length=200)
+    convbin_args = models.CharField(max_length=200)
+    rnx2rtkp = models.CharField(max_length=200)
+    rnx2rtkp_args = models.CharField(max_length=200)
+    
+    # igs corrrection files
+    # ultra after 6 hours (no clock files)
+    # rapid after 1 day 
+    # final after 3 weeks
+    #igsurl = models.URLField(default='ftp://ftp.igs.org/pub/product/')
+                
+    def __unicode__(self):
+        return self.name
+    
 class UBXFile(models.Model):
     """ u-blox GNSS raw datafile """
     device = models.ForeignKey(Device)
@@ -505,6 +532,53 @@ class UBXFile(models.Model):
     class Meta:
         verbose_name = 'u-blox bestand'
         verbose_name_plural = 'u-blox bestanden'
+
+    def rtkpost(self, config, **kwargs):
+        """ postprocessing with RTKLIB """
+        import os, re
+        import subprocess32 as subprocess
+
+        path = unicode(self.ubxfile.file)
+        dir = os.path.dirname(path)
+        ubx = os.path.basename(path)
+        logger.debug('RTKPOST started for {}'.format(ubx))
+        name, ext = os.path.splitext(ubx)
+        obs = name+'.obs'
+        nav = name+'.nav'
+        sbs = name+'.sbs'
+        pos = name+'.pos'
+        start = kwargs.get('start',self.start)
+        date = start.strftime('%Y/%m/%d')
+        time = start.strftime('%H:%M:%S')
+        vars = locals()
+
+        def build_command(command, args):
+            """ build array of popenargs (for subprocess call to Popen) """
+            arglist = [command] 
+            for arg in args.split():
+                arg = arg.strip()
+                match = re.match(r'\{(\w+)\}',arg)
+                if match:
+                    var = match.group(1)
+                    if var in vars:
+                        arg = vars[var]
+                    else: 
+                        continue
+                arglist.append(arg)
+            return  arglist 
+        
+        os.chdir(dir)
+        command = build_command(config.convbin, config.convbin_args)
+        logger.debug('Running {}', ' '.join(command))
+        ret = subprocess.call(command)
+        logger.debug('{} returned exit code {}', command[0], ret)
+        if ret == 0:
+            command = build_command(config.rnx2rtkp, config.rnx2rtkp_args)
+            logger.debug('Running {}', ' '.join(command))
+            ret = subprocess.call(command)
+            logger.debug('{} returned exit code {}', command[0], ret)
+        logger.debug('RTKPOST finished')
+        return ret
 
 from django.db.models.signals import pre_save
 from django.dispatch.dispatcher import receiver

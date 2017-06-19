@@ -70,7 +70,9 @@ def ttn(request):
 
 @csrf_exempt
 def ubx(request):
-    """ handle post with raw ubx data from GNSS chip, create UbxFile instance and save data in media folder """
+    """ handle post with raw ubx data from GNSS chip, create UbxFile instance and save data in media folder
+        the raw data is sent in chunks with same filename. Append chunks to existing file
+    """
     if request.method == 'POST':
         file = request.FILES['acacia']
 
@@ -85,12 +87,12 @@ def ubx(request):
             return HttpResponseBadRequest('Device {} not found'.format(serial))
         
         try:
-            # Replace file if already exists for this device
-            # TODO: append to existing file
+            # find existing ubxfile for this device
             ubx = device.ubxfile_set.get(ubxfile__startswith='ubx/'+file.name)
-            os.remove(unicode(ubx.ubxfile.file))
-            ubx.ubxfile = file
-            ubx.save()
+            path = unicode(ubx.ubxfile.file)
+            # append to existing file
+            with open(path, "ab") as f:
+                f.write(file.read())
 
             # remove existing nav messages
             # ubx.navpvt_set.all().delete()

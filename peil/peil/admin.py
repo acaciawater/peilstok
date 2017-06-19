@@ -1,8 +1,8 @@
 from django.contrib import admin
 from .models import ECModule, PressureModule, MasterModule
 from peil.models import GNSSModule, Device, CalibrationSeries, CalibrationData,\
-    AngleMessage, UBXFile, NavPVT
-from peil.actions import create_pvts, calcseries
+    AngleMessage, UBXFile, NavPVT, RTKConfig
+from peil.actions import create_pvts, calcseries, rtkpost
 
 @admin.register(Device)
 class DeviceAdmin(admin.ModelAdmin):
@@ -67,8 +67,13 @@ class NAVPVTInline(admin.TabularInline):
 @admin.register(UBXFile)
 class UBXFileAdmin(admin.ModelAdmin):
     model = UBXFile
-    actions = [create_pvts]
+    actions = [create_pvts, rtkpost]
     list_filter = ('device', 'created')
     list_display = ('__unicode__','device','created', 'start', 'stop')
+        
+@admin.register(RTKConfig)
+class RTKAdmin(admin.ModelAdmin):
+    model = RTKConfig
+    list_display = ('name',)
 
         
