@@ -320,8 +320,11 @@ class Sensor(models.Model):
     # device this sensor belongs to
     device = models.ForeignKey(Device)
     
-    # offset of sensor in mm        
-    offset = models.IntegerField(default = 0, verbose_name = 'afstand', help_text = 'afstand tov antenne in mm')
+    # position of sensor
+    position = models.PositiveSmallIntegerField(default=0,verbose_name='Sensorpositie')
+    
+    # distance of sensor in mm from bottom        
+    distance = models.IntegerField(default = 0, verbose_name = 'afstand', help_text = 'afstand tov onderkant mm')
 
     # type of sensor
     type = models.PositiveSmallIntegerField(choices=SENSOR_CHOICES)
@@ -329,9 +332,75 @@ class Sensor(models.Model):
     def __unicode__(self):
         return SENSOR_CHOICES[self.type][1]
 
-class Fix(models.Model):
-    """ GPS fix for a peilstok """
+class PressureSensor(Sensor):
+    offset = models.DecimalField(max_digits=10, decimal_places=2)
+
+class ECSensor(Sensor):
+    pass
+
+class GNSS_Sensor(Sensor):
+    pass
+
+class AngleSensor(Sensor):
+    pass
+
+class LoraMessage(models.Model):
+    """ Base class for all LoRa messages sent by a device """
     sensor = models.ForeignKey(Sensor)
+ 
+    # time received by server
+    time = models.DateTimeField(verbose_name='tijdstip')
+    
+    # type of message
+    type = models.PositiveSmallIntegerField(choices=MESSAGE_CHOICES)
+
+class ECMessage(LoraMessage):
+    """ Contains data from an EC sensor """
+
+    # temperature in 0.01 degrees C
+    temperature = models.IntegerField(help_text='temperatuur in 0.01 graden Celcius')
+
+    # raw ADC value 1x gain
+    adc1 = models.IntegerField()
+
+    # raw ADC value 11x gain
+    adc2 = models.IntegerField()
+
+
+class PressureMessage(LoraMessage):
+    # raw ADC pressure value
+    adc = models.IntegerField()
+
+class LocationMessage(LoraMessage):
+    """ Contains data from the on-board GNSS chip (ublox-7P) """
+    #gnsstime = models.BigIntegerField()
+    
+    # Latitude * 1e7 
+    lat = models.IntegerField(verbose_name='breedtegraad')
+    
+    # Longitude * 1e7 
+    lon = models.IntegerField(verbose_name='lengtegraad')
+    
+    # Height above ellipsoid in mm
+    alt = models.IntegerField(verbose_name='ellipsoid',help_text='hoogte ten opzichte van ellipsoid in mm')
+    
+    # Vertical accuracy in mm
+    vacc = models.IntegerField(verbose_name='vertikale nauwkeurigheid',help_text='vertikale nauwkeurigheid in mm')
+    
+    # Horizontal accuracy in mm
+    hacc = models.IntegerField(verbose_name='horizontale nauwkeurigheid',help_text='horizontale nauwkeurigheid in mm')
+    
+    # Height above mean sea level in mm
+    msl = models.IntegerField(verbose_name='zeeniveau',help_text='hoogte ten opzichte van zeeniveau in mm')
+
+class InclinationMessage(LoraMessage):
+    """ Message generated when device is tilted is more than 45 degrees """
+    angle = models.IntegerField()
+
+        
+class Fix(models.Model):
+    """ GNSS fix for a peilstok """
+    sensor = models.ForeignKey(GNSS_Sensor)
     time = models.DateTimeField(verbose_name='Tijdstip van fix')
     lon = models.DecimalField(max_digits=10,decimal_places=7,verbose_name='lengtegraad')
     lat = models.DecimalField(max_digits=10,decimal_places=7,verbose_name='breedtegraad')
@@ -343,11 +412,11 @@ class Fix(models.Model):
     sdy = models.DecimalField(max_digits=6,decimal_places=3,verbose_name='Fout in y-richting')
     sdz = models.DecimalField(max_digits=6,decimal_places=3,verbose_name='Fout in hoogte')
     ahn = models.DecimalField(max_digits=10,decimal_places=3,verbose_name='hoogte volgens AHN')
-
+    
 class Meta:
     verbose_name = 'Fix'
     verbose_name_plural = 'Fix'
-    unique_together=('device', 'time')
+    unique_together=('sensor', 'time')
     
 class BaseModule(models.Model):
     
@@ -435,7 +504,7 @@ class ECModule(BaseModule):
         def p2(c,x):
             return c[0]*x*x + c[1]*x + c[2]
         
-        #2nd order polynomal coefficients for the two rings
+        #2nd order polynomal coefficients
         c1 = [0.0141, -107.49, 206099] 
         c2 = [0.0044, -40.808, 91856]
         
@@ -569,14 +638,14 @@ class UBXFile(models.Model):
         
         os.chdir(dir)
         command = build_command(config.convbin, config.convbin_args)
-        logger.debug('Running {}', ' '.join(command))
+        logger.debug('Running {}'.format(' '.join(command)))
         ret = subprocess.call(command)
-        logger.debug('{} returned exit code {}', command[0], ret)
+        logger.debug('{} returned exit code {}'.format(command[0], ret))
         if ret == 0:
             command = build_command(config.rnx2rtkp, config.rnx2rtkp_args)
-            logger.debug('Running {}', ' '.join(command))
+            logger.debug('Running {}'.format(' '.join(command)))
             ret = subprocess.call(command)
-            logger.debug('{} returned exit code {}', command[0], ret)
+            logger.debug('{} returned exit code {}'.format(command[0], ret))
         logger.debug('RTKPOST finished')
         return ret
 
@@ -585,6 +654,7 @@ from django.dispatch.dispatcher import receiver
 
 @receiver(pre_save, sender=UBXFile)
 def ubxfile_save(sender, instance, **kwargs):
+    """ find out time of first and last message when saving to database """
     from peil.util import ubxtime
     instance.start, instance.stop = ubxtime(instance.ubxfile)
     

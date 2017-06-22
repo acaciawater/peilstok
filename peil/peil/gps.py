@@ -113,16 +113,23 @@ class TransNAP:
         return self.inv.TransformPoint(x,y,z)
     
 if __name__ == '__main__':
-    t = TransNAP()
-    y = 53.3374355750
-    x = 7.0274954167
-    z = 56.9441
-    print t.to_rdnap(x, y, z)
-    print (264259.0348,595802.0442,16.4567)
-    y = 52.0213500    
-    x = 4.7104886
-    z = 45.349
-    print 'gouda', t.to_rdnap(x, y, z)
+    from ftplib import FTP_TLS as FTP
+    pem = '/home/theo/peilstok/acacia.pem'
+    ftp = FTP('130.206.127.42',user='ubuntu',keyfile=pem)
+    ftp.login('ubuntu')
+    
+# if __name__ == '__main__':
+#     t = TransNAP()
+#     y = 53.3374355750
+#     x = 7.0274954167
+#     z = 56.9441
+#     print t.to_rdnap(x, y, z)
+#     print (264259.0348,595802.0442,16.4567)
+#     y = 52.0213500    
+#     x = 4.7104886
+#     z = 45.349
+#     print 'gouda', t.to_rdnap(x, y, z)
+
 # if __name__ == '__main__':
 #     print time2gps(datetime.datetime(2017,6,10))
 #     print time2gps(datetime.datetime(2017,6,10,12))
