@@ -34,7 +34,7 @@ class Migration(migrations.Migration):
             name='Sensor',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('offset', models.IntegerField(default=0, help_text=b'afstand tov antenne in mm', verbose_name=b'afstand')),
+                ('distance', models.IntegerField(default=0, help_text=b'afstand tov antenne in mm', verbose_name=b'afstand')),
                 ('type', models.PositiveSmallIntegerField(choices=[(0, b'GPS'), (1, b'EC1'), (2, b'EC2'), (3, b'Luchtdruk'), (4, b'Waterdruk'), (5, b'Inclinometer')])),
                 ('device', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='peil.Device')),
             ],

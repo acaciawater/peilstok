@@ -28,6 +28,7 @@ ALLOWED_HOSTS = ['peil.acaciadata.com','localhost']
 # Application definition
 
 INSTALLED_APPS = [
+    'polymorphic',
     'django.contrib.contenttypes',
     'django.contrib.admin',
     'django.contrib.auth',

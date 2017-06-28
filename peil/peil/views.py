@@ -10,15 +10,13 @@ from django.views.generic.detail import DetailView
 from django.views.generic.list import ListView
 from django.conf import settings
 
-import os, re, json, time
+import re, json, time
 from peil.models import ECModule, PressureModule, MasterModule, Device,\
-    GNSS_MESSAGE, UBXFile, ADC_HPAMASTER, ADC_HPASLAVE
+    GNSS_MESSAGE, UBXFile
 from peil.util import handle_post_data
 
 import logging
 logger = logging.getLogger(__name__)
-
-import pandas as pd
 
 def json_locations(request):
     """ return json response with last peilstok locations

@@ -1,68 +1,25 @@
 from django.contrib import admin
-from .models import ECModule, PressureModule, MasterModule
-from peil.models import GNSSModule, Device, CalibrationSeries, CalibrationData,\
-    AngleMessage, UBXFile, NavPVT, RTKConfig
+from peil.models import Device, Sensor,\
+    UBXFile, RTKConfig, ECSensor, PressureSensor,\
+    BatterySensor, AngleSensor, LoraMessage, ECMessage, PressureMessage,\
+    InclinationMessage, StatusMessage, LocationMessage
 from peil.actions import create_pvts, calcseries, rtkpost
+from peil.sensor import create_sensors, copy_messages
+from polymorphic.admin import PolymorphicChildModelFilter, PolymorphicChildModelAdmin, PolymorphicParentModelAdmin
 
+def createsensors(modeladmin, request, queryset):
+    for d in queryset:
+        create_sensors(d)
+        copy_messages(d)
+
+   
 @admin.register(Device)
 class DeviceAdmin(admin.ModelAdmin):
     model = Device
     list_display = ('serial', 'devid', 'last_seen')
     list_filter = ('serial','devid',)
     fields = ('devid', 'serial', 'cal')
-    actions=[calcseries]
-    
-@admin.register(MasterModule)
-class MasterModuleAdmin(admin.ModelAdmin):
-    model = MasterModule
-    list_display = ('device','time','angle','battery','air')
-    list_filter = ('device','time')
-
-@admin.register(ECModule)
-class ECModuleAdmin(admin.ModelAdmin):
-    model = ECModule
-    list_display = ('device','time','position', 'adc1','adc2','temperature')
-    list_filter = ('device','time','position')
-    
-@admin.register(PressureModule)
-class PressureModuleAdmin(admin.ModelAdmin):
-    model = PressureModule
-    list_display = ('device','time','position', 'adc')
-    list_filter = ('device','time','position')
-    
-@admin.register(GNSSModule)
-class GNSSModuleAdmin(admin.ModelAdmin):
-    model = GNSSModule
-    list_display = ('device','time','lat','lon','alt','hacc','vacc','msl')
-    list_filter = ('device','time')
-
-class CalibDataInline(admin.TabularInline):
-    model = CalibrationData
-    extra = 0
-    
-@admin.register(CalibrationSeries)
-class CalibAdmin(admin.ModelAdmin):
-    model = CalibrationSeries
-    list_display = ('name','created','modified')
-    inlines = [CalibDataInline]
-    class Media:
-        css = {"all": ('css/hide_admin_original.css',)}
-
-@admin.register(AngleMessage)
-class AngleAdmin(admin.ModelAdmin):
-    model = AngleMessage
-    list_display = ('device','time','angle',)
-
-@admin.register(NavPVT)
-class NAVPVTAdmin(admin.ModelAdmin):
-    model = NavPVT
-    list_filter = ('ubxfile', 'timestamp', 'ubxfile__device__devid')
-    list_display = ('ubxfile','timestamp','numSV', 'lat','lon','alt','msl','hAcc','vAcc')
-
-class NAVPVTInline(admin.TabularInline):
-    model = NavPVT
-    fields = ('timestamp','lat','lon','alt', 'msl','hAcc','vAcc')
-    extra = 0
+    actions=[calcseries, createsensors]
     
 @admin.register(UBXFile)
 class UBXFileAdmin(admin.ModelAdmin):
@@ -76,4 +33,53 @@ class RTKAdmin(admin.ModelAdmin):
     model = RTKConfig
     list_display = ('name',)
 
-        
+@admin.register(Sensor)
+class SensorAdmin(PolymorphicParentModelAdmin):
+    base_model = Sensor
+    child_models = (ECSensor, PressureSensor, BatterySensor, AngleSensor)
+    list_filter = (PolymorphicChildModelFilter, 'position', 'device')
+    list_display = ('__unicode__', 'device', 'position', 'message_count')
+    
+@admin.register(ECSensor)
+class ECSensorAdmin(PolymorphicChildModelAdmin):
+    base_model = ECSensor
+
+@admin.register(PressureSensor)
+class PressureSensorAdmin(PolymorphicChildModelAdmin):
+    base_model = PressureSensor
+
+@admin.register(BatterySensor)
+class BatterySensorAdmin(PolymorphicChildModelAdmin):
+    base_model = BatterySensor
+    
+@admin.register(AngleSensor)
+class AngleSensorAdmin(PolymorphicChildModelAdmin):
+    base_model = AngleSensor
+    
+@admin.register(LoraMessage)
+class LoraAdmin(PolymorphicParentModelAdmin):
+    base_model = LoraMessage
+    child_models = (ECMessage, PressureMessage, InclinationMessage, StatusMessage, LocationMessage)
+    list_filter = (PolymorphicChildModelFilter, 'time', 'sensor__device')
+    list_display = ('__unicode__', 'time', 'device')
+    
+@admin.register(ECMessage)
+class ECMessageAdmin(PolymorphicChildModelAdmin):
+    base_model = ECMessage
+
+@admin.register(PressureMessage)
+class PressureMessageAdmin(PolymorphicChildModelAdmin):
+    base_model = PressureMessage
+    
+@admin.register(InclinationMessage)
+class InclinationMessageAdmin(PolymorphicChildModelAdmin):
+    base_model = InclinationMessage
+    
+@admin.register(StatusMessage)
+class StatusMessageAdmin(PolymorphicChildModelAdmin):
+    base_model = StatusMessage
+    
+@admin.register(LocationMessage)
+class LocationMessageAdmin(PolymorphicChildModelAdmin):
+    base_model = LocationMessage
+    

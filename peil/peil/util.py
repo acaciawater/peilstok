@@ -1,13 +1,15 @@
 from django.db import transaction
 from django.db.utils import IntegrityError
 from django.utils.dateparse import parse_datetime
-from .models import Device, MasterModule, ECModule, PressureModule, GNSSModule
-from .models import GNSS_MESSAGE, EC_MESSAGE, STATUS_MESSAGE, PRESSURE_MESSAGE, ANGLE_MESSAGE
-
+from .models import Device, GNSS_MESSAGE, EC_MESSAGE, STATUS_MESSAGE, PRESSURE_MESSAGE, ANGLE_MESSAGE
 import datetime, pytz
 import logging
-from peil.models import CalibrationSeries, AngleMessage, UBXFile
+
+from peil.models import PressureSensor,\
+    PressureMessage, GNSS_Sensor, BatterySensor, StatusMessage, AngleSensor,\
+    InclinationMessage, LocationMessage, ECSensor, ECMessage
 from django.http.response import HttpResponse, HttpResponseServerError
+
 logger = logging.getLogger(__name__)
 
 def update_or_create(manager, **kwargs):
@@ -37,43 +39,73 @@ def update_or_create(manager, **kwargs):
 
 def parse_payload(device,server_time,payload):
     message_type = payload['type']
+    msg = None
+    
+    def logsens(sensor, created):
+        logger.debug('Sensor {} at position {} {}'.format(sensor, sensor.position, 'created' if created else 'found'))
+    
+    def logmsg(msg, created):
+        logger.debug('{} {}. time={}'.format(type(msg).__name__, 'created' if created else 'updated', msg.time ))
+
     if message_type == STATUS_MESSAGE:
-        return update_or_create(MasterModule.objects,device=device,time=server_time,type=message_type,defaults = {
-            'angle': payload['angle'],
-            'battery': payload['battery'],
-            'air': payload['pressure'],
-            'total': payload['total']})
+
+        sensor, created = PressureSensor.objects.get_or_create(device=device,position=0)
+        logsens(sensor, created)
+
+        msg, created = PressureMessage.objects.update_or_create(sensor=sensor, time = server_time, defaults = {'adc': payload['pressure']})
+        logmsg(msg,created)
+        
+        sensor, created = BatterySensor.objects.get_or_create(device=device,position=0)
+        logsens(sensor, created)
+        
+        msg, created = StatusMessage.objects.update_or_create(sensor=sensor, time = server_time, defaults= {'battery': payload['battery']})
+        logmsg(msg,created)
+
+        sensor, created = AngleSensor.objects.get_or_create(device=device,position=0)
+        logsens(sensor, created)
+
+        msg, created = InclinationMessage.objects.update_or_create(sensor=sensor, time = server_time, defaults = {'angle': payload['angle']})
+        logmsg(msg,created)
         
     elif message_type == GNSS_MESSAGE:
-        return update_or_create(GNSSModule.objects,device=device,time=server_time,type=message_type, defaults = {
-            #'gnsstime': payload.get('time',server_time), # use server time if no GPS time found in payload
+
+        sensor, created = GNSS_Sensor.objects.get_or_create(device=device,position=0)
+        logsens(sensor, created)
+        msg, created = LocationMessage.objects.update_or_create(sensor=sensor, time = server_time, defaults = { 
             'lat': payload['latitude'],
             'lon': payload['longitude'],
             'alt': payload['height'],
             'vacc': payload['vAcc'],
             'hacc': payload['hAcc'],
             'msl': payload['hMSL']})
+        logmsg(msg,created)
         
     elif message_type == EC_MESSAGE:
-        return update_or_create(ECModule.objects,device=device,time=server_time,type=message_type, defaults = {
-            'position': payload['position'],
+        sensor, created = ECSensor.objects.get_or_create(device = device, position=payload['position'])
+        logsens(sensor, created)
+        msg, created = ECMessage.objects.update_or_create(sensor=sensor, time=server_time, defaults = {
             'adc1': payload['ec1'],
             'adc2': payload['ec2'],
             'temperature': payload['temperature']})
+        logmsg(msg,created)
 
     elif message_type == PRESSURE_MESSAGE:
-        return update_or_create(PressureModule.objects,device=device,time=server_time,type=message_type, defaults = {
-            'position': payload['position'],
-            'adc': payload['pressure']})
+        sensor, created = PressureSensor.objects.get_or_create(device = device, position=payload['position'])
+        logsens(sensor, created)
+        msg, created = PressureMessage.objects.update_or_create(sensor=sensor, time=server_time, defaults = {'adc': payload['pressure']})
+        logmsg(msg,created)
 
     elif message_type == ANGLE_MESSAGE:
-        return update_or_create(AngleMessage.objects,device=device,time=server_time,type=message_type, defaults = {
-            'position': payload['position'],
-            'angle': payload['angle']})
+        sensor, created = AngleSensor.objects.get_or_create(device=device,position=0)
+        logsens(sensor, created)
+        msg, created = InclinationMessage.objects.update_or_create(sensor=sensor, time = server_time, defaults = {'angle': payload['angle']})
+        logmsg(msg,created)
     
     else:
         raise Exception('Unknown message type:'+ str(message_type))
     
+    return msg, True, False
+
 def parse_fiware(ttn):
     """ parse json from fiware server with peilstok data """
 
@@ -88,7 +120,7 @@ def parse_fiware(ttn):
     device.save(update_fields=('last_seen',))
 
     mod, created, updated = parse_payload(device, server_time, ttn)
-    logger.debug('{} {}'.format(mod,'added' if created else 'updated' if updated else 'ignored'))
+    #logger.debug('{} {}'.format(mod,'added' if created else 'updated' if updated else 'ignored'))
     return mod, created, updated
 
 def parse_ttn(ttn):
@@ -106,23 +138,14 @@ def parse_ttn(ttn):
         raise e
 
     try:
-        cal_default = CalibrationSeries.objects.get(name='default')
-    except CalibrationSeries.DoesNotExist as e:
-        logger.error('Calibration series "default" does not exist')
-        raise e
-    
-    try:
-        device, created = Device.objects.get_or_create(serial=serial,devid=devid, defaults={'cal':cal_default, 'last_seen': server_time})
+        device, created = Device.objects.update_or_create(serial=serial,devid=devid, defaults={'last_seen': server_time})
 
         if created:
             logger.debug('device {} created'.format(devid))
-        else:
-            device.last_seen = server_time
-            device.save(update_fields=('last_seen',))
         
         mod, created, updated = parse_payload(device, server_time, pf)
 
-        logger.debug('{} {} for {} {}'.format(type(mod).__name__, 'created' if created else 'updated' if updated else 'ignored', mod.device, mod.time))
+#        logger.debug('{} {} for {} {}'.format(type(mod).__name__, 'created' if created else 'updated' if updated else 'ignored', mod.device, mod.time))
         return mod, created, updated
     except Exception as e:
         logger.exception('Error parsing payload: {}'.format(ttn))

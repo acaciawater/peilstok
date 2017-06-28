@@ -5,6 +5,7 @@ Created on Apr 25, 2017
 '''
 from django.db import models
 from django.db.models import Q
+from polymorphic.models import PolymorphicModel
 import pandas as pd
 import logging
 logger = logging.getLogger(__name__)
@@ -15,7 +16,7 @@ EC_MESSAGE = 2
 PRESSURE_MESSAGE = 3
 ANGLE_MESSAGE = 5
 STATUS_MESSAGE = 6
-
+ 
 MESSAGE_CHOICES = (
     (GNSS_MESSAGE,      'GNSS'),
     (EC_MESSAGE,        'EC'),
@@ -23,24 +24,7 @@ MESSAGE_CHOICES = (
     (ANGLE_MESSAGE,     'Angle'),
     (STATUS_MESSAGE,    'Master'),
     )
-
-# Sensor types
-GNSS_SENSOR = 0
-EC1_SENSOR = 1
-EC2_SENSOR = 2
-AIRPRESSURE_SENSOR = 3
-WATERPRESSURE_SENSOR = 4
-ANGLE_SENSOR = 5
-
-SENSOR_CHOICES = (
-    (GNSS_SENSOR,   'GPS'),
-    (EC1_SENSOR,    'EC1'),
-    (EC2_SENSOR,    'EC2'),
-    (AIRPRESSURE_SENSOR, 'Luchtdruk'),
-    (WATERPRESSURE_SENSOR, 'Waterdruk'),
-    (ANGLE_SENSOR,  'Inclinometer'),
-    )
-
+ 
 # Factor to convert raw ADC-pressure value to hPa for master and slave
 ADC_HPAMASTER = 0.8047603298
 ADC_HPASLAVE = 0.5532727267
@@ -49,93 +33,6 @@ ADC_HPASLAVE = 0.5532727267
 ADC_PSIMASTER = 0.01167206175
 ADC_PSISLAVE = 0.008024542455
 
-class CalibrationSeries(models.Model):
-    """ Calibration data for EC modules """
-    
-    # unique name of the calibration series
-    name = models.CharField(max_length=20)
-    
-    # optional description
-    description = models.TextField(blank=True,null=True)    
-    
-    #date/time the series was created
-    created = models.DateTimeField(auto_now_add = True)
-    
-    # date/time when this series was last modified/updated
-    modified = models.DateTimeField(auto_now = True)
-    
-    def __unicode__(self):
-        return str(self.name)
-    
-    class Meta:
-        verbose_name = 'Calibratie reeks'
-        verbose_name_plural = 'Calibratie reeksen'
-
-    def _interpolate(self, x, points):
-        """ interpolates value in array of x,y values (ascending x) """
-
-        n = len(points)
-
-        if n == 0:
-            return None
-        
-        if n == 1:
-            return points[0][1]
-        
-        for i,p in enumerate(points):
-            if p[0] > x:
-                break
-
-        # make sure index is valid
-        i = max(1,min(i,n-1))
-        
-        # get the x and y values 
-        p1 = points[i-1]
-        p2 = points[i]
-        x1, y1 = p1
-        x2, y2 = p2
-
-#         # do not allow extrapolation beyond x limits
-#         if x < x1 or x > x2:
-#             return -1
-
-        # linear interpolation of y-value        
-        return y1 + (x-x1) * (y2-y1) / (x2-x1)
-    
-    def calibrate(self, module):
-        """ returns single calibrated EC-value using raw ADC values """
-
-        # select ADC and EC values to use
-        if module.adc2 < 4000:
-            adc = module.adc2
-            queryset = self.calibrationdata_set.exclude(Q(adc2__isnull=True)|Q(adc2__ge=4000)).order_by('adc2').values_list('adc2', 'value')
-        else:
-            adc = module.adc1
-            queryset = self.calibrationdata_set.exclude(Q(adc1__isnull=True)|Q(adc2__lt=4000)).order_by('adc1').values_list('adc1', 'value')
-        
-        if adc == 65535:
-            return -1
-
-        return self._interpolate(adc, list(queryset))
-        
-class CalibrationData(models.Model):
-    """ Calibration data for EC modules """
-    series = models.ForeignKey(CalibrationSeries)
-    
-    # raw ADC value 1x gain
-    adc1 = models.FloatField(null=True)
-    
-    # raw ADC value 11x gain
-    adc2 = models.FloatField(null=True,blank=True)
-    
-    # corresponding EC-value
-    value = models.FloatField()
-    
-    class Meta:
-        ordering = ('value',)
-        verbose_name = 'ijkpunt'
-        verbose_name_plural = 'ijkpunten'
-        
 class Device(models.Model):
     """ Represents a 'Peilstok' device with sensors """ 
 
@@ -150,14 +47,11 @@ class Device(models.Model):
     """ name (or id) of device """
     devid = models.CharField(max_length=20,verbose_name='naam')
     
-    # calibration series for EC values
-    cal = models.ForeignKey(CalibrationSeries,verbose_name='ijkreeks') 
-
     # date/time created
     created = models.DateTimeField(auto_now_add = True, verbose_name='Geregistreerd')
     
     last_seen = models.DateTimeField(null=True,verbose_name='Laatste contact')
-    
+
     def get_series(self, Module, entity, **kwargs):
         """ Get time series as array of tuples
         
@@ -314,46 +208,85 @@ class Device(models.Model):
         druk['verschil'] = druk['water'] - druk['lucht']
         druk['cmwater'] = druk['verschil'] / 0.980638
         return pd.concat([ec1,ec2,druk],axis=1)
-    
-class Sensor(models.Model):
+
+class Sensor(PolymorphicModel):
     """ Sensor in a peilstok """
     # device this sensor belongs to
-    device = models.ForeignKey(Device)
+    device = models.ForeignKey('Device',verbose_name = 'Peilstok')
     
-    # position of sensor
+    # identificatie
+    ident = models.CharField(max_length=50,default='sensor')
+    
+    # position of sensor (module number)
     position = models.PositiveSmallIntegerField(default=0,verbose_name='Sensorpositie')
     
     # distance of sensor in mm from bottom        
     distance = models.IntegerField(default = 0, verbose_name = 'afstand', help_text = 'afstand tov onderkant mm')
 
-    # type of sensor
-    type = models.PositiveSmallIntegerField(choices=SENSOR_CHOICES)
+    def message_count(self):
+        return self.loramessage_set.count()
+    message_count.short_description = 'Aantal berichten'
+    
+    def last_message(self):
+        return self.loramessage_set.order_by('time').last()
+    last_message.short_description = 'Laatste bericht'
 
+    def first_message(self):
+        return self.loramessage_set.order_by('time').first()
+    first_message.short_description = 'Eerste bericht'
+    
     def __unicode__(self):
-        return SENSOR_CHOICES[self.type][1]
-
+        return self.ident
+        #return self.get_real_instance_class()._meta.verbose_name
+    
+    class Meta:
+        verbose_name = 'Sensor'
+        verbose_name_plural = 'sensoren'
+        
 class PressureSensor(Sensor):
-    offset = models.DecimalField(max_digits=10, decimal_places=2)
+
+    offset = models.FloatField(default = 0.0)
+    scale = models.FloatField(default=1.0)
+
+    class Meta:
+        verbose_name = 'Druksensor'
+        verbose_name_plural = 'druksensoren'
 
 class ECSensor(Sensor):
-    pass
+    class Meta:
+        verbose_name = 'EC-Sensor'
+        verbose_name_plural = 'EC-sensoren'
 
 class GNSS_Sensor(Sensor):
-    pass
+    class Meta:
+        verbose_name = 'GPS'
+        verbose_name_plural = 'GPS'
 
 class AngleSensor(Sensor):
-    pass
+    class Meta:
+        verbose_name = 'Inclinometer'
+        verbose_name_plural =  'Inclinometers'
 
-class LoraMessage(models.Model):
-    """ Base class for all LoRa messages sent by a device """
+class BatterySensor(Sensor):
+    class Meta:
+        verbose_name = 'Batterijspanning'
+        verbose_name_plural =  'Batterijspanning'
+
+class LoraMessage(PolymorphicModel):
+    """ Base class for all LoRa messages sent by a sensor """
+    
     sensor = models.ForeignKey(Sensor)
  
     # time received by server
     time = models.DateTimeField(verbose_name='tijdstip')
     
-    # type of message
-    type = models.PositiveSmallIntegerField(choices=MESSAGE_CHOICES)
+    def __unicode__(self):
+        return self.get_real_instance_class()._meta.verbose_name
 
+    def device(self):
+        return self.sensor.device
+    device.short_description = 'Peilstok'
+      
 class ECMessage(LoraMessage):
     """ Contains data from an EC sensor """
 
@@ -366,14 +299,29 @@ class ECMessage(LoraMessage):
     # raw ADC value 11x gain
     adc2 = models.IntegerField()
 
-
+    def EC(self):
+        #returns EC in mS/cm
+        return 0
+    
+    class Meta:
+        verbose_name = 'EC-meting'
+        verbose_name_plural = 'EC-metingen'
+        
 class PressureMessage(LoraMessage):
-    # raw ADC pressure value
+    """ raw ADC pressure value """
     adc = models.IntegerField()
 
+    def pressure(self):
+        """ returns pressure in hPa """
+        sensor = self.sensor.get_real_instance()
+        sensor.offset + self.adc * sensor.scale
+
+    class Meta:
+        verbose_name = 'Drukmeting'
+        verbose_name_plural = 'Drukmetingen'
+
 class LocationMessage(LoraMessage):
-    """ Contains data from the on-board GNSS chip (ublox-7P) """
-    #gnsstime = models.BigIntegerField()
+    """ Message generated by the on-board GNSS chip (ublox-7P) """
     
     # Latitude * 1e7 
     lat = models.IntegerField(verbose_name='breedtegraad')
@@ -393,10 +341,26 @@ class LocationMessage(LoraMessage):
     # Height above mean sea level in mm
     msl = models.IntegerField(verbose_name='zeeniveau',help_text='hoogte ten opzichte van zeeniveau in mm')
 
+    class Meta:
+        verbose_name = 'Plaatsbepaling'
+        verbose_name_plural = 'Plaatsbepalingen'
+
+
 class InclinationMessage(LoraMessage):
     """ Message generated when device is tilted is more than 45 degrees """
     angle = models.IntegerField()
 
+    class Meta:
+        verbose_name = 'Hoekmeting'
+        verbose_name_plural = 'Hoekmetingen'
+
+class StatusMessage(LoraMessage):
+
+    battery = models.IntegerField(verbose_name = 'batterijniveau')
+
+    class Meta:
+        verbose_name = 'Batterijmeting'
+        verbose_name_plural = 'Batterijmetingen'
         
 class Fix(models.Model):
     """ GNSS fix for a peilstok """
@@ -555,6 +519,10 @@ class AngleMessage(BaseModule):
         verbose_name = 'Beweging'
         verbose_name_plural = 'Bewegingen'
 
+# --------------------------------------------------------------------------------------------------------------
+# GPS and RTK stuff
+# --------------------------------------------------------------------------------------------------------------
+
 class RTKConfig(models.Model):
     """ RTKLIB configuration for peilstok app """
 
@@ -674,4 +642,3 @@ class NavPVT(models.Model):
     class Meta:
         verbose_name = 'NAV-PVT message'
         verbose_name_plural = 'NAV-PVT messages'
-    
