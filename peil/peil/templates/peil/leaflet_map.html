@@ -74,7 +74,7 @@ function addMarkers(map) {
 			marker.addTo(map);
 			bounds.extend(marker.getLatLng());
 		});
-		map.fitBounds(bounds);
+		//map.fitBounds(bounds);
 	});
 }
 
@@ -110,6 +110,12 @@ $(function() {
 		attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
 	});
 
+	var waterlopen = L.tileLayer.wms('http://localhost:8080/geoserver/HHNK/wms', {
+		layers: 'HHNK:waterlopen_texel',
+		attribution: 'HHNK',
+		format: 'image/png',
+		transparent: true});
+	
 	var map = L.map('map',{
 		center:[53.08440, 4.80824],
 		zoom: 11
@@ -118,7 +124,7 @@ $(function() {
 	osm.addTo(map);
 	
  	baseMaps = {'Openstreetmap': osm, 'Google roads': roads, 'Google satellite': satellite, 'ESRI topo': topo, 'ESRI imagery': imagery};
-	overlayMaps = {};
+	overlayMaps = {'Waterlopen': waterlopen};
 	L.control.layers(baseMaps, overlayMaps).addTo(map);
 	
 	$("#list").height($("#map").height());
