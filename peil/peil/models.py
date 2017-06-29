@@ -6,8 +6,10 @@ Created on Apr 25, 2017
 from django.db import models
 from django.db.models import Q
 from polymorphic.models import PolymorphicModel
+import numpy as np
 import pandas as pd
 import logging
+from numpy.distutils.fcompiler import none
 logger = logging.getLogger(__name__)
 
 # Message types
@@ -212,13 +214,13 @@ class Device(models.Model):
 class Sensor(PolymorphicModel):
     """ Sensor in a peilstok """
     # device this sensor belongs to
-    device = models.ForeignKey('Device',verbose_name = 'Peilstok')
+    device = models.ForeignKey('Device',verbose_name = 'peilstok')
     
     # identificatie
-    ident = models.CharField(max_length=50,default='sensor')
+    ident = models.CharField(max_length=50,default='sensor',verbose_name='sensor')
     
     # position of sensor (module number)
-    position = models.PositiveSmallIntegerField(default=0,verbose_name='Sensorpositie')
+    position = models.PositiveSmallIntegerField(default=0,verbose_name='positie')
     
     # distance of sensor in mm from bottom        
     distance = models.IntegerField(default = 0, verbose_name = 'afstand', help_text = 'afstand tov onderkant mm')
@@ -252,7 +254,54 @@ class PressureSensor(Sensor):
         verbose_name = 'Druksensor'
         verbose_name_plural = 'druksensoren'
 
+
+#results from rational function fit June 2017 (15oC and 23 oC)
+EC23raw1= [-1.24962278e-01,   7.51304212e+02,  -6.42625003e+05,  -3.31128125e+03]
+EC23raw2= [-2.72687329e+01,   2.07166387e+05,  -3.88755659e+08,  -3.50129229e+03]
+EC15raw1= [-8.29946220e-02,   6.46281398e+02,  -8.20979572e+05,  -3.32036612e+03]
+EC15raw2= [-8.91896788e+01,   6.88251396e+05,  -1.32082791e+09,  -3.51902652e+03]
+
 class ECSensor(Sensor):
+    
+    tempfactor = models.FloatField(default=0.0246534878,verbose_name = 'factor', help_text = 'factor voor conversie naar 25 oC')
+    adc1_coef = models.CharField(max_length=200,verbose_name ='Coefficienten ring1', default='-1.24962278e-01,7.51304212e+02,-6.42625003e+05,-3.31128125e+03')
+    adc2_coef = models.CharField(max_length=200,verbose_name ='Coefficienten ring2', default='-2.72687329e+01,2.07166387e+05,-3.88755659e+08,-3.50129229e+03')
+    adc1_limits = models.CharField(max_length=50,verbose_name='limieten ring1',default='3400,4094')
+    adc2_limits = models.CharField(max_length=50,verbose_name='limieten ring2',default='3600,4094')
+    ec_range = models.CharField(max_length=50,default='700,35000')
+
+    def EC(self,adc1,adc2,temp):
+
+        def rat1(x, p, q):
+            return np.polyval(p, x) / np.polyval([1] + q, x)
+        
+        def rat2(x, p0, p1, p2, q1):
+            return rat1(x, [p0, p1, p2], [q1])
+
+        def coef(txt):
+            # return array of coefficients from comma separated values
+            return [float(s) for s in txt.split(',')]
+
+        min1,max1 = coef(self.adc1_limits)
+        if adc1 > min1 and adc1 < max1:
+            # use adc1 only
+            ec = rat2(adc1, *coef(self.adc1_coef))
+        
+        else:
+            min2,max2 = coef(self.adc2_limits)
+            if adc2 > min2 and adc2 < max2:
+                # use adc2 only
+                ec = rat2(adc2, *coef(self.adc2_coef))
+        
+            else:
+                ec = None
+
+        return ec
+
+    def EC25(self,adc1,adc2,temp):
+        ec = self.EC(adc1,adc2,temp)
+        return ec * (1.0 + (25.0 - temp/100.0) * self.tempfactor) if ec else None
+    
     class Meta:
         verbose_name = 'EC-Sensor'
         verbose_name_plural = 'EC-sensoren'
@@ -300,9 +349,13 @@ class ECMessage(LoraMessage):
     adc2 = models.IntegerField()
 
     def EC(self):
-        #returns EC in mS/cm
-        return 0
+        sensor = self.sensor.get_real_instance()
+        return sensor.EC(self.adc1, self.adc2. self.temperature)
     
+    def EC25(self):
+        sensor = self.sensor.get_real_instance()
+        return sensor.EC25(self.adc1, self.adc2. self.temperature)
+
     class Meta:
         verbose_name = 'EC-meting'
         verbose_name_plural = 'EC-metingen'
