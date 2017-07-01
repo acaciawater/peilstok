@@ -5,6 +5,7 @@
 <script src="//code.highcharts.com/modules/exporting.js"></script>
 <script src="//code.highcharts.com/modules/offline-exporting.js"></script>
 <script>
+
 Highcharts.setOptions({
   lang: {
   	shortMonths : ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dec"],
@@ -19,27 +20,131 @@ Highcharts.setOptions({
   global: { useUTC: false }
 });
 
+/***
+ * set extremes of chart 2 to chart 1
+ */
+function syncCharts(chart1, chart2) {
+	var e = chart1.getExtremes();
+	chart2.setExtremes(e.min,e.max);
+}
+
+function fetchSeries(div, url, other) {
+    $.ajax({
+	    url: url,
+	    datatype: "json",
+	    beforeSend: function(hdr) {
+		  	var chart = $(div).highcharts();
+	    	chart.showLoading("Gegevens ophalen...");
+	    	return true;
+	    },
+	    success: function(data) {
+		  	var chart = $(div).highcharts();
+		  	$.each(data,function(key,values) {
+		  		var series = chart.get(key);
+				series.setData(values);
+		  	});
+	    },
+	    error: function(hdr,status,errorThrown) {
+	    	alert("Fout tijdens laden van tijdreeks: " + errorThrown);
+	    },
+	    complete: function(hdr, status) {
+		  	var chart = $(div).highcharts();
+	    	chart.hideLoading();
+	    	var chart2 = $(other).highcharts();
+	    	syncCharts(chart,chart2);
+	    }
+    });
+}
+/**
+ * In order to synchronize tooltips and crosshairs, override the
+ * built-in events with handlers defined on the parent element.
+ */
+function bindCharts() {
+	$('#container').bind('mousemove touchmove touchstart', function (e) {
+	    var chart,
+	        point,
+	        i,
+	        event;
+	
+	    for (i = 0; i < Highcharts.charts.length; i = i + 1) {
+	        chart = Highcharts.charts[i];
+	        event = chart.pointer.normalize(e.originalEvent); // Find coordinates within the chart
+	        point = chart.series[0].searchPoint(event, true); // Get the hovered point
+	
+	        if (point) {
+	            point.highlight(e);
+	        }
+	    }
+	});
+}
+  
+/**
+ * Override the reset function, we don't need to hide the tooltips and crosshairs.
+ */
+// Highcharts.Pointer.prototype.reset = function () {
+//     return undefined;
+// };
+
+/**
+ * Highlight a point by showing tooltip, setting hover state and draw crosshair
+ */
+Highcharts.Point.prototype.highlight = function (event) {
+    this.onMouseOver(); // Show the hover marker
+    this.series.chart.tooltip.refresh(this); // Show the tooltip
+    this.series.chart.xAxis[0].drawCrosshair(event, this); // Show the crosshair
+};
+
+/**
+ * Synchronize zooming through the setExtremes event handler.
+ */
+function syncExtremes(e) {
+    var thisChart = this.chart;
+
+    if (e.trigger !== 'syncExtremes') { // Prevent feedback loop
+        Highcharts.each(Highcharts.charts, function (chart) {
+            if (chart !== thisChart) {
+                if (chart.xAxis[0].setExtremes) { // It is null while updating
+                    chart.xAxis[0].setExtremes(e.min, e.max, undefined, false, { trigger: 'syncExtremes' });
+                }
+            }
+        });
+    }
+}
+
+
 $(function () {
-	  $('#chart1').highcharts({{ options1|safe }});
+	  var opt1 = {{options1|safe}};
+	  opt1.chart.events.load = function() {
+		  fetchSeries('#chart1', '{{object.id}}/data');
+	  };
+	  opt1.xAxis.events.setExtremes = syncExtremes;
+	  var opt2 = {{options2|safe}};
+	  opt2.chart.events.load = function() {
+		  fetchSeries('#chart2', '{{object.id}}/raw');
+	  };
+	  opt2.xAxis.events.setExtremes = syncExtremes;
+	  $('<div id=chart1 class=chart>').appendTo('#container').highcharts(opt1);
+	  $('<div id=chart2 class=chart>').appendTo('#container').highcharts(opt2);
+	  
+	  setTimeout(bindCharts,500);	  
 });
+
 </script>
 {% endblock %}
 
 {% block style %}
 {{block.super}}
 <style>
-#chart1, #chart2 {
+.chart {
   width: 90%;
   height: 400 px;
+  margin: 0 auto;
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-<div id="chart1"></div>
-<div id="chart2"></div>
-</div>
+<div id="container" class="container-fluid"></div>
 {% endblock %}
 {% block navbar %}
 {% endblock %}

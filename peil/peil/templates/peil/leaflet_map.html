@@ -112,7 +112,7 @@ $(function() {
 
 	var waterlopen = L.tileLayer.wms('http://localhost:8080/geoserver/HHNK/wms', {
 		layers: 'HHNK:waterlopen_texel',
-		attribution: 'HHNK',
+		attribution: 'Hoogheemraadschap Hollands Noorderkwartier',
 		format: 'image/png',
 		transparent: true});
 	
@@ -122,6 +122,7 @@ $(function() {
 		});
 	
 	osm.addTo(map);
+	//waterlopen.addTo(map);
 	
  	baseMaps = {'Openstreetmap': osm, 'Google roads': roads, 'Google satellite': satellite, 'ESRI topo': topo, 'ESRI imagery': imagery};
 	overlayMaps = {'Waterlopen': waterlopen};

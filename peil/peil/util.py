@@ -42,26 +42,27 @@ def parse_payload(device,server_time,payload):
     msg = None
     
     def logsens(sensor, created):
-        logger.debug('Sensor {} at position {} {}'.format(sensor, sensor.position, 'created' if created else 'found'))
+        if created:
+            logger.info('{}: {} sensor created'.format(sensor.device, sensor))
     
     def logmsg(msg, created):
-        logger.debug('{} {}. time={}'.format(type(msg).__name__, 'created' if created else 'updated', msg.time ))
+        logger.debug('{}: {} {}. time={}'.format(msg.sensor.device, unicode(msg), 'added' if created else 'updated', msg.time ))
 
     if message_type == STATUS_MESSAGE:
 
-        sensor, created = PressureSensor.objects.get_or_create(device=device,position=0)
+        sensor, created = PressureSensor.objects.get_or_create(device=device,position=0,defaults={'ident':'Luchtdruk'})
         logsens(sensor, created)
 
         msg, created = PressureMessage.objects.update_or_create(sensor=sensor, time = server_time, defaults = {'adc': payload['pressure']})
         logmsg(msg,created)
         
-        sensor, created = BatterySensor.objects.get_or_create(device=device,position=0)
+        sensor, created = BatterySensor.objects.get_or_create(device=device,position=0,defaults={'ident':'Batterij'})
         logsens(sensor, created)
         
         msg, created = StatusMessage.objects.update_or_create(sensor=sensor, time = server_time, defaults= {'battery': payload['battery']})
         logmsg(msg,created)
 
-        sensor, created = AngleSensor.objects.get_or_create(device=device,position=0)
+        sensor, created = AngleSensor.objects.get_or_create(device=device,position=0,defaults={'ident':'Inclinometer'})
         logsens(sensor, created)
 
         msg, created = InclinationMessage.objects.update_or_create(sensor=sensor, time = server_time, defaults = {'angle': payload['angle']})
@@ -69,7 +70,7 @@ def parse_payload(device,server_time,payload):
         
     elif message_type == GNSS_MESSAGE:
 
-        sensor, created = GNSS_Sensor.objects.get_or_create(device=device,position=0)
+        sensor, created = GNSS_Sensor.objects.get_or_create(device=device,position=0,defaults={'ident':'GPS'})
         logsens(sensor, created)
         msg, created = LocationMessage.objects.update_or_create(sensor=sensor, time = server_time, defaults = { 
             'lat': payload['latitude'],
@@ -81,7 +82,8 @@ def parse_payload(device,server_time,payload):
         logmsg(msg,created)
         
     elif message_type == EC_MESSAGE:
-        sensor, created = ECSensor.objects.get_or_create(device = device, position=payload['position'])
+        pos = payload['position']
+        sensor, created = ECSensor.objects.get_or_create(device = device, position=pos,defaults={'ident':'EC'+str(pos)})
         logsens(sensor, created)
         msg, created = ECMessage.objects.update_or_create(sensor=sensor, time=server_time, defaults = {
             'adc1': payload['ec1'],
@@ -90,13 +92,13 @@ def parse_payload(device,server_time,payload):
         logmsg(msg,created)
 
     elif message_type == PRESSURE_MESSAGE:
-        sensor, created = PressureSensor.objects.get_or_create(device = device, position=payload['position'])
+        sensor, created = PressureSensor.objects.get_or_create(device = device, position=payload['position'],defaults={'ident':'Waterdruk'})
         logsens(sensor, created)
         msg, created = PressureMessage.objects.update_or_create(sensor=sensor, time=server_time, defaults = {'adc': payload['pressure']})
         logmsg(msg,created)
 
     elif message_type == ANGLE_MESSAGE:
-        sensor, created = AngleSensor.objects.get_or_create(device=device,position=0)
+        sensor, created = AngleSensor.objects.get_or_create(device=device,position=0,defaults={'ident':'Inclinometer'})
         logsens(sensor, created)
         msg, created = InclinationMessage.objects.update_or_create(sensor=sensor, time = server_time, defaults = {'angle': payload['angle']})
         logmsg(msg,created)
@@ -106,26 +108,8 @@ def parse_payload(device,server_time,payload):
     
     return msg, True, False
 
-def parse_fiware(ttn):
-    """ parse json from fiware server with peilstok data """
-
-    devid = ttn['device_id']
-    server_time = parse_datetime(ttn['time'])
-    type = ttn['type']
-    
-    logger.debug('{},{},{}'.format(devid, server_time, type))
-
-    device = Device.objects.get(devid=devid)
-    device.last_seen = server_time
-    device.save(update_fields=('last_seen',))
-
-    mod, created, updated = parse_payload(device, server_time, ttn)
-    #logger.debug('{} {}'.format(mod,'added' if created else 'updated' if updated else 'ignored'))
-    return mod, created, updated
-
 def parse_ttn(ttn):
-    """ parse json from ttn server with peilstok data """
-
+    """ parse json pushed from ttn server """
     try:
         serial = ttn['hardware_serial']
         devid = ttn['dev_id']
@@ -145,7 +129,6 @@ def parse_ttn(ttn):
         
         mod, created, updated = parse_payload(device, server_time, pf)
 
-#        logger.debug('{} {} for {} {}'.format(type(mod).__name__, 'created' if created else 'updated' if updated else 'ignored', mod.device, mod.time))
         return mod, created, updated
     except Exception as e:
         logger.exception('Error parsing payload: {}'.format(ttn))

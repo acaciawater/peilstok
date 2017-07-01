@@ -4,12 +4,12 @@ Created on Apr 25, 2017
 @author: theo
 '''
 from django.db import models
-from django.db.models import Q
 from polymorphic.models import PolymorphicModel
 import numpy as np
-import pandas as pd
 import logging
-from numpy.distutils.fcompiler import none
+import calib
+import json
+
 logger = logging.getLogger(__name__)
 
 # Message types
@@ -26,15 +26,9 @@ MESSAGE_CHOICES = (
     (ANGLE_MESSAGE,     'Angle'),
     (STATUS_MESSAGE,    'Master'),
     )
+
+MESSAGES=dict(MESSAGE_CHOICES)
  
-# Factor to convert raw ADC-pressure value to hPa for master and slave
-ADC_HPAMASTER = 0.8047603298
-ADC_HPASLAVE = 0.5532727267
-
-# Factor to convert raw ADC-pressure value to psi for master and slave
-ADC_PSIMASTER = 0.01167206175
-ADC_PSISLAVE = 0.008024542455
-
 class Device(models.Model):
     """ Represents a 'Peilstok' device with sensors """ 
 
@@ -54,165 +48,16 @@ class Device(models.Model):
     
     last_seen = models.DateTimeField(null=True,verbose_name='Laatste contact')
 
-    def get_series(self, Module, entity, **kwargs):
-        """ Get time series as array of tuples
-        
-            parameters:
-            
-                * `Module`: Module class to query
-                * `entity`: Entity (fieldname) for query 
-        
-            examples:
-             
-                * device.get_series(ECModule,"adc1",position=2)
-                  gets timeseries of adc1 values from EC Module at position 2
-                * device.get_series(MasterModule,"battery")
-                  gets timeseries of battery status from Master module
-        """ 
-        
-        q = Module.objects.filter(device = self)
-        # exclude values of 65535 (-1)
-        kwargs.update({entity + "__lt": 65535})
-        return q.filter(**kwargs).values_list("time", entity).order_by("time")
-
-    def get_pandas(self, Module, entity, **kwargs):
-        """ Build and return a Pandas time series for a module.entity """
+    def get_sensor(self,ident,**kwargs):
+        kwargs['ident__iexact'] = ident
+        return self.sensor_set.get(**kwargs)
     
-        data = list(self.get_series(Module,entity,**kwargs))
-        if data:
-            dates,values=zip(*data)
-            return pd.Series(values,index=dates)
-        return pd.Series()
-    
-    def last(self,messagetype=''):
-        """ returns last message received """
-        queryset = self.basemodule_set
-        if messagetype:
-            queryset = queryset.filter(type=messagetype)
-        last = queryset.order_by('time').last()
-        return last
-    last.short_description = 'Laatste bericht'
-
-    def last_time(self,messagetype=''):
-        # returns time of last message received
-        last = self.last(messagetype)
-        return last.time if last else None
-    last_time.short_description = 'Laatste update'
-
-    def last_ec(self):
-        # returns last EC message received
-        last = self.last(EC_MESSAGE)
-        if last and hasattr(last,'ecmodule'):
-            return last.ecmodule
-        return None
-    last_ec.short_description = 'Laatste EC-meting'
-
-    def last_status(self):
-        # returns last Status message received
-        last = self.last(STATUS_MESSAGE)
-        if last and hasattr(last,'mastermodule'):
-            return last.mastermodule
-        return None
-    last_status.short_description = 'Laatste Status bericht'
-
-    def last_pressure(self):
-        # returns last pressure message received
-        last = self.last(PRESSURE_MESSAGE)
-        if last and hasattr(last,'pressuremodule'):
-            return last.pressuremodule
-        return None
-    last_pressure.short_description = 'Laatste Drukmeting'
-
-    def last_angle(self):
-        # returns last angle message received
-        last = self.last(ANGLE_MESSAGE)
-        if last and hasattr(last,'anglemessage'):
-            return last.anglemessage
-        return None
-    last_angle.short_description = 'Laatste Hoekmeting'
-
-    def count(self):
-        # returns number of messages
-        return self.basemodule_set.count()
-    count.short_description = 'Aantal berichten'
-
-    def count_status(self):
-        # returns number of status messages
-        return self.basemodule_set.filter(type=STATUS_MESSAGE).count()
-    count_status.short_description = 'Aantal status berichten'
-
-    def count_ec(self):
-        # returns number of ec messages
-        return self.basemodule_set.filter(type=EC_MESSAGE).count()
-    count_ec.short_description = 'Aantal EC-metingen'
-    
-    def count_pressure(self):
-        # returns number of pressure messages
-        return self.basemodule_set.filter(type=PRESSURE_MESSAGE).count()
-    count_pressure.short_description = 'Aantal drukmetingen'
-
     def __unicode__(self):
         return self.devid
 
-    def calc(self,rule='H'):
-        
-        def getdata(module, entity, **kwargs):
-            s = self.get_pandas(module,entity,**kwargs)
-            if s.empty:
-                return []
-            s[s>4094] = None
-            if s.empty:
-                return []
-            return s.resample(rule=rule).mean()
-            
-        def calcec(adc1,adc2,temp):
-            """calibration with polynomals """
-            def p2(c,x):
-                return c[0]*x*x + c[1]*x + c[2]
-            
-            #2nd order polynomal coefficients for the two rings
-            c1 = [0.0141, -107.49, 206099] 
-            c2 = [0.0044, -40.808, 91856]
-            
-            if adc1 > 3330 and adc1 < 4090:
-                ec = p2(c1,adc1)
-            elif adc2 < 3170:
-                ec = p2(c2,adc2)
-            elif adc1 < 4090 and adc2 < 4090:
-                r1 = p2(c1,adc1)
-                x1 = adc1 - 3330
-                r2 = p2(c2,adc2)
-                x2 = 3170 - adc2
-                ec = (r1 * x2 + r2 * x1) / (x1+x2)
-            else:
-                ec = None
-            return ec
-
-        ec1adc1 = getdata(ECModule, 'adc1', position=1)
-        ec1adc2 = getdata(ECModule, 'adc2', position=1)
-        ec1temp = getdata(ECModule, 'temperature', position=1)
-
-        ec2adc1 = getdata(ECModule, 'adc1', position=2)
-        ec2adc2 = getdata(ECModule, 'adc2', position=2)
-        ec2temp = getdata(ECModule, 'temperature', position=2)
-        
-        p1adc = getdata(MasterModule, 'air')
-        p2adc = getdata(PressureModule, 'adc')
-
-        ec1 = pd.DataFrame({'ec1_adc1': ec1adc1, 'ec1_adc2': ec1adc2, 'ec1_temp': ec1temp})
-        ec2 = pd.DataFrame({'ec2_adc1': ec2adc1, 'ec2_adc2': ec2adc2, 'ec2_temp': ec2temp})
-        druk = pd.DataFrame({'adc1': p1adc, 'adc2': p2adc})
-
-        ec1['ec1'] = ec1.apply(lambda row: calcec(row['ec1_adc1'], row['ec1_adc2'], row['ec1_temp']), axis = 1)
-        ec2['ec2'] = ec2.apply(lambda row: calcec(row['ec2_adc1'], row['ec2_adc2'], row['ec2_temp']), axis = 1)
-        druk['lucht'] = druk[druk['adc1']<4090]['adc1']*ADC_HPAMASTER
-        druk['water'] = druk[druk['adc2']<4090]['adc2']*ADC_HPASLAVE
-        druk['verschil'] = druk['water'] - druk['lucht']
-        druk['cmwater'] = druk['verschil'] / 0.980638
-        return pd.concat([ec1,ec2,druk],axis=1)
-
 class Sensor(PolymorphicModel):
     """ Sensor in a peilstok """
+
     # device this sensor belongs to
     device = models.ForeignKey('Device',verbose_name = 'peilstok')
     
@@ -222,8 +67,8 @@ class Sensor(PolymorphicModel):
     # position of sensor (module number)
     position = models.PositiveSmallIntegerField(default=0,verbose_name='positie')
     
-    # distance of sensor in mm from bottom        
-    distance = models.IntegerField(default = 0, verbose_name = 'afstand', help_text = 'afstand tov onderkant mm')
+    # distance of sensor in mm from antenna        
+    distance = models.IntegerField(default = 0, verbose_name = 'afstand', help_text = 'afstand tov antenne')
 
     def message_count(self):
         return self.loramessage_set.count()
@@ -237,6 +82,33 @@ class Sensor(PolymorphicModel):
         return self.loramessage_set.order_by('time').first()
     first_message.short_description = 'Eerste bericht'
     
+    def value(self, message):
+        raise ValueError('Not implemented')
+
+    def times(self):
+        return [m.time for m in self.loramessage_set.all()]
+
+    def values(self):
+        return [self.value(message) for message in self.loramessage_set.all()]
+
+    def data(self,**kwargs):
+        q = self.loramessage_set
+        if kwargs:
+            queryset = q.filter(**kwargs)
+        else:
+            queryset = q.all() 
+        for m in queryset:
+            yield (m.time,self.value(m))
+
+    def raw_data(self,**kwargs):
+        q = self.loramessage_set
+        if kwargs:
+            queryset = q.filter(**kwargs)
+        else:
+            queryset = q.all() 
+        for m in queryset:
+            yield m.to_dict()
+            
     def __unicode__(self):
         return self.ident
         #return self.get_real_instance_class()._meta.verbose_name
@@ -248,29 +120,27 @@ class Sensor(PolymorphicModel):
 class PressureSensor(Sensor):
 
     offset = models.FloatField(default = 0.0)
-    scale = models.FloatField(default=1.0)
+    scale = models.FloatField(default = 1.0)
+
+    def value(self, m):
+        """ calculates pressure in hPa from raw ADC value in message """
+        return self.offset + m.adc * self.scale
 
     class Meta:
         verbose_name = 'Druksensor'
         verbose_name_plural = 'druksensoren'
 
-
-#results from rational function fit June 2017 (15oC and 23 oC)
-EC23raw1= [-1.24962278e-01,   7.51304212e+02,  -6.42625003e+05,  -3.31128125e+03]
-EC23raw2= [-2.72687329e+01,   2.07166387e+05,  -3.88755659e+08,  -3.50129229e+03]
-EC15raw1= [-8.29946220e-02,   6.46281398e+02,  -8.20979572e+05,  -3.32036612e+03]
-EC15raw2= [-8.91896788e+01,   6.88251396e+05,  -1.32082791e+09,  -3.51902652e+03]
-
 class ECSensor(Sensor):
     
     tempfactor = models.FloatField(default=0.0246534878,verbose_name = 'factor', help_text = 'factor voor conversie naar 25 oC')
-    adc1_coef = models.CharField(max_length=200,verbose_name ='Coefficienten ring1', default='-1.24962278e-01,7.51304212e+02,-6.42625003e+05,-3.31128125e+03')
-    adc2_coef = models.CharField(max_length=200,verbose_name ='Coefficienten ring2', default='-2.72687329e+01,2.07166387e+05,-3.88755659e+08,-3.50129229e+03')
-    adc1_limits = models.CharField(max_length=50,verbose_name='limieten ring1',default='3400,4094')
-    adc2_limits = models.CharField(max_length=50,verbose_name='limieten ring2',default='3600,4094')
-    ec_range = models.CharField(max_length=50,default='700,35000')
+    adc1_coef = models.CharField(max_length=200,verbose_name ='Coefficienten ring1', default=calib.ADC1EC)
+    adc2_coef = models.CharField(max_length=200,verbose_name ='Coefficienten ring2', default=calib.ADC2EC)
+    adc1_limits = models.CharField(max_length=50,verbose_name='bereik ring1',default=calib.ADC1EC_LIMITS)
+    adc2_limits = models.CharField(max_length=50,verbose_name='bereik ring2',default=calib.ADC2EC_LIMITS)
+    ec_range = models.CharField(max_length=50,verbose_name = 'bereik', default=calib.EC_RANGE)
 
-    def EC(self,adc1,adc2,temp):
+    def EC(self,adc1,adc2):
+        """ Calculates EC from raw ADC values """
 
         def rat1(x, p, q):
             return np.polyval(p, x) / np.polyval([1] + q, x)
@@ -278,30 +148,29 @@ class ECSensor(Sensor):
         def rat2(x, p0, p1, p2, q1):
             return rat1(x, [p0, p1, p2], [q1])
 
-        def coef(txt):
-            # return array of coefficients from comma separated values
-            return [float(s) for s in txt.split(',')]
-
-        min1,max1 = coef(self.adc1_limits)
+        min1,max1 = json.loads(self.adc1_limits)
         if adc1 > min1 and adc1 < max1:
             # use adc1 only
-            ec = rat2(adc1, *coef(self.adc1_coef))
+            ec = rat2(adc1, *json.loads(self.adc1_coef))
         
         else:
-            min2,max2 = coef(self.adc2_limits)
+            min2,max2 = json.loads(self.adc2_limits)
             if adc2 > min2 and adc2 < max2:
                 # use adc2 only
-                ec = rat2(adc2, *coef(self.adc2_coef))
+                ec = rat2(adc2, *json.loads(self.adc2_coef))
         
             else:
                 ec = None
 
-        return ec
+        return ec * 1e-3 if ec else None# to mS/cm
 
     def EC25(self,adc1,adc2,temp):
-        ec = self.EC(adc1,adc2,temp)
+        ec = self.EC(adc1,adc2)
         return ec * (1.0 + (25.0 - temp/100.0) * self.tempfactor) if ec else None
-    
+
+    def value(self, m):
+        return self.EC25(m.adc1, m.adc2, m.temperature)
+        
     class Meta:
         verbose_name = 'EC-Sensor'
         verbose_name_plural = 'EC-sensoren'
@@ -311,15 +180,24 @@ class GNSS_Sensor(Sensor):
         verbose_name = 'GPS'
         verbose_name_plural = 'GPS'
 
+    def value(self,m):
+        return (m.lon*1e-7, m.lat*1e-7, m.alt*1e-3)
+
 class AngleSensor(Sensor):
     class Meta:
         verbose_name = 'Inclinometer'
         verbose_name_plural =  'Inclinometers'
 
+    def value(self, m):
+        return m.angle
+
 class BatterySensor(Sensor):
     class Meta:
         verbose_name = 'Batterijspanning'
         verbose_name_plural =  'Batterijspanning'
+
+    def value(self, m):
+        return m.battery*1e-3
 
 class LoraMessage(PolymorphicModel):
     """ Base class for all LoRa messages sent by a sensor """
@@ -335,7 +213,14 @@ class LoraMessage(PolymorphicModel):
     def device(self):
         return self.sensor.device
     device.short_description = 'Peilstok'
+    
+    def to_dict(self):
+        #return {'device': self.device().devid, 'sensor': self.sensor.ident, 'time': self.time}
+        return {'time': self.time}
       
+    class Meta:
+        ordering = ['time']
+        
 class ECMessage(LoraMessage):
     """ Contains data from an EC sensor """
 
@@ -348,14 +233,11 @@ class ECMessage(LoraMessage):
     # raw ADC value 11x gain
     adc2 = models.IntegerField()
 
-    def EC(self):
-        sensor = self.sensor.get_real_instance()
-        return sensor.EC(self.adc1, self.adc2. self.temperature)
+    def to_dict(self):
+        d = LoraMessage.to_dict(self)
+        d.update({'adc1': self.adc1, 'adc2': self.adc2, 'temperature': self.temperature})
+        return d
     
-    def EC25(self):
-        sensor = self.sensor.get_real_instance()
-        return sensor.EC25(self.adc1, self.adc2. self.temperature)
-
     class Meta:
         verbose_name = 'EC-meting'
         verbose_name_plural = 'EC-metingen'
@@ -367,7 +249,12 @@ class PressureMessage(LoraMessage):
     def pressure(self):
         """ returns pressure in hPa """
         sensor = self.sensor.get_real_instance()
-        sensor.offset + self.adc * sensor.scale
+        return sensor.pressure(self.adc)
+    
+    def to_dict(self):
+        d = LoraMessage.to_dict(self)
+        d.update({'adc': self.adc})
+        return d
 
     class Meta:
         verbose_name = 'Drukmeting'
@@ -394,6 +281,11 @@ class LocationMessage(LoraMessage):
     # Height above mean sea level in mm
     msl = models.IntegerField(verbose_name='zeeniveau',help_text='hoogte ten opzichte van zeeniveau in mm')
 
+    def to_dict(self):
+        d = LoraMessage.to_dict(self)
+        d.update({'lon': self.lon, 'lat': self.lat, 'alt': self.alt, 'vacc': self.vacc, 'hacc': self.hacc, 'msl': self.msl})
+        return d
+
     class Meta:
         verbose_name = 'Plaatsbepaling'
         verbose_name_plural = 'Plaatsbepalingen'
@@ -403,6 +295,11 @@ class InclinationMessage(LoraMessage):
     """ Message generated when device is tilted is more than 45 degrees """
     angle = models.IntegerField()
 
+    def to_dict(self):
+        d = LoraMessage.to_dict(self)
+        d.update({'angle': self.angle})
+        return d
+
     class Meta:
         verbose_name = 'Hoekmeting'
         verbose_name_plural = 'Hoekmetingen'
@@ -411,10 +308,19 @@ class StatusMessage(LoraMessage):
 
     battery = models.IntegerField(verbose_name = 'batterijniveau')
 
+    def to_dict(self):
+        d = LoraMessage.to_dict(self)
+        d.update({'battery': self.battery})
+        return d
+
     class Meta:
         verbose_name = 'Batterijmeting'
         verbose_name_plural = 'Batterijmetingen'
         
+# --------------------------------------------------------------------------------------------------------------
+# GPS and RTK stuff
+# --------------------------------------------------------------------------------------------------------------
+
 class Fix(models.Model):
     """ GNSS fix for a peilstok """
     sensor = models.ForeignKey(GNSS_Sensor)
@@ -435,147 +341,6 @@ class Meta:
     verbose_name_plural = 'Fix'
     unique_together=('sensor', 'time')
     
-class BaseModule(models.Model):
-    
-    """ Base class for all messages sent by a device """
-    
-    device = models.ForeignKey(Device,verbose_name='peilstok')
- 
-    # time received by server
-    time = models.DateTimeField(verbose_name='tijdstip')
-    
-    # type of module
-    type = models.PositiveSmallIntegerField(choices=MESSAGE_CHOICES)
-
-    # position of module
-    position = models.PositiveSmallIntegerField(default=0,verbose_name='Sensorpositie')
-        
-class MasterModule(BaseModule):
-    """ Contains information about the state of the device itself, not its sensors """
-    
-    # Angle in degrees
-    angle = models.IntegerField(verbose_name='inclinatiehoek')
-
-    # Battery level in mV
-    battery = models.IntegerField(verbose_name='Batterijspanning')
-    
-    # Raw air pressure 12-bit ADC 
-    air = models.IntegerField(verbose_name='Luchtdruk')
-    
-    # Max number of modules
-    total = models.PositiveSmallIntegerField(verbose_name='maximum aantal sensoren')
-
-    def pressure(self):
-        # returns pressure in psi
-        return round(self.air * ADC_PSIMASTER,1)
-
-    def hPa(self):
-        # returns pressure in hPa
-        return round(self.air * ADC_HPAMASTER,1)
-
-    class Meta:
-        verbose_name = 'Toestand'
-        verbose_name_plural = 'Toestand'
-
-class GNSSModule(BaseModule):
-    """ Contains data from the on-board GNSS chip (ublox-7P) """
-    #gnsstime = models.BigIntegerField()
-    
-    # Latitude * 1e7 
-    lat = models.IntegerField(verbose_name='breedtegraad')
-    
-    # Longitude * 1e7 
-    lon = models.IntegerField(verbose_name='lengtegraad')
-    
-    # Height above ellipsoid in mm
-    alt = models.IntegerField(verbose_name='ellipsoid',help_text='hoogte ten opzichte van ellipsoid in mm')
-    
-    # Vertical accuracy in mm
-    vacc = models.IntegerField(verbose_name='vertikale nauwkeurigheid',help_text='vertikale nauwkeurigheid in mm')
-    
-    # Horizontal accuracy in mm
-    hacc = models.IntegerField(verbose_name='horizontale nauwkeurigheid',help_text='horizontale nauwkeurigheid in mm')
-    
-    # Height above mean sea level in mm
-    msl = models.IntegerField(verbose_name='zeeniveau',help_text='hoogte ten opzichte van zeeniveau in mm')
-
-    class Meta:
-        verbose_name = 'Locatie'
-        verbose_name_plural = 'Locaties'
-
-
-class ECModule(BaseModule):
-    """ Contains data from the EC sensor """
-
-    # temperature in 0.01 degrees C
-    temperature = models.IntegerField(help_text='temperatuur in 0.01 graden Celcius')
-
-    # raw ADC value 1x gain
-    adc1 = models.IntegerField()
-
-    # raw ADC value 11x gain
-    adc2 = models.IntegerField()
-    
-    def _calec(self):
-        """calibration with polynomals """
-        def p2(c,x):
-            return c[0]*x*x + c[1]*x + c[2]
-        
-        #2nd order polynomal coefficients
-        c1 = [0.0141, -107.49, 206099] 
-        c2 = [0.0044, -40.808, 91856]
-        
-        if self.adc1 > 3330:
-            ec = p2(c1,self.adc1)
-        elif self.adc2 < 3170:
-            ec = p2(c2,self.adc2)
-        else:
-            r1 = p2(c1,self.adc1)
-            x1 = self.adc1 - 3330
-            r2 = p2(c2,self.adc2)
-            x2 = 3170 - self.adc2
-            ec = (r1 * x2 + r2 * x1) / (x1+x2)
-        return ec
-
-    # calibrated EC-value33
-    def EC(self):
-        #return int(self.device.cal.calibrate(self))
-        return self._calec()
-    
-    class Meta:
-        verbose_name = 'EC-meting'
-        verbose_name_plural = 'EC-metingen'
-
-class PressureModule(BaseModule):
-    """ Contains data from the pressure sensor """
-    
-    # raw ADC pressure value
-    adc = models.IntegerField()
-
-    def pressure(self):
-        # returns pressure in psi
-        return round(self.adc * ADC_PSISLAVE, 1)
-
-    def hPa(self):
-        # returns pressure in hPa
-        return round(self.adc * ADC_HPASLAVE, 1)
-            
-    class Meta:
-        verbose_name = 'Drukmeting'
-        verbose_name_plural = 'Drukmetingen'
-
-class AngleMessage(BaseModule):
-    """ Message generated when device is tilted is more than 45 degrees """
-    angle = models.IntegerField()
-
-    class Meta:
-        verbose_name = 'Beweging'
-        verbose_name_plural = 'Bewegingen'
-
-# --------------------------------------------------------------------------------------------------------------
-# GPS and RTK stuff
-# --------------------------------------------------------------------------------------------------------------
-
 class RTKConfig(models.Model):
     """ RTKLIB configuration for peilstok app """
 

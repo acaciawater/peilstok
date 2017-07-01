@@ -139,6 +139,10 @@ LOGGING = {
             'interval': 1, # every day a new file
             'backupCount': 0,
         },
+        'console':{
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+        }
     },
     'formatters': {
         'default': {
@@ -153,6 +157,11 @@ LOGGING = {
         },
         'peil': {
             'handlers': ['file',],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'peil.management.commands': {
+            'handlers': ['console',],
             'level': 'DEBUG',
             'propagate': True,
         },

@@ -16,24 +16,21 @@ Including another URLconf
 from django.conf.urls import url, include
 from django.contrib import admin
 from tastypie.api import Api
-from .api import ECResource, PressureResource, MasterResource, GNSSResource, DeviceResource
+from .api import DeviceResource
 from .views import ttn, ubx
-from peil.views import DeviceView, DeviceListView, MapView, json_locations,\
-    PopupView, PeilView
+from peil.views import DeviceListView, MapView, json_locations,\
+    PopupView, PeilView, chart_as_json, data_as_json
 
 v1 = Api(api_name='v1')
 v1.register(DeviceResource())
-v1.register(ECResource())
-v1.register(PressureResource())
-v1.register(MasterResource())
-v1.register(GNSSResource())
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^ttn/', ttn),
     url(r'^ubx/', ubx),
     url(r'^map/', MapView.as_view(), name='device-map'),
-    url(r'^device/(?P<pk>\d+)', DeviceView.as_view(), name='device-detail'),
+    url(r'^chart/(?P<pk>\d+)/data', chart_as_json, name='chart-json'),
+    url(r'^chart/(?P<pk>\d+)/raw', data_as_json, name='data-json'),
     url(r'^chart/(?P<pk>\d+)', PeilView.as_view(), name='chart-detail'),
     url(r'^device/', DeviceListView.as_view(), name='device-list'),
     url(r'^locs/', json_locations),
