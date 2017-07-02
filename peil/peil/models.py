@@ -67,7 +67,7 @@ class Survey(geo.Model):
     altitude = models.DecimalField(null=True,blank=True,max_digits=10,decimal_places=3,verbose_name='hoogte',help_text='hoogte van de deksel in m tov NAP')
     vacc = models.PositiveIntegerField(null=True,blank=True,verbose_name='vertikale nauwkeurigheid',help_text='vertikale nauwkeurigheid in mm')
     hacc = models.PositiveIntegerField(null=True,blank=True,verbose_name='horizontale naukeurigheid',help_text='horizontale naukeurigheid in mm')
-    
+
 class Sensor(PolymorphicModel):
     """ Sensor in a peilstok """
 
@@ -241,7 +241,9 @@ class LoraMessage(PolymorphicModel):
         return {'time': self.time}
       
     class Meta:
-        ordering = ['time']
+        verbose_name = 'LoRa bericht'
+        verbose_name_plural = 'LoRa berichten'
+        ordering = ['-time']
         
 class ECMessage(LoraMessage):
     """ Contains data from an EC sensor """
