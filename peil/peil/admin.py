@@ -2,20 +2,21 @@ from django.contrib import admin
 from peil.models import Device, Sensor,\
     UBXFile, RTKConfig, ECSensor, PressureSensor,\
     BatterySensor, AngleSensor, LoraMessage, ECMessage, PressureMessage,\
-    InclinationMessage, StatusMessage, LocationMessage, GNSS_Sensor
+    InclinationMessage, StatusMessage, LocationMessage, GNSS_Sensor, Survey
 from peil.actions import create_pvts, rtkpost
 from peil.sensor import create_sensors, load_offsets,\
-    load_distance
+    load_distance, load_survey
 from polymorphic.admin import PolymorphicChildModelFilter, PolymorphicChildModelAdmin, PolymorphicParentModelAdmin
 
 def createsensors(modeladmin, request, queryset):
     for d in queryset:
         create_sensors(d)
-        #copy_messages(d)
     filename = '/media/sf_C_DRIVE/Users/theo/Documents/projdirs/peilstok/offsets.csv'
     load_offsets(filename)
     filename = '/media/sf_C_DRIVE/Users/theo/Documents/projdirs/peilstok/afstanden.csv'
     load_distance(filename)
+    filename='/media/sf_C_DRIVE/Users/theo/Documents/projdirs/peilstok/survey.csv'
+    load_survey(filename)
     
 def test_ecsensors(modeladmin, request, queryset):
     x1 = [3839,3723,3666,3613,3574,3537,3518,3498,3484,3469,3459,3446,3438,3430,3425,3420,3411,3407,3392,3379,3370,3366,3360,3355,3350,3347,3345,3344,3341,3340,3337,3336,3334,3333,3333,3332,3330,3330,3328,3329,3328,3328,3327,3302,3295]
@@ -84,10 +85,14 @@ class LoraAdmin(PolymorphicParentModelAdmin):
 @admin.register(ECMessage)
 class ECMessageAdmin(PolymorphicChildModelAdmin):
     base_model = ECMessage
-
+    list_display = ('device','sensor','time','adc1','adc2', 'temperature')
+    list_filter = ('sensor__device','time',)
+    show_in_index = True
+    
 @admin.register(PressureMessage)
 class PressureMessageAdmin(PolymorphicChildModelAdmin):
     base_model = PressureMessage
+    list_display = ('adc',)
     
 @admin.register(InclinationMessage)
 class InclinationMessageAdmin(PolymorphicChildModelAdmin):
@@ -100,4 +105,10 @@ class StatusMessageAdmin(PolymorphicChildModelAdmin):
 @admin.register(LocationMessage)
 class LocationMessageAdmin(PolymorphicChildModelAdmin):
     base_model = LocationMessage
+    
+@admin.register(Survey)
+class SurveyAdmin(admin.ModelAdmin):
+    model = Survey
+    list_display=('device','time','surveyor','location','altitude','vacc','hacc')
+    list_filter=('device','time','surveyor')
     

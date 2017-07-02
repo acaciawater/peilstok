@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.gis',
     'tastypie',
     'peil.apps.PeilConfig',
     'django_extensions', # for debugging ssl with runserver_plus

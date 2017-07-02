@@ -11,7 +11,7 @@ from django.views.generic.list import ListView
 from django.views.decorators.gzip import gzip_page
 from django.conf import settings
 
-import re, time, datetime
+import re, time
 import simplejson as json # allows for NaN conversion
 from peil.models import Device, UBXFile
 from peil.util import handle_post_data
@@ -200,7 +200,7 @@ class PeilView(DetailView):
                       'animation': False, 
                       'zoomType': 'x',
                       'events': {'load': None},
-                      'marginLeft': 40, 
+                      'marginLeft': 60, 
                       'marginRight': 60,
                       'spacingTop': 20,
                       'spacingBottom': 20

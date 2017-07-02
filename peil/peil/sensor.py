@@ -3,14 +3,11 @@ Created on Jun 22, 2017
 
 @author: theo
 '''
-from peil.models import GNSS_Sensor, AngleSensor, ECSensor, PressureSensor, BatterySensor
+from peil.models import GNSS_Sensor, AngleSensor, ECSensor, PressureSensor, BatterySensor,\
+    Device
 from django.core.exceptions import ObjectDoesNotExist
-
+from django.contrib.gis.geos import Point
 import calib
-
-"""
-migrate data to new structure with sensor layer
-"""
 
 def load_distance(filename):
     # load sensor distance to antenna from csv file
@@ -40,6 +37,33 @@ def load_distance(filename):
                 sensor.distance = r['Antenne']
                 sensor.save()
         except ObjectDoesNotExist:
+            continue
+
+def load_survey(filename):
+    # load survey data from csv file
+    import pandas as pd
+    df = pd.read_csv(filename)
+    for _,r in df.iterrows():
+        try:
+            stok = r['Peilstok']
+            device = Device.objects.get(devid__iexact=stok)
+            surveyor = r['Waarnemer']
+            date = r['Datum']
+            time = r['Tijd']
+            x = r['X']
+            y = r['Y']
+            z = r['Meetpunt (m tov NAP)']
+            vacc = r['Nauwkeurigheid (m)'] * 1000
+            time = date+time
+            device.survey_set.update_or_create(time=time,defaults = {
+                'surveyor': surveyor,
+                'location': Point(x,y),
+                'altitude': z,
+                'vacc': vacc,
+                'hacc': 0
+                })
+        except ObjectDoesNotExist:
+            #logger.error('peilstok "{}" does not exist'.format(stok))
             continue
 
 def load_offsets(filename):

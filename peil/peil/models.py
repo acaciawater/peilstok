@@ -4,6 +4,8 @@ Created on Apr 25, 2017
 @author: theo
 '''
 from django.db import models
+from django.contrib.gis.db import models as geo
+from django.contrib.gis.geos import Point
 from polymorphic.models import PolymorphicModel
 import numpy as np
 import logging
@@ -55,6 +57,16 @@ class Device(models.Model):
     def __unicode__(self):
         return self.devid
 
+class Survey(geo.Model):
+    """ Peilstok survey """
+    device = models.ForeignKey(Device,verbose_name='peilstok')
+    time = models.DateTimeField(verbose_name='tijdstip',help_text='tijdstip van inmeten')
+    surveyor = models.CharField(max_length=100,verbose_name='waarnemer',help_text='naam van waarnemer')
+    location = geo.PointField(srid=28992,verbose_name='locatie',help_text='locatie in Rijksdriehoekstelsel coorinaten')
+    altitude = models.DecimalField(null=True,blank=True,max_digits=10,decimal_places=3,verbose_name='hoogte',help_text='hoogte van de deksel in m tov NAP')
+    vacc = models.PositiveIntegerField(null=True,blank=True,verbose_name='vertikale nauwkeurigheid',help_text='vertikale nauwkeurigheid in mm')
+    hacc = models.PositiveIntegerField(null=True,blank=True,verbose_name='horizontale naukeurigheid',help_text='horizontale naukeurigheid in mm')
+    
 class Sensor(PolymorphicModel):
     """ Sensor in a peilstok """
 
@@ -148,25 +160,34 @@ class ECSensor(Sensor):
         def rat2(x, p0, p1, p2, q1):
             return rat1(x, [p0, p1, p2], [q1])
 
+        emin,emax = json.loads(self.ec_range)
         min1,max1 = json.loads(self.adc1_limits)
-        if adc1 > min1 and adc1 < max1:
+        sign = ''
+        if adc1 >= max1:
+            # out of range
+            ec = None
+            sign = '<'
+        elif adc1 > min1:
             # use adc1 only
             ec = rat2(adc1, *json.loads(self.adc1_coef))
-        
         else:
             min2,max2 = json.loads(self.adc2_limits)
-            if adc2 > min2 and adc2 < max2:
+            if adc2 <= min2:
+                #out of range
+                ec = emax
+                sign = '>'
+            elif adc2 < max2:
                 # use adc2 only
                 ec = rat2(adc2, *json.loads(self.adc2_coef))
-        
-            else:
-                ec = None
 
-        return ec * 1e-3 if ec else None# to mS/cm
+        return sign, ec * 1e-3 if ec else None# to mS/cm
 
     def EC25(self,adc1,adc2,temp):
-        ec = self.EC(adc1,adc2)
-        return ec * (1.0 + (25.0 - temp/100.0) * self.tempfactor) if ec else None
+        sign,ec = self.EC(adc1,adc2)
+        if sign:
+            return ec
+        else:
+            return ec * (1.0 + (25.0 - temp/100.0) * self.tempfactor) if ec else None
 
     def value(self, m):
         return self.EC25(m.adc1, m.adc2, m.temperature)
