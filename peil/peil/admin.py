@@ -33,17 +33,17 @@ class DeviceAdmin(admin.ModelAdmin):
     fields = ('devid', 'serial', 'cal')
     actions=[createsensors]
     
-@admin.register(UBXFile)
-class UBXFileAdmin(admin.ModelAdmin):
-    model = UBXFile
-    actions = [create_pvts, rtkpost]
-    list_filter = ('device', 'created')
-    list_display = ('__unicode__','device','created', 'start', 'stop')
-        
-@admin.register(RTKConfig)
-class RTKAdmin(admin.ModelAdmin):
-    model = RTKConfig
-    list_display = ('name',)
+# @admin.register(UBXFile)
+# class UBXFileAdmin(admin.ModelAdmin):
+#     model = UBXFile
+#     actions = [create_pvts, rtkpost]
+#     list_filter = ('device', 'created')
+#     list_display = ('__unicode__','device','created', 'start', 'stop')
+#         
+# @admin.register(RTKConfig)
+# class RTKAdmin(admin.ModelAdmin):
+#     model = RTKConfig
+#     list_display = ('name',)
 
 @admin.register(Sensor)
 class SensorAdmin(PolymorphicParentModelAdmin):
