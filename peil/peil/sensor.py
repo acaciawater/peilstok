@@ -7,7 +7,9 @@ from peil.models import GNSS_Sensor, AngleSensor, ECSensor, PressureSensor, Batt
     Device
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.gis.geos import Point
+import pytz
 import calib
+from django.utils.dateparse import parse_datetime
 
 def load_distance(filename):
     # load sensor distance to antenna from csv file
@@ -43,25 +45,26 @@ def load_survey(filename):
     # load survey data from csv file
     import pandas as pd
     df = pd.read_csv(filename)
+    amsterdam = pytz.timezone('Europe/Amsterdam')
     for _,r in df.iterrows():
         try:
             stok = r['Peilstok']
-            device = Device.objects.get(devid__iexact=stok)
-            surveyor = r['Waarnemer']
-            date = r['Datum']
-            time = r['Tijd']
-            x = r['X']
-            y = r['Y']
-            z = r['Meetpunt (m tov NAP)']
-            vacc = r['Nauwkeurigheid (m)'] * 1000
-            time = date+time
-            device.survey_set.update_or_create(time=time,defaults = {
-                'surveyor': surveyor,
-                'location': Point(x,y),
-                'altitude': z,
-                'vacc': vacc,
-                'hacc': 0
-                })
+            for device in Device.objects.filter(devid__iexact=stok):
+                surveyor = r['Waarnemer']
+                date = r['Datum']
+                time = r['Tijd']
+                x = r['X']
+                y = r['Y']
+                z = r['Meetpunt (m tov NAP)']
+                vacc = r['Nauwkeurigheid (m)'] * 1000
+                time = parse_datetime(date+' '+time)
+                time = amsterdam.localize(time)
+                device.survey_set.update_or_create(time=time,defaults = {
+                    'surveyor': surveyor,
+                    'location': Point(x,y),
+                    'altitude': z,
+                    'vacc': vacc,
+                    })
         except ObjectDoesNotExist:
             #logger.error('peilstok "{}" does not exist'.format(stok))
             continue
