@@ -25,6 +25,7 @@ v1 = Api(api_name='v1')
 v1.register(DeviceResource())
 
 urlpatterns = [
+    url(r'^$', MapView.as_view(), name='home'),
     url(r'^admin/', admin.site.urls),
     url(r'^ttn/', ttn),
     url(r'^ubx/', ubx),
