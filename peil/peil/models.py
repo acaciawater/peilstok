@@ -164,9 +164,9 @@ class ECSensor(Sensor):
         emin,emax = json.loads(self.ec_range)
         min1,max1 = json.loads(self.adc1_limits)
         sign = ''
+        ec = None
         if adc1 >= max1:
             # out of range
-            ec = None
             sign = '<'
         elif adc1 > min1:
             # use adc1 only

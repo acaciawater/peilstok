@@ -176,7 +176,8 @@ def chart_as_json(request,pk):
             #t,x=zip(*list(device.get_sensor(name,**kwargs).data(time__gt = datetime.datetime(2017,6,28))))       
             t,x=zip(*list(device.get_sensor(name,**kwargs).data()))       
             return pd.Series(x,index=t).resample(rule='H').mean()
-        except:
+        except Exception as e:
+            logger.error('ERROR loading sensor data for {}: {}'.format(name,e))
             return pd.Series()
                
     pts = getdata('EC1',position=1)
