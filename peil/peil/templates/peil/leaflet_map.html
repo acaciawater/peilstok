@@ -137,11 +137,17 @@ function restoreMap(map) {
 	if (name) {
 		baseMaps[name].addTo(map);
 	}
+	var b = storage.getItem('bounds');
+	if (b) {
+		corners = b.split(',').map(Number);
+		map.fitBounds([[corners[1],corners[0]],[corners[3],corners[2]]]);
+	}
 	return name? true : false;
 }
 
 function saveBounds(map) {
-	storage.setItem('bounds',map.getBounds());
+	var b = map.getBounds();
+	storage.setItem('bounds',b.toBBoxString());
 }
 
 $(function() {
@@ -181,12 +187,15 @@ $(function() {
 	overlayMaps = {'Waterlopen': waterlopen};
 	L.control.layers(baseMaps, overlayMaps).addTo(map);
 	
-	addMarkers(map,true);
-	
-	if (!restoreMap(map)) {
+	if (restoreMap(map)) {
+		// add markers, but dont change extent
+		addMarkers(map,false);
+	}
+	else {
+		// zoom to marker extent and add a default map
+		addMarkers(map,true);
 		osm.addTo(map);
 	}
-	
 	map.on('baselayerchange',function(e){changeBaseLayer(e);});
  	map.on('overlayadd',function(e){addOverlay(e);});
  	map.on('overlayremove',function(e){removeOverlay(e);});
