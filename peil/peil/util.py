@@ -160,7 +160,7 @@ def iterpvt(ubx):
         iTOW, year, month, day, hour, min, sec, valid, tAcc, nano, fixType, flags, reserved1, \
             numSV, lon, lat, height, hMSL, hAcc, vAcc, velN, velE, velD, gSpeed, heading, sAcc, \
             headingAcc, pDOP, reserved2, reserved3 = struct.unpack('<IHBBBBBbIiBbBBiiiiIIiiiiiIIHHI', data)
-        return fixType, {'timestamp': datetime.datetime(year, month, day, hour, min, sec, tzinfo = pytz.utc),
+        return valid, fixType, {'timestamp': datetime.datetime(year, month, day, hour, min, sec, tzinfo = pytz.utc),
                 'lat': lat*1e-7, 
                 'lon': lon*1e-7,
                 'alt': height, 
@@ -180,8 +180,8 @@ def iterpvt(ubx):
         data = ubx.read(length)
         checksum = ubx.read(2) # TODO verify checksum
         if msgid == UBX_NAV_PVT:
-            fix, fields = decode(data)
-            if fix == 3: # Allow only 3D fixes
+            valid, fix, fields = decode(data)
+            if valid and fix == 3: # Allow only valid 3D fixes
                 yield fields
                 
 def ubxtime(ubx):
