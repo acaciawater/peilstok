@@ -81,9 +81,9 @@ function bindCharts() {
 /**
  * Override the reset function, we don't need to hide the tooltips and crosshairs.
  */
-// Highcharts.Pointer.prototype.reset = function () {
-//     return undefined;
-// };
+Highcharts.Pointer.prototype.reset = function () {
+    return undefined;
+};
 
 /**
  * Highlight a point by showing tooltip, setting hover state and draw crosshair
@@ -126,7 +126,7 @@ $(function () {
 	  $('<div id=chart1 class=chart>').appendTo('#container').highcharts(opt1);
 	  $('<div id=chart2 class=chart>').appendTo('#container').highcharts(opt2);
 	  
-	  setTimeout(bindCharts,500);	  
+	  //setTimeout(bindCharts,500);	  
 });
 
 </script>
