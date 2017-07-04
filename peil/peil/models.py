@@ -11,6 +11,7 @@ import numpy as np
 import logging
 import calib
 import json
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,23 @@ class Device(models.Model):
     
     last_seen = models.DateTimeField(null=True,verbose_name='Laatste contact')
 
+    def statuscolor(self):
+        """ returns led color """
+        try:
+            age = timezone.now() - self.last_seen
+            hours = age.seconds/3600.0
+            days = age.days
+            if days == 0 and hours < 6:
+                return 'green'
+            elif days < 1:
+                return 'yellow'
+            elif days < 7:
+                return 'red'
+            else:
+                return 'grey'
+        except:
+            return 'grey'
+        
     def get_sensor(self,ident,**kwargs):
         kwargs['ident__iexact'] = ident
         return self.sensor_set.get(**kwargs)
