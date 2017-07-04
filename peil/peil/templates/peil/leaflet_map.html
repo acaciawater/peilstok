@@ -109,14 +109,14 @@ var baseMaps;
 var overlayMaps;
 var storage = sessionStorage; // or localStorage?
 
-function addOverlay(e){
-	overlays[e.name] = true;
-	storage.setItem('overlays', overlays);
+function addOverlay(e) {
+	overlays.add(e.name);
+	storage.setItem('overlays', JSON.stringify(Array.from(overlays)));
 }
 
 function removeOverlay(e) {
-	delete overlays[e.name];
-	storage.setItem('overlays', overlays);
+	overlays.delete(e.name);
+	storage.setItem('overlays', JSON.stringify(Array.from(overlays)));
 }
 
 function changeBaseLayer(e) {
@@ -127,13 +127,13 @@ function restoreMap(map) {
 	succes = false;
 	overlays = storage.getItem('overlays');
 	if (overlays) {
-		for (var name in overlays) {
-			overlayMaps[name].addTo(map);
-		}
-		succes = true;
+		JSON.parse(overlays).forEach(function(item) {
+			overlayMaps[item].addTo(map);
+			succes = true;
+		});
 	}
 	else {
-		overlays = {};
+		overlays = new Set();
 	}
 	var name = storage.getItem('baselayer');
 	if (name) {
