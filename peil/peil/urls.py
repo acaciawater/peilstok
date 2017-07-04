@@ -19,7 +19,7 @@ from tastypie.api import Api
 from .api import DeviceResource
 from .views import ttn, ubx
 from peil.views import DeviceListView, MapView, json_locations,\
-    PopupView, PeilView, chart_as_json, data_as_json
+    PopupView, PeilView, chart_as_json, data_as_json, DeviceDetailView
 
 v1 = Api(api_name='v1')
 v1.register(DeviceResource())
@@ -33,6 +33,7 @@ urlpatterns = [
     url(r'^chart/(?P<pk>\d+)/data', chart_as_json, name='chart-json'),
     url(r'^chart/(?P<pk>\d+)/raw', data_as_json, name='data-json'),
     url(r'^chart/(?P<pk>\d+)', PeilView.as_view(), name='chart-detail'),
+    url(r'^device/(?P<pk>\d+)', DeviceDetailView.as_view(), name='device-detail'),
     url(r'^device/', DeviceListView.as_view(), name='device-list'),
     url(r'^locs/', json_locations),
     url(r'^pop/(?P<pk>\d+)', PopupView.as_view()),

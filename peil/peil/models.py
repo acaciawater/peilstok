@@ -12,6 +12,7 @@ import logging
 import calib
 import json
 from django.utils import timezone
+from django.urls.base import reverse
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,9 @@ class Device(models.Model):
     
     last_seen = models.DateTimeField(null=True,verbose_name='Laatste contact')
 
+    def get_absolute_url(self):
+        return reverse('device-detail',args=[self.pk])
+    
     def statuscolor(self):
         """ returns led color """
         try:
@@ -69,6 +73,9 @@ class Device(models.Model):
         except:
             return 'grey'
         
+    def last_survey(self):    
+        return self.survey_set.order_by('time').last()
+    
     def get_sensor(self,ident,**kwargs):
         kwargs['ident__iexact'] = ident
         return self.sensor_set.get(**kwargs)
@@ -101,6 +108,9 @@ class Sensor(PolymorphicModel):
     # distance of sensor in mm from antenna        
     distance = models.IntegerField(default = 0, verbose_name = 'afstand', help_text = 'afstand tov antenne')
 
+    # unit of calibrated values
+    unit = models.CharField(max_length = 10, default='-')
+    
     def message_count(self):
         return self.loramessage_set.count()
     message_count.short_description = 'Aantal berichten'
@@ -147,6 +157,7 @@ class Sensor(PolymorphicModel):
     class Meta:
         verbose_name = 'Sensor'
         verbose_name_plural = 'sensoren'
+        ordering = ('position', 'ident')
         
 class PressureSensor(Sensor):
 
@@ -155,7 +166,7 @@ class PressureSensor(Sensor):
 
     def value(self, m):
         """ calculates pressure in hPa from raw ADC value in message """
-        return self.offset + m.adc * self.scale
+        return round(self.offset + m.adc * self.scale,2)
 
     class Meta:
         verbose_name = 'Druksensor'
@@ -209,7 +220,8 @@ class ECSensor(Sensor):
             return ec * (1.0 + (25.0 - temp/100.0) * self.tempfactor) if ec else None
 
     def value(self, m):
-        return self.EC25(m.adc1, m.adc2, m.temperature)
+        ec = self.EC25(m.adc1, m.adc2, m.temperature)
+        return round(ec,0) if ec else None
         
     class Meta:
         verbose_name = 'EC-Sensor'
@@ -221,8 +233,8 @@ class GNSS_Sensor(Sensor):
         verbose_name_plural = 'GPS'
 
     def value(self,m):
-        return (m.lon*1e-7, m.lat*1e-7, m.alt*1e-3)
-
+        return (m.lon*1e-7, m.lat*1e-7, round(m.alt*1e-3,3))
+        
 class AngleSensor(Sensor):
     class Meta:
         verbose_name = 'Inclinometer'
@@ -237,7 +249,7 @@ class BatterySensor(Sensor):
         verbose_name_plural =  'Batterijspanning'
 
     def value(self, m):
-        return m.battery*1e-3
+        return m.battery
 
 class LoraMessage(PolymorphicModel):
     """ Base class for all LoRa messages sent by a sensor """
@@ -253,6 +265,9 @@ class LoraMessage(PolymorphicModel):
     def device(self):
         return self.sensor.device
     device.short_description = 'Peilstok'
+    
+    def value(self):
+        return self.sensor.value(self)
     
     def to_dict(self):
         return {'time': self.time}
@@ -327,6 +342,14 @@ class LocationMessage(LoraMessage):
         d.update({'lon': self.lon, 'lat': self.lat, 'alt': self.alt, 'vacc': self.vacc, 'hacc': self.hacc, 'msl': self.msl})
         return d
 
+    def NAPvalue(self):
+        from peil.util import rdnap
+        try:
+            x,y,z = rdnap.to_rdnap(self.lat*1e-7, self.lon*1e-7, self.alt*1e-3)
+            return (round(x,2), round(y,2), round(z,2))
+        except:
+            return None
+        
     class Meta:
         verbose_name = 'Plaatsbepaling'
         verbose_name_plural = 'Plaatsbepalingen'

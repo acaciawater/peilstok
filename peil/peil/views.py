@@ -137,7 +137,10 @@ class MapView(ListView):
     
 class DeviceListView(ListView):
     model = Device
-    
+
+class DeviceDetailView(DetailView):
+    model = Device
+        
 @gzip_page
 def chart_as_json(request,pk):
     """ get chart data as json array for highcharts """
@@ -147,7 +150,7 @@ def chart_as_json(request,pk):
         try:
             #t,x=zip(*list(device.get_sensor(name,**kwargs).data(time__gt = datetime.datetime(2017,6,28))))       
             t,x=zip(*list(device.get_sensor(name,**kwargs).data()))       
-            return pd.Series(x,index=t).resample(rule='H').mean()
+            return pd.Series(x,index=t)
         except Exception as e:
             logger.error('ERROR loading sensor data for {}: {}'.format(name,e))
             return pd.Series()
@@ -158,9 +161,9 @@ def chart_as_json(request,pk):
     pts = getdata('EC2',position=2)
     data['EC2'] = zip(pts.index,pts.values)
     
-    h1=getdata('Luchtdruk',position=0)
     h2=getdata('Waterdruk',position=3)
-    
+    h1=getdata('Luchtdruk',position=0)
+    h1 = h1.reindex(h2.index,method='nearest')
     pts = (h2-h1)/0.980638
     data['H']=zip(pts.index,pts.values)
     return HttpResponse(json.dumps(data, ignore_nan = True, default=lambda x: time.mktime(x.timetuple())*1000.0), content_type='application/json')
@@ -176,7 +179,7 @@ def data_as_json(request,pk):
             data = device.get_sensor(name,**kwargs).raw_data()
             df = pd.DataFrame(data).set_index('time')
             df = df.where(df<4096,np.nan) # clear all extreme values
-            return df.resample(rule='H').mean()
+            return df
         except:
             return pd.DataFrame()
                
@@ -212,7 +215,7 @@ class PeilView(DetailView):
         device = self.get_object()
         
         options = {
-            'chart': {'type': 'line', 
+            'chart': {'type': 'spline', 
                       'animation': False, 
                       'zoomType': 'x',
                       'events': {'load': None},
@@ -227,7 +230,7 @@ class PeilView(DetailView):
                       'events': {'setExtremes': None},
                       },
             'legend': {'enabled': True},
-            'tooltip': {'shared': True, 'valueDecimals': 2},
+            'tooltip': {'xDateFormat': '%a %d %B %Y %H:%M:%S', 'valueDecimals': 2},
             'plotOptions': {'line': {'marker': {'enabled': False}}},            
             'credits': {'enabled': True, 
                         'text': 'acaciawater.com', 
@@ -247,7 +250,7 @@ class PeilView(DetailView):
         options.update({
             'title': {'text': 'Ruwe sensor waardes'},
             'plotOptions': {'line': {'marker': {'enabled': True, 'radius': 3}}},            
-            'tooltip': {'valueDecimals': 0, 'shared': True},
+            'tooltip': {'valueDecimals': 0, 'xDateFormat': '%a %d %B %Y %H:%M:%S'},
             'yAxis': [{'title': {'text': 'ADC waarde'},'labels':{'format': '{value}'}}],
             'series': [{'name': 'EC1-adc1', 'id': 'EC1_adc1', 'yAxis': 0, 'data': []},
                        {'name': 'EC1-adc2', 'id': 'EC1_adc2', 'yAxis': 0, 'data': []},

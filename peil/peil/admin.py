@@ -30,7 +30,7 @@ class DeviceAdmin(admin.ModelAdmin):
     model = Device
     list_display = ('serial', 'devid', 'last_seen')
     list_filter = ('serial','devid',)
-    fields = ('devid', 'serial', 'cal')
+    fields = ('devid', 'serial', )
     actions=[createsensors]
     
 # @admin.register(UBXFile)

@@ -11,6 +11,23 @@ import pytz
 import calib
 from django.utils.dateparse import parse_datetime
 
+def set_units():
+    for sensor in PressureSensor.objects.all():
+        sensor.unit = 'hPa'
+        sensor.save()
+    for sensor in ECSensor.objects.all():
+        sensor.unit = 'mS/cm'
+        sensor.save()
+    for sensor in BatterySensor.objects.all():
+        sensor.unit = 'mV'
+        sensor.save()
+    for sensor in AngleSensor.objects.all():
+        sensor.unit = 'graden'
+        sensor.save()
+    for sensor in GNSS_Sensor.objects.all():
+        sensor.unit = 'm'
+        sensor.save()
+ 
 def load_distance(filename):
     # load sensor distance to antenna from csv file
     import pandas as pd
@@ -91,16 +108,17 @@ def load_offsets(filename):
             continue
         
 def create_sensors(device):
-    return (GNSS_Sensor.objects.update_or_create(device=device,defaults={'ident':'GPS'}),
-        AngleSensor.objects.update_or_create(device=device,defaults={'ident':'Inclinometer'}),
-        BatterySensor.objects.update_or_create(device=device,defaults={'ident':'Batterij'}),
+    return (GNSS_Sensor.objects.update_or_create(device=device,defaults={'ident':'GPS','unit':'m'}),
+        AngleSensor.objects.update_or_create(device=device,defaults={'ident':'Inclinometer','unit':'graden'}),
+        BatterySensor.objects.update_or_create(device=device,defaults={'ident':'Batterij','unit':'mV'}),
         ECSensor.objects.update_or_create(device=device,position=1,defaults={
             'ident':'EC1',
             'adc1_coef' :calib.ADC1EC,
             'adc2_coef': calib.ADC2EC,
             'adc1_limits': calib.ADC1EC_LIMITS,
             'adc2_limits': calib.ADC2EC_LIMITS,
-            'ec_range': calib.EC_RANGE
+            'ec_range': calib.EC_RANGE,
+            'unit': 'mS/cm'
             }),
         ECSensor.objects.update_or_create(device=device,position=2,defaults={
             'ident':'EC2',
@@ -108,7 +126,8 @@ def create_sensors(device):
             'adc2_coef': calib.ADC2EC,
             'adc1_limits': calib.ADC1EC_LIMITS,
             'adc2_limits': calib.ADC2EC_LIMITS,
-            'ec_range': calib.EC_RANGE
+            'ec_range': calib.EC_RANGE,
+            'unit': 'mS/cm'
             }),
-        PressureSensor.objects.update_or_create(device=device,position=0,defaults={'ident':'Luchtdruk','scale': calib.ADC_HPAMASTER}),
-        PressureSensor.objects.update_or_create(device=device,position=3,defaults={'ident':'Waterdruk','scale': calib.ADC_HPASLAVE}))
+        PressureSensor.objects.update_or_create(device=device,position=0,defaults={'ident':'Luchtdruk','scale': calib.ADC_HPAMASTER, 'unit': 'hPa'}),
+        PressureSensor.objects.update_or_create(device=device,position=3,defaults={'ident':'Waterdruk','scale': calib.ADC_HPASLAVE, 'unit': 'hPa'}))

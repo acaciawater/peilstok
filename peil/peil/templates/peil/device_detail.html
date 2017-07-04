@@ -1,13 +1,87 @@
-{% extends 'peil/highcharts.html' %}
+{% extends 'peil/base.html' %}
 {% block title %}Device {{object}}{% endblock %}
 {% block style %}
 {{block.super}}
 <style>
-#chart1, #chart2 {
-  width: 90%;
-  height: 400 px;
-}
 </style>
 {% endblock %}
 {% block navbar %}
+{% endblock %}
+{% block content %}
+<div class="container">
+<h3>{{object|title}}</h3>
+<table class="table table-striped">
+<thead>
+<tr class="active">
+<th>Omschrijving</th>
+<th>Waarde</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Serienummer</td>
+<td>{{object.serial}}</td>
+</tr>
+<tr>
+<td>Laatste contact</td>
+<td>{{object.last_seen}}</td>
+</tr>
+<tr>
+<td>Aantal sensoren</td>
+<td>{{object.sensor_set.count}}</td>
+</tr>
+{% with object.last_survey as survey %}
+{% if survey %}
+<tr>
+<td>Ingemeten door</td>
+<td>{{survey.surveyor}}</td>
+</tr>
+<tr>
+<td>Tijdstip</td>
+<td>{{survey.time}}</td>
+</tr>
+<tr>
+<td>Positie (RD)</td>
+<td>X={{survey.location.x}}, Y={{survey.location.y}}</td>
+</tr>
+<tr>
+<td>Hoogte (NAP)</td>
+<td>{{survey.altitude|floatformat:2}}</td>
+</tr>
+{% endif %}
+{% endwith %}
+</tbody>
+</table>
+
+<h3>Sensoren</h3>
+<table class="table table-striped">
+<thead>
+<tr class="active">
+<th>Sensor</th>
+<th>Positie</th>
+<th>Afstand</th>
+<th>Aantal berichten</th>
+<th>Laatste bericht</th>
+<th>Laatste waarde</th>
+<th>Eenheid</th>
+<!-- <th>Inhoud bericht</th> -->
+</tr>
+</thead>
+{% for sensor in object.sensor_set.all %}
+<tr>
+<td>{{sensor.ident}}</td>
+<td>{{sensor.position}}</td>
+<td>{{sensor.distance}}</td>
+<td>{{sensor.message_count}}</td>
+{% with sensor.last_message as last %}
+<td>{{last.time}}</td>
+<td>{%ifequal sensor.ident "GPS"%}{{last.NAPvalue}}{%else%}{{last.value|default:""}}{%endifequal%}</td>
+<td>{{sensor.unit}}</td>
+<!-- <td>{{last.to_dict}}</td> -->
+{% endwith %}
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
 {% endblock %}

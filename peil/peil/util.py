@@ -235,3 +235,4 @@ class TransNAP:
     def to_wgs84(self,x,y,z):
         return self.inv.TransformPoint(x,y,z)
 
+rdnap = TransNAP()
