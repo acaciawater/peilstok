@@ -237,7 +237,6 @@ class LoraMessage(PolymorphicModel):
     device.short_description = 'Peilstok'
     
     def to_dict(self):
-        #return {'device': self.device().devid, 'sensor': self.sensor.ident, 'time': self.time}
         return {'time': self.time}
       
     class Meta:
