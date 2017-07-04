@@ -124,11 +124,13 @@ function changeBaseLayer(e) {
 }
 
 function restoreMap(map) {
+	succes = false;
 	overlays = storage.getItem('overlays');
 	if (overlays) {
 		for (var name in overlays) {
 			overlayMaps[name].addTo(map);
 		}
+		succes = true;
 	}
 	else {
 		overlays = {};
@@ -136,18 +138,25 @@ function restoreMap(map) {
 	var name = storage.getItem('baselayer');
 	if (name) {
 		baseMaps[name].addTo(map);
+		succes = true;
 	}
-	var b = storage.getItem('bounds');
-	if (b) {
-		corners = b.split(',').map(Number);
-		map.fitBounds([[corners[1],corners[0]],[corners[3],corners[2]]]);
-	}
-	return name? true : false;
+	return succes;
 }
+
 
 function saveBounds(map) {
 	var b = map.getBounds();
 	storage.setItem('bounds',b.toBBoxString());
+}
+
+function restoreBounds(map) {
+	var b = storage.getItem('bounds');
+	if (b) {
+		corners = b.split(',').map(Number);
+		map.fitBounds([[corners[1],corners[0]],[corners[3],corners[2]]]);
+		return true;
+	}
+	return false;
 }
 
 $(function() {
@@ -187,15 +196,20 @@ $(function() {
 	overlayMaps = {'Waterlopen': waterlopen};
 	L.control.layers(baseMaps, overlayMaps).addTo(map);
 	
-	if (restoreMap(map)) {
+	if (!restoreMap(map)) {
+		// use default map
+		osm.addTo(map);
+	}
+	
+	if(restoreBounds(map)) {
 		// add markers, but dont change extent
 		addMarkers(map,false);
 	}
 	else {
-		// zoom to marker extent and add a default map
+		// add markers and zoom to extent
 		addMarkers(map,true);
-		osm.addTo(map);
 	}
+	
 	map.on('baselayerchange',function(e){changeBaseLayer(e);});
  	map.on('overlayadd',function(e){addOverlay(e);});
  	map.on('overlayremove',function(e){removeOverlay(e);});
