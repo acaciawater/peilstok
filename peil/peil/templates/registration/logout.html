@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% load bootstrap3 %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h1>Logout</h1>
+  <p class="lead">U bent nu uitgelogd.</p>
+  <p><a href="{% url 'home' %}">Startpagina</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+
+{% block title %}Activeringsfout{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="row">
+	<h1>Activeringsfout</h1>
+	<div class="alert alert-danger col-md-9">
+	  <p>De activeringssleutel <strong>{{ activation_key }}</strong> is ongeldig of is verlopen.</p>
+	</div>
+  </div>
+</div>
+
+{% endblock %}
+	

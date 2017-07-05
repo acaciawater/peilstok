@@ -38,6 +38,7 @@ urlpatterns = [
     url(r'^locs/', json_locations),
     url(r'^pop/(?P<pk>\d+)', PopupView.as_view()),
     url(r'^api/', include(v1.urls)),
+    url(r'^accounts/', include('registration.backends.hmac.urls')),    
 ]
 
 from django.conf.urls.static import static

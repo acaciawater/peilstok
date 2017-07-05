@@ -37,8 +37,10 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.gis',
     'tastypie',
+    'bootstrap3',
     'peil.apps.PeilConfig',
     'django_extensions', # for debugging ssl with runserver_plus
+    #'registration', # not required for HMAC registration
 ]
 
 MIDDLEWARE = [
@@ -105,6 +107,9 @@ USE_L10N = True
 USE_TZ = True
 
 TASTYPIE_DEFAULT_FORMATS = ['json']
+REGISTRATION_OPEN = True
+REGISTRATION_SALT = 'Peilstok13579'
+LOGIN_REDIRECT_URL = '/'
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
@@ -117,6 +122,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 LOGGING_ROOT = os.path.join(BASE_DIR, 'logs')
 
+# registratino
+ACCOUNT_ACTIVATION_DAYS = 7
 
 # Logging
 LOGGING = {

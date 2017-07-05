@@ -6,11 +6,14 @@ cffi==1.10.0
 cryptography==1.8.1
 cycler==0.10.0
 Django==1.11
+django-bootstrap3==8.2.3
 django-extensions==1.7.9
 django-polymorphic==1.2
+django-registration==2.2
 django-tastypie==0.13.3
 docutils==0.13.1
 enum34==1.1.6
+functools32==3.2.3.post2
 GDAL==2.1.0
 idna==2.5
 imagesize==0.7.1
@@ -21,6 +24,7 @@ matplotlib==2.0.1
 numpy==1.12.1
 packaging==16.8
 pandas==0.20.1
+pkg-resources==0.0.0
 psycopg2==2.7.1
 pycparser==2.17
 Pygments==2.2.0

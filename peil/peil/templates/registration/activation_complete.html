@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Account geactiveerd{% endblock %}
+
+{% block content %}
+<div class="container"> 
+  <h1>Success!</h1>
+  <p class="lead">De activering van uw account is geslaagd!</p>
+  <p>U kunt nu inloggen op de website.</p>
+
+  <p><a href="{% url 'auth_login' %}" 
+		class="btn btn-success"
+        role="button">Inloggen in</a>
+  </p>
+</div>
+{% endblock %}

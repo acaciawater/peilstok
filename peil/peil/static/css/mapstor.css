@@ -1,0 +1,33 @@
+@CHARSET "UTF-8";
+
+html, body, .wrapper, .full {
+  height: 100%;
+  margin: 0px;
+  padding: 0px;
+}
+#list {
+	padding: 0px 8px 0px 8px;
+	overflow-y: auto;
+}
+
+.adjust {
+	margin: -10px 10px;
+}
+
+.laatste {
+	float:right;
+}
+.bullet {
+ 	width: 16px;
+ 	height: 16px;
+ 	margin-left: -12px;
+ 	margin-right: 4px;
+}
+.label {
+	padding: 2px;
+	background: #ffff99;
+}
+
+table { border: 1px solid white; }
+td:first-child { font-weight: bold; }
+tr:nth-child(odd) { background: Azure; }

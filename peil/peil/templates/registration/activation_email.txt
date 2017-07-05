@@ -1,0 +1,16 @@
+Beste {{ user.firstname|default:user.username }},
+
+Je ontvangt deze email omdat je een account aangevraagd hebt op {{ site.name }}.
+
+Klik op onderstaande link om je account te activeren:
+
+http://{{ site.domain }}{% url 'registration_activate' activation_key %}
+
+Deze link verloopt na {{ expiration_days }} dagen.
+
+Als je geen account aangevraagd hebt hoef je verder niets te doen. Je kan dan deze email verwijderen.
+
+Met vriendelijke groet,
+
+Acacia Water
+
