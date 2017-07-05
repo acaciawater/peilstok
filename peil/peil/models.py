@@ -77,7 +77,11 @@ class Device(models.Model):
         
     def last_survey(self):    
         return self.survey_set.order_by('time').last()
-    
+
+    def sensor_names(self):
+        """ returns comma separated list of sensor names """
+        return ', '.join(self.sensor_set.distinct('ident').order_by('ident').values_list('ident',flat=True))
+        
     def get_sensor(self,ident,**kwargs):
         kwargs['ident__iexact'] = ident
         return self.sensor_set.get(**kwargs)

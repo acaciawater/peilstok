@@ -23,12 +23,20 @@
 <td>{{object.serial}}</td>
 </tr>
 <tr>
-<td>Laatste contact</td>
-<td>{{object.last_seen}}</td>
+<td>Lengte</td>
+<td>{{object.length}} mm</td>
+</tr>
+<tr>
+<td>Sensoren</td>
+<td>{{object.sensor_names}}</td>
 </tr>
 <tr>
 <td>Aantal sensoren</td>
 <td>{{object.sensor_set.count}}</td>
+</tr>
+<tr>
+<td>Laatste contact</td>
+<td>{{object.last_seen}}</td>
 </tr>
 {% with object.last_survey as survey %}
 {% if survey %}
