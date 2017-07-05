@@ -51,8 +51,10 @@ class Device(models.Model):
     # date/time created
     created = models.DateTimeField(auto_now_add = True, verbose_name='Geregistreerd')
     
-    last_seen = models.DateTimeField(null=True,verbose_name='Laatste contact')
+    last_seen = models.DateTimeField(null=True, verbose_name='Laatste contact')
 
+    length = models.IntegerField(null=True, verbose_name='Lengte', help_text = 'Totale lengte peilstok in mm')
+    
     def get_absolute_url(self):
         return reverse('device-detail',args=[self.pk])
     

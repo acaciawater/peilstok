@@ -12,6 +12,7 @@ import calib
 from django.utils.dateparse import parse_datetime
 
 def set_units():
+    """ Set default sensor units """
     for sensor in PressureSensor.objects.all():
         sensor.unit = 'hPa'
         sensor.save()
@@ -35,6 +36,10 @@ def load_distance(filename):
     for _,r in df.iterrows():
         try:
             stok = r['Peilstok']
+            devices = Device.objects.filter(devid__iexact=stok)
+            for device in devices:
+                device.length = r['Bottom']
+                device.save()
             sensors = PressureSensor.objects.filter(device__devid__iexact=stok, ident='Luchtdruk')
             for sensor in sensors:
                 sensor.distance = r['Luchtdruk']
