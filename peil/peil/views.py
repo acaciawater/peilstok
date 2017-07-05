@@ -21,6 +21,7 @@ import numpy as np
 import logging
 from django.shortcuts import get_object_or_404
 from django.contrib.gis.gdal import CoordTransform, SpatialReference
+from django.contrib.auth.mixins import LoginRequiredMixin
 logger = logging.getLogger(__name__)
 
 def json_locations(request):
@@ -205,7 +206,7 @@ def data_as_json(request,pk):
     
     return HttpResponse(json.dumps(data, ignore_nan = True, default=lambda x: time.mktime(x.timetuple())*1000.0), content_type='application/json')
 
-class PeilView(DetailView):
+class PeilView(LoginRequiredMixin, DetailView):
     """ Shows calibrated and raw sensor values """
     model = Device
     template_name = 'peil/chart.html'
