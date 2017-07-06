@@ -48,15 +48,17 @@
 	      <ul class="nav navbar-nav navbar-right">
 	        {% block navbar-right %}{% endblock navbar-right %}
 	        {% if user.is_authenticated %}
-	        <li><a href="{% block admin_url %}/admin/peil{% endblock admin_url %}">Beheer</a></li>
-	        <li class="dropdown">
-	          <a href="#" class="dropdown-toggle" data-toggle="dropdown">{% filter force_escape %}{% firstof user.first_name user.username %}{% endfilter %}
-	          <b class="caret"></b></a>
-	          <ul class="dropdown-menu">
-	            <li><a href="{% url 'auth_logout' %}">Uitloggen</a></li>
-	            <li><a href="{% url 'auth_password_change' %}">Wachtwoord veranderen</a></li>
-	          </ul>
-	        </li>
+		        {% if user.is_staff %}
+			        <li><a href="{% block admin_url %}/admin/peil{% endblock admin_url %}">Beheer</a></li>
+			    {% endif %}
+		        <li class="dropdown">
+		          <a href="#" class="dropdown-toggle" data-toggle="dropdown">{% filter force_escape %}{% firstof user.first_name user.username %}{% endfilter %}
+		          <b class="caret"></b></a>
+		          <ul class="dropdown-menu">
+		            <li><a href="{% url 'auth_logout' %}">Uitloggen</a></li>
+		            <li><a href="{% url 'auth_password_change' %}">Wachtwoord veranderen</a></li>
+		          </ul>
+		        </li>
           	{% else %}
 	        <li><a href="{% url 'auth_login' %}">Inloggen</a></li>
           	{% endif %}
