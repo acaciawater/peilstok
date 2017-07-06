@@ -232,7 +232,7 @@ class PeilView(LoginRequiredMixin, DetailView):
                       },
             'legend': {'enabled': True},
             'tooltip': {'xDateFormat': '%a %d %B %Y %H:%M:%S', 'valueDecimals': 2},
-            'plotOptions': {'line': {'marker': {'enabled': False}}},            
+            'plotOptions': {'spline': {'marker': {'enabled': False}}},            
             'credits': {'enabled': True, 
                         'text': 'acaciawater.com', 
                         'href': 'http://www.acaciawater.com',
@@ -250,7 +250,7 @@ class PeilView(LoginRequiredMixin, DetailView):
 
         options.update({
             'title': {'text': 'Ruwe sensor waardes'},
-            'plotOptions': {'line': {'marker': {'enabled': True, 'radius': 3}}},            
+            'plotOptions': {'spline': {'marker': {'enabled': False, 'radius': 3}}},            
             'tooltip': {'valueDecimals': 0, 'xDateFormat': '%a %d %B %Y %H:%M:%S'},
             'yAxis': [{'title': {'text': 'ADC waarde'},'labels':{'format': '{value}'}}],
             'series': [{'name': 'EC1-adc1', 'id': 'EC1_adc1', 'yAxis': 0, 'data': []},
