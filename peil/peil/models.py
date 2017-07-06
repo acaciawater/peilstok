@@ -86,6 +86,11 @@ class Device(models.Model):
         kwargs['ident__iexact'] = ident
         return self.sensor_set.get(**kwargs)
     
+    def delete(self):
+        """ cascading delete does not work with polymorphic models """
+        self.sensor_set.all().delete()
+        super(Device,self).delete()
+        
     def __unicode__(self):
         return self.devid
 
