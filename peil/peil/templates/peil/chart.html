@@ -51,8 +51,12 @@ function fetchSeries(div, url, other) {
 	    complete: function(hdr, status) {
 		  	var chart = $(div).highcharts();
 	    	chart.hideLoading();
-	    	var chart2 = $(other).highcharts();
-	    	syncCharts(chart,chart2);
+	    	if (other) {
+		    	var chart2 = $(other).highcharts();
+		    	if (chart2) {
+		    		syncCharts(chart,chart2);
+		    	}
+	    	}
 	    }
     });
 }
@@ -119,14 +123,16 @@ $(function () {
 		  fetchSeries('#chart1', '{{object.id}}/data');
 	  };
 	  opt1.xAxis.events.setExtremes = syncExtremes;
-	  var opt2 = {{options2|safe}};
+	  $('<div id=chart1 class=chart>').appendTo('#container').highcharts(opt1);
+
+{% if request.user.is_superuser %}
+      var opt2 = {{options2|safe}};
 	  opt2.chart.events.load = function() {
 		  fetchSeries('#chart2', '{{object.id}}/raw');
 	  };
 	  opt2.xAxis.events.setExtremes = syncExtremes;
-	  $('<div id=chart1 class=chart>').appendTo('#container').highcharts(opt1);
 	  $('<div id=chart2 class=chart>').appendTo('#container').highcharts(opt2);
-	  
+{% endif %}	  
 	  //setTimeout(bindCharts,500);	  
 });
 
