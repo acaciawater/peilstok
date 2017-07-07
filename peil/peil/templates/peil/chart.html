@@ -1,5 +1,13 @@
 {% extends 'peil/base.html' %}
 {% block title%}PHZD - grafiek {{object}} {% endblock %}
+{% block navbar-right %}
+{% if prev %}
+<li><a href="{%url 'chart-detail' prev.id %}">Vorige</a></li>
+{% endif %}
+{% if next %}
+<li><a href="{%url 'chart-detail' next.id %}">Volgende</a></li>
+{% endif %}
+{% endblock %}
 {% block script %}
 {{ block.super }}
 <script src="//code.highcharts.com/highcharts.js"></script>

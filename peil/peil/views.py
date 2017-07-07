@@ -22,6 +22,7 @@ import logging
 from django.shortcuts import get_object_or_404
 from django.contrib.gis.gdal import CoordTransform, SpatialReference
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import ObjectDoesNotExist
 logger = logging.getLogger(__name__)
 
 def json_locations(request):
@@ -215,6 +216,21 @@ class PeilView(LoginRequiredMixin, DetailView):
         context = super(PeilView, self).get_context_data(**kwargs)
         device = self.get_object()
         
+        name = device.devid
+        match = re.match(r'(?P<name>\D+)(?P<num>\d+$)',name)
+        next = prev = None
+        if match:
+            name = match.group('name')
+            number = match.group('num')
+            try:
+                next = Device.objects.filter(devid__iexact=name+str(int(number) + 1)).first()
+            except ObjectDoesNotExist:
+                pass
+            try:
+                prev = Device.objects.filter(devid__iexact=name+str(int(number) - 1)).last()
+            except ObjectDoesNotExist:
+                pass
+        
         options = {
             'chart': {'type': 'spline', 
                       'animation': False, 
@@ -264,6 +280,7 @@ class PeilView(LoginRequiredMixin, DetailView):
                        ]
                    })
         context['options2'] = json.dumps(options,default=lambda x: time.mktime(x.timetuple())*1000.0)
-        context['theme'] = 'None'
+        context['next'] = next
+        context['prev'] = prev
         return context
     
