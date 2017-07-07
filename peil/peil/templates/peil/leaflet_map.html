@@ -5,6 +5,7 @@
 <link rel="stylesheet" href="//unpkg.com/leaflet@1.0.3/dist/leaflet.css"/>
 <link rel="stylesheet" href="//unpkg.com/leaflet.markercluster@1.0.5/dist/MarkerCluster.css"/>
 <link rel="stylesheet" href="//unpkg.com/leaflet.markercluster@1.0.5/dist/MarkerCluster.Default.css"/>
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
 <link rel="stylesheet" href="/static/css/mapstor.css"/>
 {% endblock %}
 {% block script %}
@@ -13,12 +14,14 @@
 <script src="//maps.googleapis.com/maps/api/js?key={{api_key}}" async defer></script>
 <script src="//unpkg.com/leaflet.gridlayer.googlemutant@latest/Leaflet.GoogleMutant.js"></script>
 <script src="//unpkg.com/leaflet.markercluster@1.0.5/dist/leaflet.markercluster.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
 <script src="/static/js/mapstor.js"></script>
 <script>
 
 $(function() {
 	initMap('map');
  	$("#list").height($("#map").height());
+ 	$("#list").sortable();
 });
 
 </script>
