@@ -5,7 +5,6 @@ Created on Apr 25, 2017
 '''
 from django.db import models
 from django.contrib.gis.db import models as geo
-from django.contrib.gis.geos import Point
 from polymorphic.models import PolymorphicModel
 import numpy as np
 import logging
