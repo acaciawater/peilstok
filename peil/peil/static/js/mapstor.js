@@ -3,7 +3,7 @@
  * save leaflet map state in session
  */
 
-var overlays;
+var overlays = new Set();
 var baseMaps;
 var overlayMaps;
 var storage = sessionStorage; // or localStorage?
@@ -24,9 +24,10 @@ function changeBaseLayer(e) {
 
 function restoreMap(map) {
 	succes = false;
-	overlays = storage.getItem('overlays');
-	if (overlays) {
-		JSON.parse(overlays).forEach(function(item) {
+	var items = storage.getItem('overlays');
+	if (items) {
+		overlays = new Set(JSON.parse(items));
+		overlays.forEach(function(item) {
 			overlayMaps[item].addTo(map);
 			succes = true;
 		});
@@ -139,12 +140,33 @@ function initMap(div) {
 	var imagery = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
 		attribution: 'Tiles &copy; Esri'
 	});
-
-	var waterlopen = L.tileLayer.wms('http://maps.acaciadata.com/geoserver/HHNK/wms', {
-		layers: 'HHNK:waterlopen_texel',
-		attribution: '&copy; <a href="https://www.hhnk.nl">hhnk.nl</a>',
+	
+	var bodemkaart = L.tileLayer.wms('http://geodata.nationaalgeoregister.nl/bodemkaart50000/wms', {
+		layers: 'bodemkaart50000',
 		format: 'image/png',
-		transparent: true});
+		srs: 'EPSG:3857',
+		opacity: 0.4
+	});
+
+	var ahn25 = L.tileLayer.wms('http://geodata.nationaalgeoregister.nl/ahn2/wms', {
+		layers: 'ahn2_5m',
+		format: 'image/png',
+		srs: 'EPSG:3857',
+		opacity: 0.4
+	});
+
+	var ahn205 = L.tileLayer.wms('http://geodata.nationaalgeoregister.nl/ahn2/wms', {
+		layers: 'ahn2_05m_non',
+		format: 'image/png',
+		srs: 'EPSG:3857',
+		opacity: 0.4
+	});
+					
+	var waterlopen = L.tileLayer.wms('http://maps.acaciadata.com/geoserver/HHNK/wms', {
+	layers: 'HHNK:waterlopen_texel',
+	attribution: '&copy; <a href="https://www.hhnk.nl">hhnk.nl</a>',
+	format: 'image/png',
+	transparent: true});
 	
 	var map = L.map(div,{
 		center:[53.08440, 4.80824],
@@ -152,7 +174,7 @@ function initMap(div) {
 		});
 
  	baseMaps = {'Openstreetmap': osm, 'Google roads': roads, 'Google satellite': satellite, 'ESRI topo': topo, 'ESRI imagery': imagery};
-	overlayMaps = {'Waterlopen': waterlopen};
+	overlayMaps = {'Waterlopen': waterlopen};//, 'Bodemkaart': bodemkaart, 'AHN2 (5m)': ahn25};
 	L.control.layers(baseMaps, overlayMaps).addTo(map);
 	
 	if (!restoreMap(map)) {
