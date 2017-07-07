@@ -2,10 +2,10 @@
 {% block title%}PHZD - grafiek {{object}} {% endblock %}
 {% block navbar-right %}
 {% if prev %}
-<li><a href="{%url 'chart-detail' prev.id %}">Vorige</a></li>
+<li><a href="{%url 'chart-detail' prev.id %}">{{prev|title}}</a></li>
 {% endif %}
 {% if next %}
-<li><a href="{%url 'chart-detail' next.id %}">Volgende</a></li>
+<li><a href="{%url 'chart-detail' next.id %}">{{next|title}}</a></li>
 {% endif %}
 {% endblock %}
 {% block script %}
