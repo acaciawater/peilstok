@@ -103,6 +103,10 @@ class Survey(geo.Model):
     vacc = models.PositiveIntegerField(null=True,blank=True,verbose_name='vertikale nauwkeurigheid',help_text='vertikale nauwkeurigheid in mm')
     hacc = models.PositiveIntegerField(null=True,blank=True,verbose_name='horizontale naukeurigheid',help_text='horizontale naukeurigheid in mm')
 
+from math import log10, floor
+def rounds(x, sig=2):
+    return round(x, sig-int(floor(log10(abs(x))))-1)
+
 class Sensor(PolymorphicModel):
     """ Sensor in a peilstok """
 
@@ -143,11 +147,11 @@ class Sensor(PolymorphicModel):
         return [self.value(message) for message in self.loramessage_set.all()]
 
     def data(self,**kwargs):
-        q = self.loramessage_set
+        q = self.loramessage_set.order_by('time')
         if kwargs:
             queryset = q.filter(**kwargs)
         else:
-            queryset = q.all() 
+            queryset = q 
         for m in queryset:
             yield (m.time,self.value(m))
 
@@ -176,7 +180,10 @@ class PressureSensor(Sensor):
 
     def value(self, m):
         """ calculates pressure in hPa from raw ADC value in message """
-        return round(self.offset + m.adc * self.scale,2)
+        if m.adc < 4096:
+            return round(self.offset + m.adc * self.scale,2)
+        else:
+            return None
 
     class Meta:
         verbose_name = 'Druksensor'
@@ -231,7 +238,7 @@ class ECSensor(Sensor):
 
     def value(self, m):
         ec = self.EC25(m.adc1, m.adc2, m.temperature)
-        return round(ec,0) if ec else None
+        return rounds(ec,3) if ec else None # 3 significant digits
         
     class Meta:
         verbose_name = 'EC-Sensor'
