@@ -165,8 +165,8 @@ def chart_as_json(request,pk):
     
     h2=getdata('Waterdruk',position=3)
     h1=getdata('Luchtdruk',position=0)
-    h1 = h1.reindex(h2.index,method='nearest')
-    pts = (h2-h1)/0.980638
+    h1 = h1.reindex(h2.index,method='nearest',tolerance='2h')
+    pts = h2.subtract(h1,fill_value=np.NaN)/0.980638
     data['H']=zip(pts.index,pts.values)
     return HttpResponse(json.dumps(data, ignore_nan = True, default=lambda x: time.mktime(x.timetuple())*1000.0), content_type='application/json')
 
