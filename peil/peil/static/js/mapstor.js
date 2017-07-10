@@ -1,6 +1,5 @@
 /**
  * @author: theo
- * save leaflet map state in session
  */
 
 var overlays = new Set();
@@ -59,33 +58,56 @@ function restoreBounds(map) {
 	return false;
 }
 
-var pinkIcon48 = L.icon({
-    iconUrl: '/static/Map-Marker-Ball-Right-Pink-icon.png',
-    iconSize: [48,48],
-    iconAnchor: [24, 48],
-    popupAnchor: [12, -48],
-});
-var pinkIcon24 = L.icon({
-    iconUrl: '/static/Map-Marker-Ball-Right-Pink-icon.png',
-    iconSize: [24,24],
-    iconAnchor: [12, 24],
-    popupAnchor: [6, -24],
-});
-
-var pinkIcon32 = L.icon({
+var pinkIcon = L.icon({
     iconUrl: '/static/Map-Marker-Ball-Right-Pink-icon.png',
     iconSize: [32,32],
     iconAnchor: [16, 32],
     popupAnchor: [8, -32],
 });
 
-var pinkIcon = pinkIcon32;
+var theMap = null;
+var markers = [];
+var hilite = null;
+var hiliteVisible = false;
+
+function showHilite(id) {
+	
+	marker = markers[id];
+	if (marker == null || theMap == null)
+		return;
+	
+	if (hilite == null) {
+		hilite = new L.circleMarker(marker.getLatLng(),{
+			radius: 16,
+			fillColor: 'blue',
+			fillOpacity: 0.3,
+			color: 'blue',
+			weight: 2,
+			});
+		hilite.addTo(theMap);
+	}
+	else {
+		hilite.setLatLng(marker.getLatLng());
+		if (!hiliteVisible) {
+			theMap.addLayer(hilite);
+		}
+	}
+	hiliteVisible = true;
+}
+
+function hideHilite() {
+	if (hiliteVisible) {
+		hilite.remove();
+		hiliteVisible = false;
+	}
+}
 
 function addMarkers(map,zoom) {
 	$.getJSON('/locs', function(data) {
 		bounds = new L.LatLngBounds();
 		$.each(data, function(key,val) {
 			marker = L.marker([val.lat, val.lon],{title:val.name, icon: pinkIcon});
+			markers[val.id] = marker;
 			marker.bindPopup("Loading...");
 			marker.bindTooltip(val.name,{permanent:true,className:"label",opacity:0.7});
 			marker.on("click", function(e) {
@@ -197,6 +219,6 @@ function initMap(div) {
  	map.on('zoomend',function(){saveBounds(map);});
  	map.on('moveend',function(){saveBounds(map);});
  	
- 	return map;
+ 	return theMap = map;
 
 }
