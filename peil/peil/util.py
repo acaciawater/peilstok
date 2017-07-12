@@ -122,10 +122,10 @@ def parse_ttn(ttn):
         raise e
 
     try:
-        device, created = Device.objects.update_or_create(serial=serial,devid=devid, defaults={'last_seen': server_time})
+        device, created = Device.objects.update_or_create(serial=serial,devid=devid, defaults={'displayname': devid, 'last_seen': server_time})
 
         if created:
-            logger.debug('device {} created'.format(devid))
+            logger.debug('device {} created'.format(unicode(device)))
         
         mod, created, updated = parse_payload(device, server_time, pf)
 

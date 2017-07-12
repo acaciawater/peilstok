@@ -44,8 +44,11 @@ class Device(models.Model):
     """ serial number (BLE MAC address) of device """
     serial = models.CharField(max_length=20,verbose_name='MAC-adres')
     
-    """ name (or id) of device """
-    devid = models.CharField(max_length=20,verbose_name='naam')
+    """ identification of device """
+    devid = models.CharField(max_length=20,verbose_name='identificatie')
+    
+    """ displayed name of device """
+    displayname = models.CharField(max_length=20,verbose_name = 'naam')
     
     # date/time created
     created = models.DateTimeField(auto_now_add = True, verbose_name='Geregistreerd')
@@ -63,7 +66,7 @@ class Device(models.Model):
             age = timezone.now() - self.last_seen
             hours = age.seconds/3600.0
             days = age.days
-            if days == 0 and hours < 6:
+            if days == 0 and hours < 4:
                 return 'green'
             elif days < 1:
                 return 'yellow'
@@ -91,7 +94,7 @@ class Device(models.Model):
         super(Device,self).delete()
         
     def __unicode__(self):
-        return self.devid
+        return self.displayname
 
 class Survey(geo.Model):
     """ Peilstok survey """
