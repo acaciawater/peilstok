@@ -8,9 +8,20 @@ from peil.models import GNSS_Sensor, AngleSensor, ECSensor, PressureSensor, Batt
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.gis.geos import Point
 import pytz
+import re
 import calib
 from django.utils.dateparse import parse_datetime
 
+def reset_displaynames():
+    """ resets display names to devid """
+    for d in Device.objects.all():
+        match = re.match(r'(?P<name>\D+)(?P<num>\d+$)',d.devid)
+        if match:
+            name = match.group('name')
+            number = int(match.group('num'))
+            d.displayname = '{}{:02d}'.format(name.title(),number)
+        d.save()
+        
 def set_units():
     """ Set default sensor units """
     for sensor in PressureSensor.objects.all():
