@@ -23,6 +23,8 @@ from django.shortcuts import get_object_or_404
 from django.contrib.gis.gdal import CoordTransform, SpatialReference
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils.text import slugify
+
 logger = logging.getLogger(__name__)
 
 def json_locations(request):
@@ -43,7 +45,7 @@ def json_locations(request):
                     rdnew = SpatialReference(28992)
                     trans = CoordTransform(rdnew,wgs84)
                 pnt.transform(trans)
-                result.append({'id': p.id, 'name': p.devid, 'lon': pnt.x, 'lat': pnt.y})
+                result.append({'id': p.id, 'name': p.displayname, 'lon': pnt.x, 'lat': pnt.y})
             else:
                 # get location from on-board GPS
                 # select only valid fixes (with hacc > 0)
@@ -61,7 +63,7 @@ def json_locations(request):
                         t = g.lon
                         g.lon = g.lat
                         g.lat = t
-                    result.append({'id': p.id, 'name': p.devid, 'lon': g.lon*1e-7, 'lat': g.lat*1e-7, 'msl': g.msl*1e-3, 'hacc': g.hacc*1e-3, 'vacc': g.vacc*1e-3, 'time': g.time})
+                    result.append({'id': p.id, 'name': p.displayname, 'lon': g.lon*1e-7, 'lat': g.lat*1e-7, 'msl': g.msl*1e-3, 'hacc': g.hacc*1e-3, 'vacc': g.vacc*1e-3, 'time': g.time})
         except Exception as e:
             print e
             pass
@@ -171,6 +173,31 @@ def chart_as_json(request,pk):
     return HttpResponse(json.dumps(data, ignore_nan = True, default=lambda x: time.mktime(x.timetuple())*1000.0), content_type='application/json')
 
 @gzip_page
+def chart_as_csv(request,pk):
+    """ get chart data as csv for download """
+    device = get_object_or_404(Device, pk=pk)
+    def getdata(name,**kwargs): 
+        try:
+            #t,x=zip(*list(device.get_sensor(name,**kwargs).data(time__gt = datetime.datetime(2017,6,28))))       
+            t,x=zip(*list(device.get_sensor(name,**kwargs).data()))       
+            return pd.Series(x,index=t).resample(rule='H').mean()
+        except Exception as e:
+            logger.error('ERROR loading sensor data for {}: {}'.format(name,e))
+            return pd.Series()
+    data = pd.DataFrame()
+    data['EC ondiep'] = getdata('EC1',position=1)
+    data['EC diep'] = getdata('EC2',position=2)
+    
+    h2=getdata('Waterdruk',position=3)
+    h1=getdata('Luchtdruk',position=0)
+    h1 = h1.reindex(h2.index,method='nearest',tolerance='2h')
+    data['Waterhoogte'] = (h2-h1)/0.980638
+    data.dropna(inplace=True,how='all')
+    resp = HttpResponse(data.to_csv(float_format='%.2f'), content_type='text/csv')
+    resp['Content-Disposition'] = 'attachment; filename=%s.csv' % slugify(unicode(device))
+    return resp
+
+@gzip_page
 def data_as_json(request,pk):
     """ get raw sensor data as json array for highcharts """
     device = get_object_or_404(Device, pk=pk)
@@ -241,7 +268,7 @@ class PeilView(LoginRequiredMixin, DetailView):
                       'spacingTop': 20,
                       'spacingBottom': 20
                       },
-            'title': {'text': device.devid},
+            'title': {'text': unicode(device)},
             'xAxis': {'type': 'datetime',
                       'crosshair': True,
                       'events': {'setExtremes': None},

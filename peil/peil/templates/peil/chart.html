@@ -54,7 +54,7 @@ function fetchSeries(div, url, other) {
 		  	});
 	    },
 	    error: function(hdr,status,errorThrown) {
-	    	alert("Fout tijdens laden van tijdreeks: " + errorThrown);
+	    	//alert("Fout tijdens laden van tijdreeks: " + errorThrown);
 	    },
 	    complete: function(hdr, status) {
 		  	var chart = $(div).highcharts();
@@ -131,6 +131,24 @@ $(function () {
 		  fetchSeries('#chart1', '{{object.id}}/data');
 	  };
 	  opt1.xAxis.events.setExtremes = syncExtremes;
+	  opt1.exporting = {
+	        buttons: {
+	            contextButton: {
+	                menuItems: [{
+	                    text: 'Download figuur',
+	                    onclick: function () {
+	                        this.exportChart();
+	                    }
+	                }, {
+	                    text: 'Download gegevens',
+	                    onclick: function () {
+	                    	window.location='{{object.id}}/csv';
+	                    },
+	                    separator: false
+	                }]
+	            }
+	        }
+	  };
 	  $('<div id=chart1 class=chart>').appendTo('#container').highcharts(opt1);
 
 {% if request.user.is_superuser %}
