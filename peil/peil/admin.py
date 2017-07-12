@@ -28,9 +28,9 @@ def test_ecsensors(modeladmin, request, queryset):
 @admin.register(Device)
 class DeviceAdmin(admin.ModelAdmin):
     model = Device
-    list_display = ('serial', 'devid', 'last_seen')
-    list_filter = ('serial','devid',)
-    fields = ('devid', 'serial', )
+    list_display = ('displayname', 'serial', 'devid', 'last_seen')
+    list_filter = ('devid',)
+    fields = ('devid', 'serial', 'displayname')
     actions=[createsensors]
     
 # @admin.register(UBXFile)
