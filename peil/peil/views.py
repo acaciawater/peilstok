@@ -145,40 +145,14 @@ class DeviceListView(ListView):
 class DeviceDetailView(DetailView):
     model = Device
         
-@gzip_page
-def chart_as_json(request,pk):
-    """ get chart data as json array for highcharts """
-    device = get_object_or_404(Device, pk=pk)
-    data = {}
+def get_chart_data(device):
+    """ 
+    @return: Pandas dataframe with timeseries of EC and water level
+    @param device: the device to query 
+    @summary: Query a device for EC and water level resampled per hour
+    """  
     def getdata(name,**kwargs): 
         try:
-            #t,x=zip(*list(device.get_sensor(name,**kwargs).data(time__gt = datetime.datetime(2017,6,28))))       
-            t,x=zip(*list(device.get_sensor(name,**kwargs).data()))       
-            return pd.Series(x,index=t)
-        except Exception as e:
-            logger.error('ERROR loading sensor data for {}: {}'.format(name,e))
-            return pd.Series()
-               
-    pts = getdata('EC1',position=1)
-    data['EC1'] = zip(pts.index,pts.values)        
-    
-    pts = getdata('EC2',position=2)
-    data['EC2'] = zip(pts.index,pts.values)
-    
-    h2=getdata('Waterdruk',position=3)
-    h1=getdata('Luchtdruk',position=0)
-    h1 = h1.reindex(h2.index,method='nearest',tolerance='2h')
-    pts = h2.subtract(h1,fill_value=np.NaN)/0.980638
-    data['H']=zip(pts.index,pts.values)
-    return HttpResponse(json.dumps(data, ignore_nan = True, default=lambda x: time.mktime(x.timetuple())*1000.0), content_type='application/json')
-
-@gzip_page
-def chart_as_csv(request,pk):
-    """ get chart data as csv for download """
-    device = get_object_or_404(Device, pk=pk)
-    def getdata(name,**kwargs): 
-        try:
-            #t,x=zip(*list(device.get_sensor(name,**kwargs).data(time__gt = datetime.datetime(2017,6,28))))       
             t,x=zip(*list(device.get_sensor(name,**kwargs).data()))       
             return pd.Series(x,index=t).resample(rule='H').mean()
         except Exception as e:
@@ -188,10 +162,36 @@ def chart_as_csv(request,pk):
     data['EC ondiep'] = getdata('EC1',position=1)
     data['EC diep'] = getdata('EC2',position=2)
     
-    h2=getdata('Waterdruk',position=3)
-    h1=getdata('Luchtdruk',position=0)
-    h1 = h1.reindex(h2.index,method='nearest',tolerance='2h')
-    data['Waterhoogte'] = (h2-h1)/0.980638
+    waterpressure=getdata('Waterdruk',position=3)
+    airpressure=getdata('Luchtdruk',position=0)
+    # take the nearest air pressure values within a range of 2 hours from the time of water pressure measurements
+    airpressure = airpressure.reindex(waterpressure.index,method='nearest',tolerance='2h')
+    # calculate water level in cm above the sensor
+    data['Waterhoogte'] = (waterpressure-airpressure)/0.980638
+    # convert to water level in m +NAP
+    nap_device = device.get_nap() # level of top of device in NAP (m)
+    if nap_device:
+        sensor = device.get_sensor('Waterdruk',position=3)
+        # calculate NAP level of sensor (m)
+        nap_sensor = nap_device - sensor.position/1000.0
+        data['Waterpeil'] = data['Waterhoogte']/100.0 + nap_sensor
+    return data
+    
+@gzip_page
+def chart_as_json(request,pk):
+    """ get chart data as json array for highcharts """
+    device = get_object_or_404(Device, pk=pk)
+    pts = get_chart_data(device)
+    data = {'EC1': zip(pts.index,pts['EC ondiep']),        
+            'EC2': zip(pts.index,pts['EC diep']),
+            'H': zip(pts.index,pts['Waterpeil'])}
+    return HttpResponse(json.dumps(data, ignore_nan = True, default=lambda x: time.mktime(x.timetuple())*1000.0), content_type='application/json')
+
+@gzip_page
+def chart_as_csv(request,pk):
+    """ get chart data as csv for download """
+    device = get_object_or_404(Device, pk=pk)
+    data = get_chart_data(device)
     data.dropna(inplace=True,how='all')
     resp = HttpResponse(data.to_csv(float_format='%.2f'), content_type='text/csv')
     resp['Content-Disposition'] = 'attachment; filename=%s.csv' % slugify(unicode(device))
@@ -275,17 +275,17 @@ class PeilView(LoginRequiredMixin, DetailView):
                       },
             'legend': {'enabled': True},
             'tooltip': {'xDateFormat': '%a %d %B %Y %H:%M:%S', 'valueDecimals': 2},
-            'plotOptions': {'spline': {'marker': {'enabled': False}}},            
+            'plotOptions': {'spline': {'connectNulls': True, 'marker': {'enabled': False}}},            
             'credits': {'enabled': True, 
                         'text': 'acaciawater.com', 
                         'href': 'http://www.acaciawater.com',
                        },
             'yAxis': [{'title': {'text': 'EC (mS/cm)'},},
-                      {'title': {'text': 'Hoogte (cm)'},'opposite': 1},
+                      {'title': {'text': 'Peil (m NAP)'},'opposite': 1},
                       ],
             'series': [{'name': 'EC ondiep', 'id': 'EC1', 'yAxis': 0, 'data': [], 'tooltip': {'valueSuffix': ' mS/cm'}},
                         {'name': 'EC diep ', 'id': 'EC2', 'yAxis': 0, 'data': [], 'tooltip': {'valueSuffix': ' mS/cm'}},
-                        {'name': 'Waterhoogte', 'id': 'H', 'yAxis': 1, 'data': [], 'tooltip': {'valueSuffix': ' cm'}},
+                        {'name': 'Peil', 'id': 'H', 'yAxis': 1, 'data': [], 'tooltip': {'valueSuffix': ' m NAP'}},
                         ]
                    }
 
