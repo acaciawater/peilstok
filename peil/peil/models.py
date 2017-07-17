@@ -66,7 +66,7 @@ class Device(models.Model):
             age = timezone.now() - self.last_seen
             hours = age.seconds/3600.0
             days = age.days
-            if days == 0 and hours < 4:
+            if days == 0 and hours < 2:
                 return 'green'
             elif days < 1:
                 return 'yellow'
@@ -92,7 +92,22 @@ class Device(models.Model):
         """ cascading delete does not work with polymorphic models """
         self.sensor_set.all().delete()
         super(Device,self).delete()
+
+    def get_nap(self):
+        """ 
+        get NAP level of top of device
+        first try to find the NAP level of the survey
+        if there is no survey, use the NAP value of the last GPS message
+        """
         
+        try:
+            return float(self.last_survey().altitude)
+        except:
+            try:
+                return self.get_sensor('GPS').last_message().NAPvalue()
+            except:
+                return None
+                
     def __unicode__(self):
         return self.displayname
 
