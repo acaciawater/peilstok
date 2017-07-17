@@ -1,5 +1,11 @@
 {% extends 'peil/base.html' %}
 {% block title%}PHZD - grafiek {{object}} {% endblock %}
+{% block navbar %} 
+<ul class="nav navbar-nav">
+  <li><a href="{% url 'device-map' %}">Kaart</a></li>
+</ul>
+{% endblock navbar %}
+
 {% block navbar-right %}
 {% if prev %}
 <li><a href="{%url 'chart-detail' prev.id %}">{{prev|title}}</a></li>
