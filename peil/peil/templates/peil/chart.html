@@ -56,7 +56,9 @@ function fetchSeries(div, url, other) {
 		  	var chart = $(div).highcharts();
 		  	$.each(data,function(key,values) {
 		  		var series = chart.get(key);
-				series.setData(values);
+		  		if (series) {
+					series.setData(values);
+		  		}
 		  	});
 	    },
 	    error: function(hdr,status,errorThrown) {
