@@ -184,7 +184,8 @@ def chart_as_json(request,pk):
     pts = get_chart_data(device)
     data = {'EC1': zip(pts.index,pts['EC ondiep']),        
             'EC2': zip(pts.index,pts['EC diep']),
-            'H': zip(pts.index,pts['Waterpeil'])}
+            'H': zip(pts.index,pts['Waterpeil'])
+            }
     return HttpResponse(json.dumps(data, ignore_nan = True, default=lambda x: time.mktime(x.timetuple())*1000.0), content_type='application/json')
 
 @gzip_page
@@ -197,43 +198,57 @@ def chart_as_csv(request,pk):
     resp['Content-Disposition'] = 'attachment; filename=%s.csv' % slugify(unicode(device))
     return resp
 
+def get_sensor_data(device):
+    """ 
+    @return: Pandas dataframe with timeseries of raw sensor data
+    @param device: the device to query 
+    @summary: Query a device for raw sensor data
+    """  
+    def getdata(name,**kwargs): 
+        try:
+            columns = kwargs.pop('columns',None)
+            data = device.get_sensor(name,**kwargs).raw_data()
+            df = pd.DataFrame(data).set_index('time')
+            df = df.where(df<4096,np.nan).resample('H').mean() # clear extreme values and resample on every hour
+            return df.rename(columns=columns) if columns else df
+        except:
+            return pd.DataFrame()
+               
+    bat = getdata('Batterij',position=0,columns={'battery': 'BAT'})
+    ec1 = getdata('EC1',position=1,columns={'adc1': 'EC1-ADC1', 'adc2': 'EC1-ADC2', 'temperature': 'EC1-TEMP'})
+    ec2 = getdata('EC2',position=2,columns={'adc1': 'EC2-ADC1', 'adc2': 'EC2-ADC2', 'temperature': 'EC2-TEMP'})
+    p1=getdata('Luchtdruk',position=0,columns={'adc': 'PRES0-ADC'})
+    p2=getdata('Waterdruk',position=3,columns={'adc': 'PRES3-ADC'})
+    return pd.concat([bat,ec1,ec2,p1,p2],axis=1)
+    
 @gzip_page
 def data_as_json(request,pk):
     """ get raw sensor data as json array for highcharts """
     device = get_object_or_404(Device, pk=pk)
-    data = {}
-
-    def getdata(name,**kwargs): 
-        try:
-            data = device.get_sensor(name,**kwargs).raw_data()
-            df = pd.DataFrame(data).set_index('time')
-            df = df.where(df<4096,np.nan) # clear all extreme values
-            return df
-        except:
-            return pd.DataFrame()
-               
-    pts = getdata('EC1',position=1)
-    if not pts.empty:
-        data['EC1_adc1'] = zip(pts.index,pts['adc1'])        
-        data['EC1_adc2'] = zip(pts.index,pts['adc2'])
-        data['EC1_temp'] = zip(pts.index,pts['temperature'])
+    pts = get_sensor_data(device)
+    data = {
+        'Bat': zip(pts.index,pts['BAT']),
+        'EC1adc1': zip(pts.index,pts['EC1-ADC1']),        
+        'EC1adc2': zip(pts.index,pts['EC1-ADC2']),
+        'EC1temp': zip(pts.index,pts['EC1-TEMP']),
+        'EC2adc1': zip(pts.index,pts['EC2-ADC1']),        
+        'EC2adc2': zip(pts.index,pts['EC2-ADC2']),
+        'EC2temp': zip(pts.index,pts['EC2-TEMP']),
+        'Luchtdruk': zip(pts.index,pts['PRES0-ADC']),
+        'Waterdruk': zip(pts.index,pts['PRES3-ADC']),
+        }
             
-    pts = getdata('EC2',position=2)
-    if not pts.empty:
-        data['EC2_adc1'] = zip(pts.index,pts['adc1'])        
-        data['EC2_adc2'] = zip(pts.index,pts['adc2'])        
-        data['EC2_temp'] = zip(pts.index,pts['temperature'])
-        
-    pts=getdata('Luchtdruk',position=0)
-    if not pts.empty:
-        data['Luchtdruk'] = zip(pts.index,pts['adc'])
-    
-    pts=getdata('Waterdruk',position=3)
-    if not pts.empty:
-        data['Waterdruk'] = zip(pts.index,pts['adc'])
-    
     return HttpResponse(json.dumps(data, ignore_nan = True, default=lambda x: time.mktime(x.timetuple())*1000.0), content_type='application/json')
 
+@gzip_page
+def data_as_csv(request, pk):
+    device = get_object_or_404(Device, pk=pk)
+    data = get_sensor_data(device)
+    data.dropna(inplace=True,how='all')
+    resp = HttpResponse(data.to_csv(), content_type='text/csv')
+    resp['Content-Disposition'] = 'attachment; filename=%s.csv' % slugify(unicode(device))
+    return resp
+    
 class PeilView(LoginRequiredMixin, DetailView):
     """ Shows calibrated and raw sensor values """
     model = Device
@@ -293,15 +308,16 @@ class PeilView(LoginRequiredMixin, DetailView):
 
         options.update({
             'title': {'text': 'Ruwe sensor waardes'},
-            'plotOptions': {'spline': {'marker': {'enabled': False, 'radius': 3}}},            
+            'plotOptions': {'spline': {'connectNulls': False, 'marker': {'enabled': False, 'radius': 3}}},            
             'tooltip': {'valueDecimals': 0, 'xDateFormat': '%a %d %B %Y %H:%M:%S'},
             'yAxis': [{'title': {'text': 'ADC waarde'},'labels':{'format': '{value}'}}],
-            'series': [{'name': 'EC1-adc1', 'id': 'EC1_adc1', 'yAxis': 0, 'data': []},
-                       {'name': 'EC1-adc2', 'id': 'EC1_adc2', 'yAxis': 0, 'data': []},
-                       {'name': 'EC1-temp', 'id': 'EC1_temp', 'yAxis': 0, 'data': []},
-                       {'name': 'EC2-adc1', 'id': 'EC2_adc1', 'yAxis': 0, 'data': []},
-                       {'name': 'EC2-adc2', 'id': 'EC2_adc2', 'yAxis': 0, 'data': []},
-                       {'name': 'EC2-temp', 'id': 'EC2_temp', 'yAxis': 0, 'data': []},
+            'series': [{'name': 'Batterij', 'id': 'Bat', 'yAxis': 0, 'data': []},
+                       {'name': 'EC1-adc1', 'id': 'EC1adc1', 'yAxis': 0, 'data': []},
+                       {'name': 'EC1-adc2', 'id': 'EC1adc2', 'yAxis': 0, 'data': []},
+                       {'name': 'EC1-temp', 'id': 'EC1temp', 'yAxis': 0, 'data': []},
+                       {'name': 'EC2-adc1', 'id': 'EC2adc1', 'yAxis': 0, 'data': []},
+                       {'name': 'EC2-adc2', 'id': 'EC2adc2', 'yAxis': 0, 'data': []},
+                       {'name': 'EC2-temp', 'id': 'EC2temp', 'yAxis': 0, 'data': []},
                        {'name': 'Luchtdruk', 'id': 'Luchtdruk', 'yAxis': 0, 'data': []},
                        {'name': 'Waterdruk', 'id': 'Waterdruk', 'yAxis': 0, 'data': []},
                        ]

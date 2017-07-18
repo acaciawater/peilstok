@@ -134,7 +134,7 @@ function syncExtremes(e) {
 $(function () {
 	  var opt1 = {{options1|safe}};
 	  opt1.chart.events.load = function() {
-		  fetchSeries('#chart1', '{{object.id}}/data');
+		  fetchSeries('#chart1', "{% url 'chart-json' object.id %}");
 	  };
 	  opt1.xAxis.events.setExtremes = syncExtremes;
 	  opt1.exporting = {
@@ -148,7 +148,7 @@ $(function () {
 	                }, {
 	                    text: 'Download gegevens',
 	                    onclick: function () {
-	                    	window.location='{{object.id}}/csv';
+	            			window.location="{% url 'chart-csv' object.id %}";
 	                    },
 	                    separator: false
 	                }]
@@ -157,12 +157,16 @@ $(function () {
 	  };
 	  $('<div id=chart1 class=chart>').appendTo('#container').highcharts(opt1);
 
-{% if request.user.is_superuser %}
+{% if request.user.is_staff %}
       var opt2 = {{options2|safe}};
 	  opt2.chart.events.load = function() {
-		  fetchSeries('#chart2', '{{object.id}}/raw', '#chart1');
+		  fetchSeries('#chart2', "{% url 'data-json' object.id %}");
 	  };
-	  opt2.xAxis.events.setExtremes = syncExtremes;
+	  opt2.xAxis.events = opt1.xAxis.events;
+	  opt2.exporting = opt1.exporting;
+	  opt2.exporting.buttons.contextButton.menuItems[1].onclick = function () {
+			window.location="{% url 'data-csv' object.id %}";
+	  };
 	  $('<div id=chart2 class=chart>').appendTo('#container').highcharts(opt2);
 	  
 {% endif %}	  
