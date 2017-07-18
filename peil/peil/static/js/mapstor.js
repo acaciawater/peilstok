@@ -70,24 +70,31 @@ var markers = [];
 var hilite = null;
 var hiliteVisible = false;
 
+/* meters per pixels for leaflet zoomlevels */
+var mpp = [
+	156412, 78206, 39103, 19551, 9776, 4888, 2444, 1222, 610.984, 305.492, 152.746, 76.373, 38.187, 19.093, 9.547, 4.773, 2.387, 1.193, 0.596, 0.298
+	];
+
 function showHilite(id) {
 	
 	marker = markers[id];
 	if (marker == null || theMap == null)
 		return;
 	
-	if (hilite == null) {
-		hilite = new L.circleMarker(marker.getLatLng(),{
-			radius: 16,
-			fillColor: 'blue',
+	var zoom = theMap.getZoom();
+	var scale = mpp[zoom];
+	var radii = [16*scale,8*scale];
+	if (!hilite) {
+		hilite = new L.ellipse(marker.getLatLng(),radii,0,{
+			fillColor: '#ff3399',
 			fillOpacity: 0.3,
-			color: 'blue',
+			color: '#ff3399',
 			weight: 2,
-			});
-		hilite.addTo(theMap);
+			}).addTo(theMap);
 	}
 	else {
 		hilite.setLatLng(marker.getLatLng());
+		hilite.setRadius(radii);
 		if (!hiliteVisible) {
 			theMap.addLayer(hilite);
 		}
