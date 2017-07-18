@@ -64,16 +64,11 @@ class Device(models.Model):
         """ returns led color """
         try:
             age = timezone.now() - self.last_seen
-            hours = age.seconds/3600.0
-            days = age.days
-            if days == 0 and hours < 2:
-                return 'green'
-            elif days < 1:
-                return 'yellow'
-            elif days < 7:
-                return 'red'
+            if age.days < 1:
+                hours = float(age.seconds)/3600.0
+                return 'green' if hours < 2 else 'yellow'
             else:
-                return 'grey'
+                return 'red' if age.days < 7 else 'grey'
         except:
             return 'grey'
         
@@ -123,27 +118,36 @@ class Survey(geo.Model):
 
 from math import log10, floor
 def rounds(x, sig=2):
+    """
+    @summary: round floating point number to significant digits
+    @param x: floating point value
+    @param sig: number of significant digits (default=2)
+    @return: input value rounded to `sig` significant digits   
+    """
     return round(x, sig-int(floor(log10(abs(x))))-1)
 
 class Sensor(PolymorphicModel):
     """ Sensor in a peilstok """
 
-    # device this sensor belongs to
+    """ device this sensor belongs to """
     device = models.ForeignKey('Device',verbose_name = 'peilstok')
     
-    # identificatie
+    """ sensor identification (name) """
     ident = models.CharField(max_length=50,default='sensor',verbose_name='sensor')
     
-    # position of sensor (module number)
+    """ position of sensor (module number) """
     position = models.PositiveSmallIntegerField(default=0,verbose_name='positie')
     
-    # distance of sensor in mm from antenna        
+    """ distance of sensor in mm from antenna """        
     distance = models.IntegerField(default = 0, verbose_name = 'afstand', help_text = 'afstand tov antenne')
 
-    # unit of calibrated values
+    """ unit of calibrated values """
     unit = models.CharField(max_length = 10, default='-')
     
     def message_count(self):
+        """
+        @summary: count number of loRa messages received 
+        """
         return self.loramessage_set.count()
     message_count.short_description = 'Aantal berichten'
     
