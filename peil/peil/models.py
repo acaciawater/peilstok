@@ -39,7 +39,7 @@ class Device(models.Model):
         verbose_name = 'Peilstok'
         verbose_name_plural = 'Peilstokken'
         unique_together = ('serial', 'devid')
-        ordering = ('devid',)
+        ordering = ('displayname',)
         
     """ serial number (BLE MAC address) of device """
     serial = models.CharField(max_length=20,verbose_name='MAC-adres')
