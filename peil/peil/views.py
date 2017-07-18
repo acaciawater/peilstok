@@ -184,7 +184,8 @@ def chart_as_json(request,pk):
     pts = get_chart_data(device)
     data = {'EC1': zip(pts.index,pts['EC ondiep']),        
             'EC2': zip(pts.index,pts['EC diep']),
-            'H': zip(pts.index,pts['Waterpeil'])
+            'NAP': zip(pts.index,pts['Waterpeil']),
+            'H': zip(pts.index,pts['Waterhoogte'])
             }
     return HttpResponse(json.dumps(data, ignore_nan = True, default=lambda x: time.mktime(x.timetuple())*1000.0), content_type='application/json')
 
@@ -297,10 +298,12 @@ class PeilView(LoginRequiredMixin, DetailView):
                        },
             'yAxis': [{'title': {'text': 'EC (mS/cm)'},},
                       {'title': {'text': 'Peil (m NAP)'},'opposite': 1},
+#                      {'title': {'text': 'Hoogte (cm)'},'opposite': 1},
                       ],
             'series': [{'name': 'EC ondiep', 'id': 'EC1', 'yAxis': 0, 'data': [], 'tooltip': {'valueSuffix': ' mS/cm'}},
                         {'name': 'EC diep ', 'id': 'EC2', 'yAxis': 0, 'data': [], 'tooltip': {'valueSuffix': ' mS/cm'}},
-                        {'name': 'Peil', 'id': 'H', 'yAxis': 1, 'data': [], 'tooltip': {'valueSuffix': ' m NAP'}},
+                        {'name': 'Waterpeil', 'id': 'NAP', 'yAxis': 1, 'data': [], 'tooltip': {'valueSuffix': ' m NAP'}},
+#                        {'name': 'Waterhoogte', 'id': 'H', 'yAxis': 2, 'data': [], 'tooltip': {'valueSuffix': ' cm'}},
                         ]
                    }
 
