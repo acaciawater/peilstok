@@ -165,10 +165,24 @@ $(function () {
 		  fetchSeries('#chart2', "{% url 'data-json' object.id %}");
 	  };
 	  opt2.xAxis.events = opt1.xAxis.events;
-	  opt2.exporting = opt1.exporting;
-	  opt2.exporting.buttons.contextButton.menuItems[1].onclick = function () {
-			window.location="{% url 'data-csv' object.id %}";
-	  };
+	  opt2.exporting = {
+		        buttons: {
+		            contextButton: {
+		                menuItems: [{
+		                    text: 'Download figuur',
+		                    onclick: function () {
+		                        this.exportChart();
+		                    }
+		                }, {
+		                    text: 'Download gegevens',
+		                    onclick: function () {
+		            			window.location="{% url 'data-csv' object.id %}";
+		                    },
+		                    separator: false
+		                }]
+		            }
+		        }
+		  };
 	  $('<div id=chart2 class=chart>').appendTo('#container').highcharts(opt2);
 	  
 {% endif %}	  
