@@ -122,7 +122,17 @@ def load_offsets(filename):
                 slave.save()
         except ObjectDoesNotExist:
             continue
-        
+
+def reloadEC():
+    """ reload calibration coefficients for EC Sensors """
+    for s in ECSensor.objects.all():
+        s.adc1_coef = calib.ADC1EC
+        s.adc2_coef = calib.ADC2EC
+        s.adc1_limits = calib.ADC1EC_LIMITS
+        s.adc2_limits = calib.ADC2EC_LIMITS
+        s.ec_range = calib.EC_RANGE
+        s.save()
+                
 def create_sensors(device):
     return (GNSS_Sensor.objects.update_or_create(device=device,defaults={'ident':'GPS','unit':'m'}),
         AngleSensor.objects.update_or_create(device=device,defaults={'ident':'Inclinometer','unit':'graden'}),
