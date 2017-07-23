@@ -63,7 +63,8 @@ class Device(models.Model):
     def statuscolor(self):
         """ returns led color """
         try:
-            age = timezone.now() - self.last_seen
+            now = timezone.now()
+            age = now - self.last_seen
             if age.days < 1:
                 hours = float(age.seconds)/3600.0
                 return 'green' if hours < 2 else 'yellow'
@@ -231,24 +232,33 @@ class ECSensor(Sensor):
 
         emin,emax = json.loads(self.ec_range)
         min1,max1 = json.loads(self.adc1_limits)
+        min2,max2 = json.loads(self.adc2_limits)
         sign = ''
-        ec = None
         if adc1 >= max1:
             # out of range
             sign = '<'
-        elif adc1 > min1:
-            # use adc1 only
-            ec = rat2(adc1, *json.loads(self.adc1_coef))
+            ec = None
         else:
-            min2,max2 = json.loads(self.adc2_limits)
-            if adc2 <= min2:
-                #out of range
-                ec = emax
-                sign = '>'
-            elif adc2 < max2:
+            if adc1 >= min1:
+                ec1 = rat2(adc1, *json.loads(self.adc1_coef))
+                w1 = adc1 - min1
+            else:
+                ec1 = emax
+                w1 = 0
+            if adc2 < min2:
+                ec2 = emax
+                w2 = 1
+            elif adc2 <= max2:
                 # use adc2 only
-                ec = rat2(adc2, *json.loads(self.adc2_coef))
-
+                ec2 = rat2(adc2, *json.loads(self.adc2_coef))
+                w2 = max2 - adc2
+            else:
+                ec2 = emin
+                w2 = 0
+            sumw = float(w1+w2)
+            w1 = w1/sumw
+            w2 = w2/sumw
+            ec = ec1*w1 + ec2*w2
         return sign, ec * 1e-3 if ec else None# to mS/cm
 
     def EC25(self,adc1,adc2,temp):
