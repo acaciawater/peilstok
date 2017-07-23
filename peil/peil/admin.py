@@ -19,11 +19,15 @@ def createsensors(modeladmin, request, queryset):
     load_survey(filename)
     
 def test_ecsensors(modeladmin, request, queryset):
-    x1 = [3839,3723,3666,3613,3574,3537,3518,3498,3484,3469,3459,3446,3438,3430,3425,3420,3411,3407,3392,3379,3370,3366,3360,3355,3350,3347,3345,3344,3341,3340,3337,3336,3334,3333,3333,3332,3330,3330,3328,3329,3328,3328,3327,3302,3295]
-    x2 = [4095,4095,4095,4095,4095,4095,4095,4095,4095,4095,4095,4095,4093,4088,4085,4079,4076,4070,4048,4022,3984,3967,3931,3914,3890,3852,3835,3817,3803,3787,3774,3749,3730,3735,3713,3688,3689,3674,3668,3663,3654,3638,3645,3348,3303]
+    x1 = [3839,3723,3666,3613,3574,3537,3518,3498,3484,3469,3459,3446,3438,3430,3425,3420,3411,3407,3392,3379,3370,3366,3360,3355,3350,3347,3345,3344,3341,3340,3337,3336,3334,3333,3333,3332,3330,3330,3328,3329,3328,3328,3327,3302,3295,3303,
+          3331,3327,3330,3321,3321,3321,3320,3319]
+    x2 = [4095,4095,4095,4095,4095,4095,4095,4095,4095,4095,4095,4095,4093,4088,4085,4079,4076,4070,4048,4022,3984,3967,3931,3914,3890,3852,3835,3817,3803,3787,3774,3749,3730,3735,3713,3688,3689,3674,3668,3663,3654,3638,3645,3348,3303,
+          3533,3681,3659,3650,3593,3584,3577,3585,3574]
+    ec = [771,1027,1211,1447,1696,2010,2180,2420,2650,2910,3160,3380,3660,3870,4140,4350,4640,4920,5830,6940,7790,8690,9710,10590,11540,12760,13830,14700,15720,16640,17680,18660,19600,20500,21400,22500,23400,24500,25500,26700,27200,28300,29600,35000,38800,46800,25100,28500,34300,40500,43500,45900,47000,49600]
+    from .models import rounds
     for s in queryset:
-        for raw1,raw2 in zip(x1,x2):
-            print raw1, raw2, s.EC(raw1,raw2,2500)
+        for raw1,raw2, e in zip(x1,x2,ec):
+            print raw1, raw2, rounds(e/1000.0,3), rounds(s.EC(raw1,raw2)[1],3)
 
 @admin.register(Device)
 class DeviceAdmin(admin.ModelAdmin):
@@ -33,17 +37,17 @@ class DeviceAdmin(admin.ModelAdmin):
     fields = ('devid', 'serial', 'displayname')
     actions=[createsensors]
     
-# @admin.register(UBXFile)
-# class UBXFileAdmin(admin.ModelAdmin):
-#     model = UBXFile
-#     actions = [create_pvts, rtkpost]
-#     list_filter = ('device', 'created')
-#     list_display = ('__unicode__','device','created', 'start', 'stop')
-#         
-# @admin.register(RTKConfig)
-# class RTKAdmin(admin.ModelAdmin):
-#     model = RTKConfig
-#     list_display = ('name',)
+@admin.register(UBXFile)
+class UBXFileAdmin(admin.ModelAdmin):
+    model = UBXFile
+    actions = [create_pvts, rtkpost]
+    list_filter = ('device', 'created')
+    list_display = ('__unicode__','device','created', 'start', 'stop')
+         
+@admin.register(RTKConfig)
+class RTKAdmin(admin.ModelAdmin):
+    model = RTKConfig
+    list_display = ('name',)
 
 @admin.register(Sensor)
 class SensorAdmin(PolymorphicParentModelAdmin):
