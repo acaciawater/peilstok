@@ -4,10 +4,11 @@ from django.utils.dateparse import parse_datetime
 from .models import Device, GNSS_MESSAGE, EC_MESSAGE, STATUS_MESSAGE, PRESSURE_MESSAGE, ANGLE_MESSAGE
 import datetime, pytz
 import logging
+import os, re
 
 from peil.models import PressureSensor,\
     PressureMessage, GNSS_Sensor, BatterySensor, StatusMessage, AngleSensor,\
-    InclinationMessage, LocationMessage, ECSensor, ECMessage
+    InclinationMessage, LocationMessage, ECSensor, ECMessage, UBXFile
 from django.http.response import HttpResponse, HttpResponseServerError
 
 logger = logging.getLogger(__name__)
@@ -196,6 +197,27 @@ def ubxtime(ubx):
             stop = time
     return start, stop
  
+def add_ubx(ubxfile):
+    
+    # extract serial number of peilstok from filename
+    filename = os.path.basename(ubxfile.name)
+    match = re.match('(?P<serial>[0-9A-F]+)\-\d+\.\w{3}',filename)
+    serial = match.group('serial')
+    
+    # find Device
+    try:
+        device = Device.objects.get(serial=serial)
+    except Device.DoesNotExist:
+        logger.error('Device {} not found'.format(serial))
+        return
+    try:
+        # find existing ubxfile for this device
+        device.ubxfile_set.get(ubxfile__startswith='ubx/'+filename)
+        logger.warning('UBX file bestaat al')
+    except UBXFile.DoesNotExist:
+        ubx = UBXFile(device=device)
+        ubx.ubxfile.save(filename,ubxfile)
+        
 # GPS time=0
 GPST0 = datetime.datetime(1980,1,6,0,0,0)
 
