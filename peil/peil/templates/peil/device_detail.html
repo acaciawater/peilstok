@@ -25,7 +25,7 @@
 {% endblock %}
 {% block content %}
 <div class="container">
-<h3>{{object|title}}<img class="battery" src={{battery.icon}} title="{{battery.level}}%"></img></h3>
+<h3>{{object|title}}{%if battery %}<img class="battery" src={{battery.icon}} title="{{battery.level}}%"></img>{%endif%}</h3>
 <table class="table table-striped">
 <thead>
 <tr class="active">
