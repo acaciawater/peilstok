@@ -167,6 +167,13 @@ class Sensor(PolymorphicModel):
         return self.loramessage_set.count()
     message_count.short_description = 'Aantal berichten'
     
+    def elevation(self):
+        """ elevation of sensor wrt NAP """
+        nap = self.device.get_nap()
+        if nap is None:
+            return None
+        return nap - self.distance*1e-3
+    
     def last_message(self):
         return self.loramessage_set.order_by('time').last()
     last_message.short_description = 'Laatste bericht'

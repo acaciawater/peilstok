@@ -25,7 +25,7 @@
 {% endblock %}
 {% block content %}
 <div class="container">
-<h3>{{object|title}}{%if battery %}<img class="battery" src={{battery.icon}} title="{{battery.level}}%"></img>{%endif%}</h3>
+<h3>{{object|title}}{%if battery %}<img class="battery" src={{battery.icon}} title="batterij {{battery.level}}%"></img>{%endif%}</h3>
 <table class="table table-striped">
 <thead>
 <tr class="active">
@@ -88,6 +88,7 @@
 <th>Sensor</th>
 <th>Positie</th>
 <th>Afstand (mm)</th>
+<th>Hoogte (m tov NAP)</th>
 <th>Aantal berichten</th>
 <th>Laatste bericht</th>
 <th>Laatste waarde</th>
@@ -100,6 +101,7 @@
 <td>{{sensor.ident}}</td>
 <td>{{sensor.position}}</td>
 <td>{{sensor.distance}}</td>
+<td>{{sensor.elevation|floatformat:2}}</td>
 <td>{{sensor.message_count}}</td>
 {% with sensor.last_message as last %}
 <td>{{last.time}}</td>
