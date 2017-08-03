@@ -33,7 +33,7 @@ def test_ecsensors(modeladmin, request, queryset):
 class DeviceAdmin(admin.ModelAdmin):
     model = Device
     list_display = ('displayname', 'serial', 'devid', 'last_seen')
-    list_filter = ('devid',)
+    list_filter = ('displayname',)
     fields = ('devid', 'serial', 'displayname')
     actions=[createsensors]
     
