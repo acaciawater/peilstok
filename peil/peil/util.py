@@ -123,7 +123,14 @@ def parse_ttn(ttn):
         raise e
 
     try:
-        device, created = Device.objects.update_or_create(serial=serial,devid=devid, defaults={'displayname': devid, 'last_seen': server_time})
+        match = re.match(r'(?P<name>\D+)(?P<num>\d+$)',devid)
+        if match:
+            name = match.group('name')
+            number = int(match.group('num'))
+            displayname = '{}{:02d}'.format(name.title(),number)
+        else:
+            displayname = devid
+        device, created = Device.objects.update_or_create(serial=serial,devid=devid, defaults={'displayname': displayname, 'last_seen': server_time})
 
         if created:
             logger.debug('device {} created'.format(unicode(device)))
