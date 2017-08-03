@@ -109,10 +109,14 @@ class StatusMessageAdmin(PolymorphicChildModelAdmin):
 @admin.register(LocationMessage)
 class LocationMessageAdmin(PolymorphicChildModelAdmin):
     base_model = LocationMessage
+
+from django.contrib.gis.db import models
+from django import forms
     
 @admin.register(Survey)
 class SurveyAdmin(admin.ModelAdmin):
     model = Survey
     list_display=('device','time','surveyor','location','altitude','vacc','hacc')
     list_filter=('device','time','surveyor')
+    formfield_overrides = {models.PointField:{'widget': forms.TextInput(attrs={'width': '400px'})}}
     
