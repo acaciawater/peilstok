@@ -5,6 +5,14 @@
 <style>
 </style>
 {% endblock %}
+{% block navbar-right %}
+{% if nav.prev %}
+<li><a href="{%url 'device-detail' nav.prev.id %}">{{nav.prev|title}}</a></li>
+{% endif %}
+{% if nav.next %}
+<li><a href="{%url 'device-detail' nav.next.id %}">{{nav.next|title}}</a></li>
+{% endif %}
+{% endblock %}
 {% block content %}
 <div class="container">
 <h3>{{object|title}}</h3>
@@ -16,6 +24,10 @@
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>Identificatie</td>
+<td>{{object.devid}}</td>
+</tr>
 <tr>
 <td>Serienummer</td>
 <td>{{object.serial}}</td>
@@ -65,7 +77,7 @@
 <tr class="active">
 <th>Sensor</th>
 <th>Positie</th>
-<th>Afstand</th>
+<th>Afstand (mm)</th>
 <th>Aantal berichten</th>
 <th>Laatste bericht</th>
 <th>Laatste waarde</th>

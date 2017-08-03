@@ -7,11 +7,11 @@
 {% endblock navbar %}
 
 {% block navbar-right %}
-{% if prev %}
-<li><a href="{%url 'chart-detail' prev.id %}">{{prev|title}}</a></li>
+{% if nav.prev %}
+<li><a href="{%url 'chart-detail' nav.prev.id %}">{{nav.prev|title}}</a></li>
 {% endif %}
-{% if next %}
-<li><a href="{%url 'chart-detail' next.id %}">{{next|title}}</a></li>
+{% if nav.next %}
+<li><a href="{%url 'chart-detail' nav.next.id %}">{{nav.next|title}}</a></li>
 {% endif %}
 {% endblock %}
 {% block script %}

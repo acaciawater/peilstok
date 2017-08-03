@@ -138,13 +138,47 @@ class MapView(ListView):
         context['api_key'] = settings.GOOGLE_MAPS_API_KEY
         context['maptype'] = "ROADMAP"
         return context
-    
+
+class NavMixin(object):
+    """ Mixin for browsing through devices sorted by name """
+
+    def nav(self,device):
+        name = device.displayname
+        match = re.match(r'(?P<name>\D+)(?P<num>\d+$)',name)
+        next = prev = first = last = None
+        if match:
+            name = match.group('name')
+            number = match.group('num')
+            try:
+                next = Device.objects.filter(displayname__iexact='{name}{number:02}'.format(name=name,number=int(number) + 1)).first()
+            except ObjectDoesNotExist:
+                pass
+            try:
+                prev = Device.objects.filter(displayname__iexact='{name}{number:02}'.format(name=name,number=int(number) - 1)).last()
+            except ObjectDoesNotExist:
+                pass
+            try:
+                first = Device.objects.filter(displayname__iexact='Peilstok01').first()
+            except ObjectDoesNotExist:
+                pass
+            try:
+                last = Device.objects.filter(displayname__iexact='Peilstok18').last()
+            except ObjectDoesNotExist:
+                pass
+        return {'first': first, 'next': next, 'prev': prev, 'last': last}
+        
 class DeviceListView(ListView):
     model = Device
 
-class DeviceDetailView(DetailView):
+class DeviceDetailView(NavMixin, DetailView):
     model = Device
-        
+
+    def get_context_data(self, **kwargs):
+        context = super(DeviceDetailView, self).get_context_data(**kwargs)
+        device = self.get_object()
+        context['nav'] = self.nav(device)
+        return context
+
 def get_chart_data(device):
     """ 
     @return: Pandas dataframe with timeseries of EC and water level
@@ -250,7 +284,7 @@ def data_as_csv(request, pk):
     resp['Content-Disposition'] = 'attachment; filename=%s.csv' % slugify(unicode(device))
     return resp
     
-class PeilView(LoginRequiredMixin, DetailView):
+class PeilView(LoginRequiredMixin, NavMixin, DetailView):
     """ Shows calibrated and raw sensor values """
     model = Device
     template_name = 'peil/chart.html'
@@ -258,22 +292,8 @@ class PeilView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super(PeilView, self).get_context_data(**kwargs)
         device = self.get_object()
-        
-        name = device.devid
-        match = re.match(r'(?P<name>\D+)(?P<num>\d+$)',name)
-        next = prev = None
-        if match:
-            name = match.group('name')
-            number = match.group('num')
-            try:
-                next = Device.objects.filter(devid__iexact=name+str(int(number) + 1)).first()
-            except ObjectDoesNotExist:
-                pass
-            try:
-                prev = Device.objects.filter(devid__iexact=name+str(int(number) - 1)).last()
-            except ObjectDoesNotExist:
-                pass
-        
+        context['nav'] = self.nav(device)
+                
         options = {
             'chart': {'type': 'spline', 
                       'animation': False, 
@@ -326,7 +346,5 @@ class PeilView(LoginRequiredMixin, DetailView):
                        ]
                    })
         context['options2'] = json.dumps(options,default=lambda x: time.mktime(x.timetuple())*1000.0)
-        context['next'] = next
-        context['prev'] = prev
         return context
     
