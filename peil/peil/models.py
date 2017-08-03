@@ -256,9 +256,12 @@ class ECSensor(Sensor):
                 ec2 = emin
                 w2 = 0
             sumw = float(w1+w2)
-            w1 = w1/sumw
-            w2 = w2/sumw
-            ec = ec1*w1 + ec2*w2
+            if sumw:
+                w1 = w1/sumw
+                w2 = w2/sumw
+                ec = ec1*w1 + ec2*w2
+            else:
+                ec = None
         return sign, ec * 1e-3 if ec else None# to mS/cm
 
     def EC25(self,adc1,adc2,temp):
