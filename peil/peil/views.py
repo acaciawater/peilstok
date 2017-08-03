@@ -143,29 +143,11 @@ class NavMixin(object):
     """ Mixin for browsing through devices sorted by name """
 
     def nav(self,device):
-        name = device.displayname
-        match = re.match(r'(?P<name>\D+)(?P<num>\d+$)',name)
-        next = prev = first = last = None
-        if match:
-            name = match.group('name')
-            number = match.group('num')
-            try:
-                next = Device.objects.filter(displayname__iexact='{name}{number:02}'.format(name=name,number=int(number) + 1)).first()
-            except ObjectDoesNotExist:
-                pass
-            try:
-                prev = Device.objects.filter(displayname__iexact='{name}{number:02}'.format(name=name,number=int(number) - 1)).last()
-            except ObjectDoesNotExist:
-                pass
-            try:
-                first = Device.objects.filter(displayname__iexact='Peilstok01').first()
-            except ObjectDoesNotExist:
-                pass
-            try:
-                last = Device.objects.filter(displayname__iexact='Peilstok18').last()
-            except ObjectDoesNotExist:
-                pass
-        return {'first': first, 'next': next, 'prev': prev, 'last': last}
+        next = Device.objects.filter(displayname__gt=device.displayname)
+        next = next.first() if next else None
+        prev = Device.objects.filter(displayname__lt=device.displayname)
+        prev = prev.first() if prev else None
+        return {'next': next, 'prev': prev}
         
 class DeviceListView(ListView):
     model = Device
@@ -177,9 +159,12 @@ class DeviceDetailView(NavMixin, DetailView):
         context = super(DeviceDetailView, self).get_context_data(**kwargs)
         device = self.get_object()
         context['nav'] = self.nav(device)
-        sensor = device.get_sensor('Batterij',position=0)
-        level = sensor.value(sensor.last_message())
-        context['battery'] = battery_status(level)
+        try:
+            sensor = device.get_sensor('Batterij',position=0)
+            level = sensor.value(sensor.last_message())
+            context['battery'] = battery_status(level)
+        except:
+            pass
         return context
 
 def get_chart_data(device):
@@ -211,7 +196,10 @@ def get_chart_data(device):
         sensor = device.get_sensor('Waterdruk',position=3)
         # calculate NAP level of sensor (m)
         nap_sensor = nap_device - sensor.position/1000.0
-        data['Waterpeil'] = data['Waterhoogte']/100.0 + nap_sensor
+    else:
+        # no elevation data available
+        nap_sensor = 0
+    data['Waterpeil'] = data['Waterhoogte']/100.0 + nap_sensor
     return data
     
 @gzip_page
