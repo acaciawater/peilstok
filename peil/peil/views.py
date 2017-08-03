@@ -14,7 +14,7 @@ from django.conf import settings
 import re, time
 import simplejson as json # allows for NaN conversion
 from peil.models import Device, UBXFile
-from peil.util import handle_post_data
+from peil.util import handle_post_data, battery_status
 import pandas as pd
 import numpy as np
 
@@ -177,6 +177,9 @@ class DeviceDetailView(NavMixin, DetailView):
         context = super(DeviceDetailView, self).get_context_data(**kwargs)
         device = self.get_object()
         context['nav'] = self.nav(device)
+        sensor = device.get_sensor('Batterij',position=0)
+        level = sensor.value(sensor.last_message())
+        context['battery'] = battery_status(level)
         return context
 
 def get_chart_data(device):

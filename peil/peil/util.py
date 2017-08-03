@@ -1,6 +1,7 @@
 from django.db import transaction
 from django.db.utils import IntegrityError
 from django.utils.dateparse import parse_datetime
+from django.conf import settings
 from .models import Device, GNSS_MESSAGE, EC_MESSAGE, STATUS_MESSAGE, PRESSURE_MESSAGE, ANGLE_MESSAGE
 import datetime, pytz
 import logging
@@ -12,6 +13,10 @@ from peil.models import PressureSensor,\
 from django.http.response import HttpResponse, HttpResponseServerError
 
 logger = logging.getLogger(__name__)
+
+def battery_status(battery):
+    level = min(500,max(0,battery-3000)) / 5 # percent
+    return {'level': level, 'icon': '{url}bat{index}.png'.format(url=settings.STATIC_URL, index=int(level/20))} 
 
 def update_or_create(manager, **kwargs):
     assert kwargs, \

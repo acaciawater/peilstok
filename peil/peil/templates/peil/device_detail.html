@@ -3,19 +3,29 @@
 {% block style %}
 {{block.super}}
 <style>
+.battery {
+	height: 32px;
+	float: right;
+}
 </style>
 {% endblock %}
+{% block navbar %} 
+<ul class="nav navbar-nav">
+  <li><a href="{% url 'device-map' %}" title="Toon {{object}} op de kaart">Kaart</a></li>
+  <li><a href="{% url 'chart-detail' object.id %}" title="Toon grafiek van {{object}}">Grafiek</a></li>
+</ul>
+{% endblock navbar %}
 {% block navbar-right %}
 {% if nav.prev %}
-<li><a href="{%url 'device-detail' nav.prev.id %}">{{nav.prev|title}}</a></li>
+<li><a href="{%url 'device-detail' nav.prev.id %}" title="Toon details van {{nav.prev|title}}">{{nav.prev|title}}</a></li>
 {% endif %}
 {% if nav.next %}
-<li><a href="{%url 'device-detail' nav.next.id %}">{{nav.next|title}}</a></li>
+<li><a href="{%url 'device-detail' nav.next.id %}" title="Toon details van {{nav.next|title}}">{{nav.next|title}}</a></li>
 {% endif %}
 {% endblock %}
 {% block content %}
 <div class="container">
-<h3>{{object|title}}</h3>
+<h3>{{object|title}}<img class="battery" src={{battery.icon}} title="{{battery.level}}%"></img></h3>
 <table class="table table-striped">
 <thead>
 <tr class="active">
