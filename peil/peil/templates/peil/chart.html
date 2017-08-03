@@ -2,16 +2,19 @@
 {% block title%}PHZD - grafiek {{object}} {% endblock %}
 {% block navbar %} 
 <ul class="nav navbar-nav">
-  <li><a href="{% url 'device-map' %}">Kaart</a></li>
+  <li><a href="{% url 'device-map' %}" title="Toon {{object}} op de kaart">Kaart</a></li>
+  {% if request.user.is_staff %}
+  <li><a href="{% url 'device-detail' object.id %}" title="Toon details van {{object}}">Details</a></li>
+  {% endif %}
 </ul>
 {% endblock navbar %}
 
 {% block navbar-right %}
 {% if nav.prev %}
-<li><a href="{%url 'chart-detail' nav.prev.id %}">{{nav.prev|title}}</a></li>
+<li><a href="{%url 'chart-detail' nav.prev.id %}" title="Toon grafiek van {{nav.prev|title}}">{{nav.prev|title}}</a></li>
 {% endif %}
 {% if nav.next %}
-<li><a href="{%url 'chart-detail' nav.next.id %}">{{nav.next|title}}</a></li>
+<li><a href="{%url 'chart-detail' nav.next.id %}" title="Toon grafiek van {{nav.next|title}}">{{nav.next|title}}</a></li>
 {% endif %}
 {% endblock %}
 {% block script %}
