@@ -107,6 +107,21 @@ class Device(models.Model):
     def __unicode__(self):
         return self.displayname
 
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
+import re
+
+@receiver(pre_save, sender=Device)
+def device_presave(sender, instance, **kwargs):
+    if not instance.displayname or instance.displayname == 'default':
+        match = re.match(r'(?P<name>\D+)(?P<num>\d+$)',instance.devid)
+        if match:
+            name = match.group('name')
+            number = int(match.group('num'))
+            instance.displayname = '{}{:02d}'.format(name.title(),number)
+        else:
+            instance.displayname = instance.devid
+        
 class Survey(geo.Model):
     """ Peilstok survey """
     device = models.ForeignKey(Device,verbose_name='peilstok')
