@@ -274,6 +274,16 @@ def data_as_csv(request, pk):
     resp = HttpResponse(data.to_csv(), content_type='text/csv')
     resp['Content-Disposition'] = 'attachment; filename=%s.csv' % slugify(unicode(device))
     return resp
+
+class PhotoView(LoginRequiredMixin, NavMixin, DetailView):
+    model = Device
+    template_name = 'peil/photos.html'
+
+    def get_context_data(self, **kwargs):
+        context = super(PhotoView, self).get_context_data(**kwargs)
+        device = self.get_object()
+        context['nav'] = self.nav(device)
+        return context
     
 class PeilView(LoginRequiredMixin, NavMixin, DetailView):
     """ Shows calibrated and raw sensor values """

@@ -2,7 +2,8 @@ from django.contrib import admin
 from peil.models import Device, Sensor,\
     UBXFile, RTKConfig, ECSensor, PressureSensor,\
     BatterySensor, AngleSensor, LoraMessage, ECMessage, PressureMessage,\
-    InclinationMessage, StatusMessage, LocationMessage, GNSS_Sensor, Survey
+    InclinationMessage, StatusMessage, LocationMessage, GNSS_Sensor, Survey,\
+    Photo
 from peil.actions import create_pvts, rtkpost
 from peil.sensor import create_sensors, load_offsets,\
     load_distance, load_survey
@@ -120,3 +121,9 @@ class SurveyAdmin(admin.ModelAdmin):
     list_filter=('device','time','surveyor')
     formfield_overrides = {models.PointField:{'widget': forms.TextInput(attrs={'width': '400px'})}}
     
+@admin.register(Photo)
+class PhotoAdmin(admin.ModelAdmin):
+    model = Photo
+    list_display = ('photo','device','thumbnail',)
+    list_filter = ('device',)
+    search_fields = ('photo',)

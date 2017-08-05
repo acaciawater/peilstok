@@ -7,6 +7,7 @@ from django.db import models
 from django.contrib.gis.db import models as geo
 from polymorphic.models import PolymorphicModel
 import numpy as np
+import os
 import logging
 import calib
 import json
@@ -121,6 +122,24 @@ def device_presave(sender, instance, **kwargs):
             instance.displayname = '{}{:02d}'.format(name.title(),number)
         else:
             instance.displayname = instance.devid
+        
+class Photo(models.Model):
+    device = models.ForeignKey(Device)
+    photo = models.ImageField(upload_to='photos')
+    order = models.PositiveIntegerField(default=1)
+    
+    def thumbnail(self):
+        from peil.util import tag
+        return tag(self.photo.name)
+
+    thumbnail.allow_tags=True
+    
+    def __unicode__(self):
+        return os.path.basename(self.photo.name)
+    
+    class Meta:
+        verbose_name = 'foto'
+        ordering = ('order','photo')
         
 class Survey(geo.Model):
     """ Peilstok survey """

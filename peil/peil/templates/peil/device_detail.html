@@ -13,6 +13,7 @@
 <ul class="nav navbar-nav">
   <li><a href="{% url 'device-map' %}" title="Toon {{object}} op de kaart">Kaart</a></li>
   <li><a href="{% url 'chart-detail' object.id %}" title="Toon grafiek van {{object}}">Grafiek</a></li>
+  <li><a href="{% url 'device-photos' object.id %}" title="Toon fotos van {{object}}">Fotos</a></li>
 </ul>
 {% endblock navbar %}
 {% block navbar-right %}

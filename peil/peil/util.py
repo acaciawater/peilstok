@@ -11,8 +11,13 @@ from peil.models import PressureSensor,\
     PressureMessage, GNSS_Sensor, BatterySensor, StatusMessage, AngleSensor,\
     InclinationMessage, LocationMessage, ECSensor, ECMessage, UBXFile
 from django.http.response import HttpResponse, HttpResponseServerError
+from urllib import quote
 
 logger = logging.getLogger(__name__)
+
+def tag(imagefile):
+    url = quote(os.path.join(settings.MEDIA_URL, imagefile))
+    return '<a href="%s"><img src="%s" height="60px"/></a>' % (url, url)
 
 def battery_status(battery):
     level = min(500,max(0,battery-3000)) / 5 # percent

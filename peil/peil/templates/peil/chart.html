@@ -5,6 +5,7 @@
   <li><a href="{% url 'device-map' %}" title="Toon {{object}} op de kaart">Kaart</a></li>
   {% if request.user.is_staff %}
   <li><a href="{% url 'device-detail' object.id %}" title="Toon details van {{object}}">Details</a></li>
+  <li><a href="{% url 'device-photos' object.id %}" title="Toon fotos van {{object}}">Fotos</a></li>
   {% endif %}
 </ul>
 {% endblock navbar %}

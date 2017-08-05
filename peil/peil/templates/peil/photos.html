@@ -1,0 +1,42 @@
+{% extends 'peil/base.html' %}
+{% block title %}Device {{object}}{% endblock %}
+{% block style %}
+{{block.super}}
+<style>
+div a img {
+	padding-top: 16px;
+	width: 100%;
+	height: auto;
+}
+</style>
+{% endblock %}
+{% block navbar %} 
+<ul class="nav navbar-nav">
+  <li><a href="{% url 'device-map' %}" title="Toon {{object}} op de kaart">Kaart</a></li>
+  <li><a href="{% url 'chart-detail' object.id %}" title="Toon grafiek van {{object}}">Grafiek</a></li>
+  <li><a href="{% url 'device-detail' object.id %}" title="Toon details van {{object}}">Details</a></li>
+</ul>
+{% endblock navbar %}
+{% block navbar-right %}
+{% if nav.prev %}
+<li><a href="{%url 'device-photos' nav.prev.id %}" title="Toon fotos van {{nav.prev|title}}">{{nav.prev|title}}</a></li>
+{% endif %}
+{% if nav.next %}
+<li><a href="{%url 'device-photos' nav.next.id %}" title="Toon fotos van {{nav.next|title}}">{{nav.next|title}}</a></li>
+{% endif %}
+{% endblock %}
+{% block content %}
+<div class="container-fluid">
+<div class="row-fluid">
+{% for photo in object.photo_set.all %}
+{% if forloop.counter|divisibleby:4 %}
+</div><div class="row-fluid">
+{% endif %}
+<div class="col-md-3">
+<a href="{{photo.photo.url}}"><img src="{{photo.photo.url}}"></img></a>
+<div class="text-center"><h4>{{photo}}</h4></div>
+</div>
+{% endfor %}
+</div>
+</div>
+{% endblock %}
