@@ -1,0 +1,4 @@
+{% load thumbnail %}
+{% thumbnail image 'x60' as im %}
+    <a href="{{ image.url }}"><img src="{{ im.url }}" alt=""></a> 
+{% endthumbnail %}
