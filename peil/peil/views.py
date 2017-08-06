@@ -146,7 +146,7 @@ class NavMixin(object):
         next = Device.objects.filter(displayname__gt=device.displayname)
         next = next.first() if next else None
         prev = Device.objects.filter(displayname__lt=device.displayname)
-        prev = prev.first() if prev else None
+        prev = prev.last() if prev else None
         return {'next': next, 'prev': prev}
         
 class DeviceListView(ListView):
