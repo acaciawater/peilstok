@@ -15,10 +15,6 @@ from urllib import quote
 
 logger = logging.getLogger(__name__)
 
-def tag(imagefile):
-    url = quote(os.path.join(settings.MEDIA_URL, imagefile))
-    return '<a href="%s"><img src="%s" height="60px"/></a>' % (url, url)
-
 def battery_status(battery):
     level = min(500,max(0,battery-3000)) / 5 # percent
     return {'level': level, 'icon': '{url}bat{index}.png'.format(url=settings.STATIC_URL, index=int(level/20))} 

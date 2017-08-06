@@ -8,6 +8,8 @@ from peil.actions import create_pvts, rtkpost
 from peil.sensor import create_sensors, load_offsets,\
     load_distance, load_survey
 from polymorphic.admin import PolymorphicChildModelFilter, PolymorphicChildModelAdmin, PolymorphicParentModelAdmin
+from sorl.thumbnail.admin import AdminImageMixin
+from django.template.loader import render_to_string
 
 def createsensors(modeladmin, request, queryset):
     for d in queryset:
@@ -122,8 +124,15 @@ class SurveyAdmin(admin.ModelAdmin):
     formfield_overrides = {models.PointField:{'widget': forms.TextInput(attrs={'width': '400px'})}}
     
 @admin.register(Photo)
-class PhotoAdmin(admin.ModelAdmin):
+class PhotoAdmin(AdminImageMixin, admin.ModelAdmin):
     model = Photo
-    list_display = ('device','order','thumbnail',)
+    list_display = ('device','order','thumb',)
     list_filter = ('device',)
     search_fields = ('photo',)
+
+    def thumb(self, obj):
+        return render_to_string('peil/thumb.html',{
+                    'image': obj.photo
+                })
+    thumb.allow_tags = True
+    

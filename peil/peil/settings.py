@@ -36,11 +36,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.gis',
+    'sorl.thumbnail',
     'tastypie',
     'bootstrap3',
     'peil.apps.PeilConfig',
     'django_extensions', # for debugging ssl with runserver_plus
-    #'registration', # not required for HMAC registration
 ]
 
 MIDDLEWARE = [
@@ -61,6 +61,7 @@ TEMPLATES = [
         'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
+            'debug': True,
             'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
@@ -70,6 +71,8 @@ TEMPLATES = [
         },
     },
 ]
+
+TEMPLATE_DEBUG = True
 
 WSGI_APPLICATION = 'peil.wsgi.application'
 
@@ -106,8 +109,9 @@ USE_L10N = True
 
 USE_TZ = True
 
+THUMBNAIL_KVSTORE = 'sorl.thumbnail.kvstores.redis_kvstore.KVStore'
 TASTYPIE_DEFAULT_FORMATS = ['json']
-REGISTRATION_OPEN = True
+REGISTRATION_OPEN = False
 REGISTRATION_SALT = 'Peilstok13579'
 LOGIN_REDIRECT_URL = '/'
 

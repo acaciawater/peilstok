@@ -1,4 +1,5 @@
 {% extends 'peil/base.html' %}
+{% load thumbnail %}
 {% block title %}Device {{object}}{% endblock %}
 {% block style %}
 {{block.super}}
@@ -33,7 +34,11 @@ div a img {
 </div><div class="row-fluid">
 {% endif %}
 <div class="col-md-3">
-<a href="{{photo.photo.url}}"><img src="{{photo.photo.url}}"></img></a>
+{% thumbnail photo.photo "400" as im %}
+    <img src="{{ im.url }}"></img>
+{% empty %}
+<p class="text-center bg-warning">No image</p>
+{% endthumbnail %}
 <div class="text-center"><h4>{{photo}}</h4></div>
 </div>
 {% endfor %}
