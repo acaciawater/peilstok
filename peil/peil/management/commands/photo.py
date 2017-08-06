@@ -24,10 +24,11 @@ class Command(BaseCommand):
         for folder in dirs:
             for path, _dirs, files in os.walk(folder):
                 for fname in files:
-                    match = re.match('OWMP(\d+)#',fname)
+                    match = re.match('OWMP(\d+)#(\d+)',fname)
                     if match:
                         print fname
                         num = match.group(1)
+                        seq = match.group(2)
                         try:
                             device = Device.objects.get(displayname__iexact = 'Peilstok'+num)
                         except Device.DoesNotExist:
@@ -35,4 +36,4 @@ class Command(BaseCommand):
                         source = os.path.join(path,fname)
                         dest = os.path.join(upload,fname)
                         shutil.copy(source, dest)
-                        device.photo_set.get_or_create(photo='photos/'+fname)
+                        device.photo_set.update_or_create(photo='photos/'+fname,defaults={'order':int(seq)})

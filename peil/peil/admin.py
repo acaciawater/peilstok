@@ -124,6 +124,6 @@ class SurveyAdmin(admin.ModelAdmin):
 @admin.register(Photo)
 class PhotoAdmin(admin.ModelAdmin):
     model = Photo
-    list_display = ('photo','device','thumbnail',)
+    list_display = ('device','order','thumbnail',)
     list_filter = ('device',)
     search_fields = ('photo',)

@@ -139,7 +139,7 @@ class Photo(models.Model):
     
     class Meta:
         verbose_name = 'foto'
-        ordering = ('order','photo')
+        ordering = ('device','order','photo')
         
 class Survey(geo.Model):
     """ Peilstok survey """
