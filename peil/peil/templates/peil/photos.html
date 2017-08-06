@@ -1,6 +1,6 @@
 {% extends 'peil/base.html' %}
 {% load thumbnail %}
-{% block title %}Device {{object}}{% endblock %}
+{% block title %}Fotos {{object}}{% endblock %}
 {% block style %}
 {{block.super}}
 <style>
@@ -8,6 +8,9 @@ div a img {
 	padding-top: 16px;
 	width: 100%;
 	height: auto;
+}
+h3 {
+	padding-left:16px;
 }
 </style>
 {% endblock %}
@@ -28,14 +31,15 @@ div a img {
 {% endblock %}
 {% block content %}
 <div class="container-fluid">
+<div class="row-fluid"><h3 class="text-left">Foto's van {{object}}</h3></div>
 <div class="row-fluid">
 {% for photo in object.photo_set.all %}
 {% if forloop.counter|divisibleby:4 %}
 </div><div class="row-fluid">
 {% endif %}
 <div class="col-md-3">
-{% thumbnail photo.photo "400" as im %}
-    <img src="{{ im.url }}"></img>
+{% thumbnail photo.photo "320" crop="center" as im %}
+<a href="{{photo.photo.url}}"><img src="{{ im.url }}"></img></a>
 {% empty %}
 <p class="text-center bg-warning">No image</p>
 {% endthumbnail %}
