@@ -305,7 +305,7 @@ class PeilView(LoginRequiredMixin, NavDetailView):
                       'zoomType': 'x',
                       'events': {'load': None},
                       'marginLeft': 60, 
-                      'marginRight': 60,
+                      'marginRight': 80,
                       'spacingTop': 20,
                       'spacingBottom': 20
                       },
