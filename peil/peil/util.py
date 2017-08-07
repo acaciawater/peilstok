@@ -2,23 +2,23 @@ from django.db import transaction
 from django.db.utils import IntegrityError
 from django.utils.dateparse import parse_datetime
 from django.conf import settings
-from .models import Device, GNSS_MESSAGE, EC_MESSAGE, STATUS_MESSAGE, PRESSURE_MESSAGE, ANGLE_MESSAGE
+from django.http.response import HttpResponse, HttpResponseServerError
+
 import datetime, pytz
 import logging
 import os, re
 
-from peil.models import PressureSensor,\
-    PressureMessage, GNSS_Sensor, BatterySensor, StatusMessage, AngleSensor,\
-    InclinationMessage, LocationMessage, ECSensor, ECMessage, UBXFile
-from django.http.response import HttpResponse, HttpResponseServerError
-from urllib import quote
+from .models import Device, GNSS_MESSAGE, EC_MESSAGE, STATUS_MESSAGE, PRESSURE_MESSAGE, ANGLE_MESSAGE
+from peil.models import PressureSensor,PressureMessage, GNSS_Sensor, BatterySensor, StatusMessage, \
+    AngleSensor, InclinationMessage, LocationMessage, ECSensor, ECMessage, UBXFile
+from django.urls.base import reverse
 
 logger = logging.getLogger(__name__)
 
 def battery_status(battery):
     level = min(500,max(0,battery-3000)) / 5 # percent
     return {'level': level, 'icon': '{url}bat{index}.png'.format(url=settings.STATIC_URL, index=int(level/20))} 
-
+    
 def update_or_create(manager, **kwargs):
     assert kwargs, \
             'update_or_create() must be passed at least one keyword argument'
@@ -134,7 +134,7 @@ def parse_ttn(ttn):
             logger.debug('device {} created'.format(unicode(device)))
         
         mod, created, updated = parse_payload(device, server_time, pf)
-
+        
         return mod, created, updated
     except Exception as e:
         logger.exception('Error parsing payload: {}'.format(ttn))
