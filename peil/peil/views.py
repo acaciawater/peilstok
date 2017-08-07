@@ -22,7 +22,6 @@ import logging
 from django.shortcuts import get_object_or_404
 from django.contrib.gis.gdal import CoordTransform, SpatialReference
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import ObjectDoesNotExist
 from django.utils.text import slugify
 
 logger = logging.getLogger(__name__)
@@ -148,17 +147,25 @@ class NavMixin(object):
         prev = Device.objects.filter(displayname__lt=device.displayname)
         prev = prev.last() if prev else None
         return {'next': next, 'prev': prev}
-        
+
+class NavDetailView(NavMixin, DetailView):
+    """ Detailview with browsing through devices sorted by name """
+
+    def get_context_data(self, **kwargs):
+        context = super(NavDetailView, self).get_context_data(**kwargs)
+        device = self.get_object()
+        context['nav'] = self.nav(device)
+        return context
+    
 class DeviceListView(ListView):
     model = Device
 
-class DeviceDetailView(NavMixin, DetailView):
+class DeviceDetailView(NavDetailView):
     model = Device
 
     def get_context_data(self, **kwargs):
         context = super(DeviceDetailView, self).get_context_data(**kwargs)
         device = self.get_object()
-        context['nav'] = self.nav(device)
         try:
             sensor = device.get_sensor('Batterij',position=0)
             level = sensor.value(sensor.last_message())
@@ -275,17 +282,11 @@ def data_as_csv(request, pk):
     resp['Content-Disposition'] = 'attachment; filename=%s.csv' % slugify(unicode(device))
     return resp
 
-class PhotoView(LoginRequiredMixin, NavMixin, DetailView):
+class PhotoView(LoginRequiredMixin, NavDetailView):
     model = Device
     template_name = 'peil/photos.html'
-
-    def get_context_data(self, **kwargs):
-        context = super(PhotoView, self).get_context_data(**kwargs)
-        device = self.get_object()
-        context['nav'] = self.nav(device)
-        return context
     
-class PeilView(LoginRequiredMixin, NavMixin, DetailView):
+class PeilView(LoginRequiredMixin, NavDetailView):
     """ Shows calibrated and raw sensor values """
     model = Device
     template_name = 'peil/chart.html'
@@ -293,7 +294,6 @@ class PeilView(LoginRequiredMixin, NavMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super(PeilView, self).get_context_data(**kwargs)
         device = self.get_object()
-        context['nav'] = self.nav(device)
                 
         options = {
             'chart': {'type': 'spline', 
