@@ -41,9 +41,11 @@ INSTALLED_APPS = [
     'bootstrap3',
     'peil.apps.PeilConfig',
     'django_extensions', # for debugging ssl with runserver_plus
+    'django_redis',
 ]
 
 MIDDLEWARE = [
+    'django.middleware.cache.UpdateCacheMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -51,6 +53,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.middleware.cache.FetchFromCacheMiddleware',
 ]
 
 ROOT_URLCONF = 'peil.urls'
@@ -72,6 +75,7 @@ TEMPLATES = [
     },
 ]
 
+# needed by sorl.thumbnail
 TEMPLATE_DEBUG = True
 
 WSGI_APPLICATION = 'peil.wsgi.application'
