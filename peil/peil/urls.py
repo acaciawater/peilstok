@@ -21,12 +21,13 @@ from .views import ttn, ubx
 from peil.views import DeviceListView, MapView, json_locations,\
     PopupView, PeilView, chart_as_json, data_as_json, DeviceDetailView,\
     chart_as_csv, data_as_csv, PhotoView
+from django.views.decorators.cache import cache_page
 
 v1 = Api(api_name='v1')
 v1.register(DeviceResource())
 
 urlpatterns = [
-    url(r'^$', MapView.as_view(), name='home'),
+    url(r'^$', cache_page(60)(MapView.as_view()), name='home'), # Keep mapview up-to-date
     url(r'^admin/', admin.site.urls),
     url(r'^ttn/', ttn),
     url(r'^ubx/', ubx),
@@ -51,3 +52,9 @@ urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
 admin.site.site_header = 'Beheerpagina'
+
+if settings.DEBUG:
+    import debug_toolbar
+    urlpatterns = [
+        url(r'^__debug__/', include(debug_toolbar.urls)),
+    ] + urlpatterns

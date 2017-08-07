@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'peil.apps.PeilConfig',
     'django_extensions', # for debugging ssl with runserver_plus
     'django_redis',
+    'debug_toolbar',
 ]
 
 MIDDLEWARE = [
@@ -53,6 +54,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.middleware.cache.FetchFromCacheMiddleware',
 ]
 
@@ -74,9 +76,6 @@ TEMPLATES = [
         },
     },
 ]
-
-# needed by sorl.thumbnail
-TEMPLATE_DEBUG = True
 
 WSGI_APPLICATION = 'peil.wsgi.application'
 
@@ -113,27 +112,32 @@ USE_L10N = True
 
 USE_TZ = True
 
+# debug toolbar
+INTERNAL_IPS = '127.0.0.1'
+
+# sorl.thumbnail
 THUMBNAIL_KVSTORE = 'sorl.thumbnail.kvstores.redis_kvstore.KVStore'
+TEMPLATE_DEBUG = True
+
+# tastypie
 TASTYPIE_DEFAULT_FORMATS = ['json']
+
+# registration
 REGISTRATION_OPEN = False
 REGISTRATION_SALT = 'Peilstok13579'
 LOGIN_REDIRECT_URL = '/'
+ACCOUNT_ACTIVATION_DAYS = 7
 
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/1.11/howto/static-files/
-
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
+# Media files (photos)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-LOGGING_ROOT = os.path.join(BASE_DIR, 'logs')
-
-# registratino
-ACCOUNT_ACTIVATION_DAYS = 7
-
 # Logging
+LOGGING_ROOT = os.path.join(BASE_DIR, 'logs')
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
