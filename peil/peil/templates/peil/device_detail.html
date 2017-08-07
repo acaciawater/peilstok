@@ -7,6 +7,14 @@
 	height: 32px;
 	float: right;
 }
+.dry {
+	color: black;
+}
+.wet {
+	font-weight: bold;
+	color: blue;
+}
+
 </style>
 {% endblock %}
 {% block navbar %} 
@@ -27,6 +35,8 @@
 {% block content %}
 <div class="container">
 <h3>{{object|title}}{%if battery %}<img class="battery" src={{battery.icon}} title="batterij {{battery.level}}%"></img>{%endif%}</h3>
+<div class="row">
+<div class="col col-md-6">
 <table class="table table-striped">
 <thead>
 <tr class="active">
@@ -59,8 +69,20 @@
 <td>Laatste contact</td>
 <td>{{object.last_seen}}</td>
 </tr>
+</tbody>
+</table>
+</div>
+<div class="col col-md-6">
+<table class="table table-striped">
+<thead>
+<tr class="active">
+<th>Omschrijving</th>
+<th>Waarde</th>
+</tr>
+</thead>
+<tbody>
 {% with object.last_survey as survey %}
-{% if survey %}
+
 <tr>
 <td>Ingemeten door</td>
 <td>{{survey.surveyor}}</td>
@@ -77,11 +99,14 @@
 <td>Hoogte (NAP)</td>
 <td>{{survey.altitude|floatformat:2}}</td>
 </tr>
-{% endif %}
+
 {% endwith %}
 </tbody>
 </table>
-
+</div>
+</div>
+<div class="row">
+<div class = "col col-md-12">
 <h3>Sensoren</h3>
 <table class="table table-striped">
 <thead>
@@ -98,7 +123,7 @@
 </tr>
 </thead>
 {% for sensor in object.sensor_set.all %}
-<tr>
+<tr class="{%if sensor.elevation < level.nap %}wet{%else%}dry{%endif%}">
 <td>{{sensor.ident}}</td>
 <td>{{sensor.position}}</td>
 <td>{{sensor.distance}}</td>
@@ -108,11 +133,24 @@
 <td>{{last.time}}</td>
 <td>{%ifequal sensor.ident "GPS"%}{{last.NAPvalue}}{%else%}{{last.value|default:""}}{%endifequal%}</td>
 <td>{{sensor.unit}}</td>
-<!-- <td>{{last.to_dict}}</td> -->
 {% endwith %}
 </tr>
 {% endfor %}
+<tr>
+<td colspan="5">Waterhoogte</td>
+<td>{{level.time}}</td>
+<td>{{level.cm|floatformat:0}}</td>
+<td>cm</td>
+</tr>
+<tr>
+<td colspan="5">Waterstand</td>
+<td>{{level.time}}</td>
+<td>{{level.nap|floatformat:2}}</td>
+<td>m tov NAP</td>
+</tr>
 </tbody>
 </table>
+</div>
+</div>
 </div>
 {% endblock %}

@@ -11,10 +11,44 @@ import os, re
 from .models import Device, GNSS_MESSAGE, EC_MESSAGE, STATUS_MESSAGE, PRESSURE_MESSAGE, ANGLE_MESSAGE
 from peil.models import PressureSensor,PressureMessage, GNSS_Sensor, BatterySensor, StatusMessage, \
     AngleSensor, InclinationMessage, LocationMessage, ECSensor, ECMessage, UBXFile
-from django.urls.base import reverse
+from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
+def last_waterlevel(device, hours=2):
+    """ returns last known waterlevel for a device """
+    wps = device.get_sensor('Waterdruk',position=3)
+    wp = wps.last_message()
+    aps = device.get_sensor('Luchtdruk',position=0)
+    ap = aps.last_message()
+
+    tolerance = timedelta(hours=hours)
+    if wp.time > ap.time:
+        delta = wp.time - ap.time 
+    else:
+        delta = ap.time - wp.time
+
+    if delta > tolerance:
+        if ap.time < wp.time:
+            # find any water pressure within tolerance
+            fromtime = ap.time - tolerance
+            wp = wps.loramessage_set.filter(time__gte=fromtime).last()
+        else:
+            fromtime = wp.time - tolerance
+            ap = aps.loramessage_set.filter(time__gte=fromtime).last()
+
+    level = None
+    nap = None
+    if ap and wp:
+        time = wp.time
+        ap = aps.value(ap)
+        wp = wps.value(wp)
+        level = (wp - ap) / 0.980638
+        z = wps.elevation()
+        if z is not None:
+            nap = level/100.0 + z
+    return {'time': time, 'cm': level, 'nap': nap}
+    
 def battery_status(battery):
     level = min(500,max(0,battery-3000)) / 5 # percent
     return {'level': level, 'icon': '{url}bat{index}.png'.format(url=settings.STATIC_URL, index=int(level/20))} 

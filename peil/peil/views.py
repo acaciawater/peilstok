@@ -14,7 +14,7 @@ from django.conf import settings
 import re, time
 import simplejson as json # allows for NaN conversion
 from peil.models import Device, UBXFile
-from peil.util import handle_post_data, battery_status
+from peil.util import handle_post_data, battery_status, last_waterlevel
 import pandas as pd
 import numpy as np
 
@@ -172,6 +172,10 @@ class DeviceDetailView(NavDetailView):
             context['battery'] = battery_status(level)
         except:
             pass
+        try:
+            context['level'] = last_waterlevel(device)
+        except:
+            pass
         return context
 
 def get_chart_data(device):
@@ -197,16 +201,16 @@ def get_chart_data(device):
     airpressure = airpressure.reindex(waterpressure.index,method='nearest',tolerance='2h')
     # calculate water level in cm above the sensor
     data['Waterhoogte'] = (waterpressure-airpressure)/0.980638
-    # convert to water level in m +NAP
-    nap_device = device.get_nap() # level of top of device in NAP (m)
-    if nap_device:
-        sensor = device.get_sensor('Waterdruk',position=3)
-        # calculate NAP level of sensor (m)
-        nap_sensor = nap_device - sensor.position/1000.0
-    else:
-        # no elevation data available
-        nap_sensor = 0
-    data['Waterpeil'] = data['Waterhoogte']/100.0 + nap_sensor
+
+    # calculate elevation (m to NAP) of sensor
+    sensor = device.get_sensor('Waterdruk',position=3)
+    elevation = sensor.elevation()
+    if elevation is None:
+        # tolerate missing sensor elevation 
+        elevation = 0
+    # convert to water level in cm to meter
+    data['Waterpeil'] = data['Waterhoogte']/100.0 + elevation
+    
     return data
     
 @gzip_page

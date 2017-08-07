@@ -215,7 +215,7 @@ class Sensor(PolymorphicModel):
             yield (m.time,self.value(m))
 
     def raw_data(self,**kwargs):
-        q = self.loramessage_set
+        q = self.loramessage_set.order_by('time')
         if kwargs:
             queryset = q.filter(**kwargs)
         else:
