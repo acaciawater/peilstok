@@ -542,7 +542,6 @@ class UBXFile(models.Model):
 
     def rtkpost(self, config, **kwargs):
         """ postprocessing with RTKLIB """
-        import os, re
         import subprocess32 as subprocess
 
         path = unicode(self.ubxfile.file)
