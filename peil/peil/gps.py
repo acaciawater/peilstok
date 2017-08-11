@@ -5,6 +5,9 @@ Created on Apr 25, 2017
 '''
 import struct
 import datetime, pytz
+from csv import DictReader
+from mimeparse import best_match
+from django.conf import settings
 
 # GPS time=0
 GPST0 = datetime.datetime(1980,1,6,0,0,0)
@@ -91,6 +94,35 @@ def readubx(ubxfile):
             else:
                 raise ValueError('Message not supported: %x' % msgid)
 
+def readpos(posfile):
+    """ read rnx2rtkp solution file """ 
+    with open(posfile) as fpos:
+        names = None
+        for line in fpos:
+            if line.startswith('%  GPST'):
+                names = [h.strip() for h in line.split(',')]
+                break
+        if not names:
+            return {}
+        reader = DictReader(fpos,fieldnames=names)
+        minsdu = 1e10
+        best = {}
+        for row in reader:
+            #%  GPST                , latitude(deg),longitude(deg), height(m),  Q, ns,  sdn(m),  sde(m),  sdu(m), sdne(m), sdeu(m), sdun(m),age(s), ratio
+            sdu = float(row['sdu(m)'])
+            if sdu < minsdu:
+                best = row
+                minsdu = sdu                 
+#         lat = float(best['latitude(deg)'])
+#         lon = float(best['longitude(deg)'])
+#         alt = float(best['height(m)'])
+#         q = int(best['Q'])
+#         ns = int(best['ns'])
+#         sdn = float(best['sdn(m)'])
+#         sde = float(best['sde(m)'])
+#         sdu = float(best['sdu(m)'])
+        return best
+    
 class TransNAP:
     ''' transform 3D coordinates from WGS84 to RDNAP '''
   
@@ -111,12 +143,168 @@ class TransNAP:
 
     def to_wgs84(self,x,y,z):
         return self.inv.TransformPoint(x,y,z)
+
+def showpos(posfile):
+    """ read rnx2rtkp solution file and show rdnap 3D-coordinates """ 
+    with open(posfile) as fpos:
+        names = None
+        for line in fpos:
+            if line.startswith('%  GPST'):
+                line = line[1:]
+                names = [h.strip() for h in line.split(',')]
+                break
+        if not names:
+            return {}
+        reader = DictReader(fpos,fieldnames=names)
+        minsdu = 1e10
+        best = {}
+        trans = TransNAP()
+        for row in reader:
+            #%  GPST                , latitude(deg),longitude(deg), height(m),  Q, ns,  sdn(m),  sde(m),  sdu(m), sdne(m), sdeu(m), sdun(m),age(s), ratio
+            sdu = float(row['sdu(m)'])
+            if sdu < minsdu:
+                best = row
+                minsdu = sdu
+                time = row['GPST']
+                lat = float(row['latitude(deg)'])
+                lon = float(row['longitude(deg)'])
+                alt = float(row['height(m)'])
+                q = int(row['Q'])
+                ns = int(row['ns'])
+                sdn = float(row['sdn(m)'])
+                sde = float(row['sde(m)'])
+                sdu = float(row['sdu(m)'])
+                nap = trans.to_rdnap(lon,lat,alt)
+                print time,lat,lon,alt,q,ns,sdn,sde,sdu,nap 
+                             
+        return best
+"""
+RINEX filename:
+ssssdddf.yyt
+
+   |   |  | | |
+   |   |  | | +--  t:  file type:
+   |   |  | |          O: Observation file
+   |   |  | |          N: GPS Navigation file
+   |   |  | |          M: Meteorological data file
+   |   |  | |          G: GLONASS Navigation file
+   |   |  | |          L: Future Galileo Navigation file
+   |   |  | |          H: Geostationary GPS payload nav mess file
+   |   |  | |          B: Geo SBAS broadcast data file
+   |   |  | |                        (separate documentation)
+   |   |  | |          C: Clock file (separate documentation)
+   |   |  | |          S: Summary file (used e.g., by IGS, not a standard!)
+   |   |  | |
+   |   |  | +---  yy:  two-digit year
+   |   |  |
+   |   |  +-----   f:  file sequence number/character within day
+   |   |               daily file: f = 0
+   |   |               hourly files:
+   |   |               f = a:  1st hour 00h-01h; f = b: 2nd hour 01h-02h; ...
+   |   |               f = x: 24th hour 23h-24h
+   |   |
+   |   +-------  ddd:  day of the year of first record
+   |
+   +----------- ssss:  4-character station name designator
+"""
+RINEX_FILE_TYPES = (
+    ('o', 'Observation'),
+    ('d', 'Observation Hatanaka compressed'),
+    ('n', 'GPS Navigation'),
+    ('m', 'Meteorological'),
+    ('g', 'GLONASS Navigation'),
+    ('l', 'Galileo Navigation'),
+    ('h', 'Geostationary GPS'),
+    ('b', 'SBAS broadcast'),
+    ('c', 'Clock'),
+    ('s', 'Summary')
+)
+
+def download(url,dest):
+    return True
     
+def rinex_filename(station,date,filetype):
+    """ return hourly rinex filenames at gnss1.tudelft.nl for specified station and time """
+    ssss = station[:4].lower()
+    ddd = '%03d' % date.timetuple().tm_yday
+    f = 'a' + date.hour
+    yy = date.year - 2000
+    t = filetype.lower()
+    return ssss+ddd+f+yy+t+'.Z'
+
+def get_rinex_files(station, time, types='odnhbc'):
+    url = 'gnss.tudelft.nl/rinex/'
+    station = station[:4].lower()
+    year = time.year
+    day = time.timetuple().tm_day
+    yy = year - 2000
+    hour = 'a' + time.hour
+    files = []
+    for _type in types:
+        path = '{year}/{doy:03}/{station}{day:03}{yy:02}{type}.Z'.format(year=year,day=day,yy=yy,station=station,type=_type)
+        local_file = settings.MEDIA_ROOT+path
+        if not os._exists(local_file):
+            if not download(url + path, local_file):
+                continue
+        file.append(local_file)
+        break
+    return files
+    
+IGS_PRODUCTS = (
+    ('r', 'rapid'),
+    ('u', 'ultra'),
+    ('s', 'final')
+)
+
+IGS_FILE_TYPES = (
+    ('clk', 'clock'),
+    ('sp3', 'ephemeris'),
+    ('erp', 'orbits')
+)
+
+def get_igs_files(time, types = ['clk','sp3','erp'], products='sru'):
+    """ get pathnames of local igs files for postprocessing a try to download if they do not exist """
+    week, dow, _tow = time2gps(time)
+    files = []
+    url = 'ftp://ftp.igs.org/pub/product/'
+    for _type in types:
+        for product in products:
+            if product == 'u':
+                hour = (time.hour // 6) * 6 # 0, 6, 12, 18
+                path = '{week}/ig{product}{week}{dow}.{type}.Z'.format(week=week,dow=dow,product=product,type=_type)
+            else:
+                path = '{week}/ig{product}{week}{dow}_{hour:02}.{type}.Z'.format(week=week,dow=dow,hour=hour,product=product,type=_type)
+            local_file = settings.MEDIA_ROOT+path
+            if not os._exists(local_file):
+                if not download(url + path,local_file):
+                    continue
+            file.append(local_file)
+            break
+    return files
+
 if __name__ == '__main__':
-    from ftplib import FTP_TLS as FTP
-    pem = '/home/theo/peilstok/acacia.pem'
-    ftp = FTP('130.206.127.42',user='ubuntu',keyfile=pem)
-    ftp.login('ubuntu')
+    import os
+    pos = '/media/sf_C_DRIVE/Users/theo/Documents/projdirs/GNSS/peilstok/ubx/gps/0000DA2DC61F7064-0003.pos'
+    best = showpos(pos)
+    if best:
+        print best
+                    
+# if __name__ == '__main__':
+#     import os
+#     pos = '/home/theo/git/peil/peil/media/ubx/0000FAB6A3EE43F8-0002.pos'
+#     posdir = '/home/theo/git/peil/peil/media/ubx'
+#     for path,dirs,files in os.walk(posdir):
+#         for pos in files:
+#             if pos.endswith('.pos'):
+#                 best = readpos(os.path.join(path,pos))
+#                 if best:
+#                     print pos, best
+    
+# if __name__ == '__main__':
+#     from ftplib import FTP_TLS as FTP
+#     pem = '/home/theo/peilstok/acacia.pem'
+#     ftp = FTP('130.206.127.42',user='ubuntu',keyfile=pem)
+#     ftp.login('ubuntu')
     
 # if __name__ == '__main__':
 #     t = TransNAP()
