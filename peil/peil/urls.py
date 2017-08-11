@@ -31,7 +31,7 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^ttn/', ttn),
     url(r'^ubx/', ubx),
-    url(r'^map/', MapView.as_view(), name='device-map'),
+    url(r'^map/', cache_page(60)(MapView.as_view()), name='device-map'),
     url(r'^chart/(?P<pk>\d+)/data/csv', chart_as_csv, name='chart-csv'),
     url(r'^chart/(?P<pk>\d+)/data', chart_as_json, name='chart-json'),
     url(r'^chart/(?P<pk>\d+)/raw/csv', data_as_csv, name='data-csv'),
