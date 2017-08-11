@@ -3,7 +3,7 @@ from peil.models import Device, Sensor,\
     UBXFile, RTKConfig, ECSensor, PressureSensor,\
     BatterySensor, AngleSensor, LoraMessage, ECMessage, PressureMessage,\
     InclinationMessage, StatusMessage, LocationMessage, GNSS_Sensor, Survey,\
-    Photo
+    Photo, NavPVT
 from peil.actions import create_pvts, rtkpost
 from peil.sensor import create_sensors, load_offsets,\
     load_distance, load_survey
@@ -37,7 +37,7 @@ class DeviceAdmin(admin.ModelAdmin):
     model = Device
     list_display = ('displayname', 'serial', 'devid', 'last_seen')
     list_filter = ('displayname',)
-    fields = ('devid', 'serial', 'displayname')
+    fields = ('devid', 'serial', 'displayname', 'length')
     actions=[createsensors]
     
 @admin.register(UBXFile)
@@ -87,7 +87,7 @@ class LoraAdmin(PolymorphicParentModelAdmin):
     base_model = LoraMessage
     child_models = (ECMessage, PressureMessage, InclinationMessage, StatusMessage, LocationMessage)
     list_filter = (PolymorphicChildModelFilter, 'time', 'sensor__device')
-    list_display = ('__unicode__', 'time', 'device')
+    list_display = ('__unicode__',  'device', 'time',)
     
 @admin.register(ECMessage)
 class ECMessageAdmin(PolymorphicChildModelAdmin):
@@ -108,11 +108,17 @@ class InclinationMessageAdmin(PolymorphicChildModelAdmin):
 @admin.register(StatusMessage)
 class StatusMessageAdmin(PolymorphicChildModelAdmin):
     base_model = StatusMessage
+    list_display = ('device', 'time', 'battery')
+    list_filter = ('sensor__device','time',)
+    show_in_index = True
     
 @admin.register(LocationMessage)
 class LocationMessageAdmin(PolymorphicChildModelAdmin):
     base_model = LocationMessage
-
+    list_display = ('device', 'time', 'lat', 'lon', 'alt', 'hacc', 'vacc', 'msl')
+    list_filter = ('sensor__device','time',)
+    show_in_index = True
+    
 from django.contrib.gis.db import models
 from django import forms
     
@@ -135,4 +141,9 @@ class PhotoAdmin(AdminImageMixin, admin.ModelAdmin):
                     'image': obj.photo
                 })
     thumb.allow_tags = True
-    
+
+@admin.register(NavPVT)
+class NAVAdmin(admin.ModelAdmin):
+    model = NavPVT
+    list_display = ('ubxfile', 'timestamp','lat','lon','alt','msl','hAcc','vAcc','numSV','pDOP')
+    list_filter = ('ubxfile__device','timestamp')    
