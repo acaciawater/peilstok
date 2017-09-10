@@ -315,7 +315,7 @@ class PeilView(LoginRequiredMixin, NavDetailView):
                       'events': {'setExtremes': None},
                       },
             'legend': {'enabled': True},
-            'tooltip': {'xDateFormat': '%a %d %B %Y %H:%M:%S', 'valueDecimals': 2},
+            'tooltip': {'shared': True, 'xDateFormat': '%a %d %B %Y %H:%M:%S', 'valueDecimals': 2},
             'plotOptions': {'spline': {'connectNulls': True, 'marker': {'enabled': False}}},            
             'credits': {'enabled': True, 
                         'text': 'acaciawater.com', 
@@ -337,7 +337,7 @@ class PeilView(LoginRequiredMixin, NavDetailView):
         options.update({
             'title': {'text': 'Ruwe sensor waardes'},
             'plotOptions': {'spline': {'connectNulls': False, 'marker': {'enabled': False, 'radius': 3}}},            
-            'tooltip': {'valueDecimals': 0, 'xDateFormat': '%a %d %B %Y %H:%M:%S'},
+            'tooltip': {'shared': True, 'valueDecimals': 0, 'xDateFormat': '%a %d %B %Y %H:%M:%S'},
             'yAxis': [{'title': {'text': 'ADC waarde'},'labels':{'format': '{value}'}}],
             'series': [{'name': 'Batterij', 'id': 'Bat', 'yAxis': 0, 'data': []},
                        {'name': 'EC1-adc1', 'id': 'EC1adc1', 'yAxis': 0, 'data': []},
