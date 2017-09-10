@@ -1,0 +1,30 @@
+{% extends 'peil/base.html' %}
+{% block title%}Hoogte {{object}} {% endblock %}
+{% block script %}
+{{ block.super }}
+<script src="//code.highcharts.com/highcharts.js"></script>
+<script>
+
+$(function () {
+	  var opt = {{options|safe}};
+	  $('<div id=chart1 class=chart>').appendTo('#container').highcharts(opt);
+	  
+});
+
+</script>
+{% endblock %}
+
+{% block style %}
+{{block.super}}
+<style>
+.chart {
+  width: 90%;
+  height: 400 px;
+  margin: 0 auto;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="container" class="container-fluid"></div>
+{% endblock %}
