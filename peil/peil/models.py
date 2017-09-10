@@ -93,7 +93,28 @@ class Device(models.Model):
         """ cascading delete does not work with polymorphic models """
         self.sensor_set.all().delete()
         super(Device,self).delete()
+        
+    def battery_status(self):
+        from peil import util
+        sensor = self.get_sensor('Batterij',position=0)
+        level = sensor.value(sensor.last_message())
+        return util.battery_status(level)
 
+    def battery_level(self):
+        status = self.battery_status()
+        return status['level']
+
+    def battery_icon(self):
+        status = self.battery_status()
+        return status['icon']
+
+    def battery_tag(self):
+        url = self.battery_icon()
+        return '<img style="height:24px;" src="{}"></img>'.format(url)
+
+    battery_tag.allow_tags=True
+    battery_tag.short_description='Batterij'
+        
     def get_nap(self):
         """ 
         get NAP level of top of device

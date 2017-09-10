@@ -35,7 +35,7 @@ def test_ecsensors(modeladmin, request, queryset):
 @admin.register(Device)
 class DeviceAdmin(admin.ModelAdmin):
     model = Device
-    list_display = ('displayname', 'serial', 'devid', 'last_seen')
+    list_display = ('displayname', 'serial', 'devid', 'last_seen', 'battery_tag')
     list_filter = ('displayname',)
     fields = ('devid', 'serial', 'displayname', 'length')
     actions=[createsensors,gpson,postdevice]
