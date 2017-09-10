@@ -13,7 +13,7 @@ from django.conf import settings
 
 import re, time
 import simplejson as json # allows for NaN conversion
-from peil.models import Device, UBXFile
+from peil.models import Device, UBXFile, RTKSolution
 from peil.util import handle_post_data, battery_status, last_waterlevel
 import pandas as pd
 import numpy as np
@@ -351,5 +351,45 @@ class PeilView(LoginRequiredMixin, NavDetailView):
                        ]
                    })
         context['options2'] = json.dumps(options,default=lambda x: time.mktime(x.timetuple())*1000.0)
+        return context
+    
+class PostView(LoginRequiredMixin,DetailView):
+    model = Device
+    template_name = 'peil/post.html'
+
+    def get_context_data(self, **kwargs):
+        context = super(PostView, self).get_context_data(**kwargs)
+        device = self.get_object()
+        q = RTKSolution.objects.filter(ubx__device=device).order_by('time')
+        data = list(q.values_list('time','z'))
+        options = {
+            'chart': {'type': 'line', 
+                      'animation': False, 
+                      'zoomType': 'x',
+                      'events': {'load': None},
+                      'marginLeft': 60, 
+                      'marginRight': 80,
+                      'spacingTop': 20,
+                      'spacingBottom': 20
+                      },
+            'title': {'text': unicode(device)},
+            'xAxis': {'type': 'datetime',
+                      'crosshair': True,
+                      'events': {'setExtremes': None},
+                      },
+            'legend': {'enabled': True},
+            'tooltip': {'xDateFormat': '%a %d %B %Y %H:%M:%S', 'valueDecimals': 2},
+            'plotOptions': {'line': {'connectNulls': True, 'marker': {'enabled': False}}},            
+            'credits': {'enabled': True, 
+                        'text': 'acaciawater.com', 
+                        'href': 'http://www.acaciawater.com',
+                       },
+            'yAxis': [{'title': {'text': 'm tov NAP'},},
+                      ],
+            'series': [{'name': 'Hoogte', 'id': 'NAP', 'yAxis': 0, 'data': data, 'tooltip': {'valueSuffix': ' m tov NAP'}},
+                        ]
+            }
+
+        context['options'] = json.dumps(options,default=lambda x: time.mktime(x.timetuple())*1000.0)
         return context
     

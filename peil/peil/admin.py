@@ -1,10 +1,10 @@
 from django.contrib import admin
 from peil.models import Device, Sensor,\
-    UBXFile, RTKConfig, ECSensor, PressureSensor,\
+    UBXFile, ECSensor, PressureSensor,\
     BatterySensor, AngleSensor, LoraMessage, ECMessage, PressureMessage,\
     InclinationMessage, StatusMessage, LocationMessage, GNSS_Sensor, Survey,\
-    Photo, NavPVT
-from peil.actions import create_pvts, rtkpost
+    Photo, NavPVT, RTKSolution
+from peil.actions import create_pvts, rtkpost, gpson, postdevice
 from peil.sensor import create_sensors, load_offsets,\
     load_distance, load_survey
 from polymorphic.admin import PolymorphicChildModelFilter, PolymorphicChildModelAdmin, PolymorphicParentModelAdmin
@@ -38,20 +38,15 @@ class DeviceAdmin(admin.ModelAdmin):
     list_display = ('displayname', 'serial', 'devid', 'last_seen')
     list_filter = ('displayname',)
     fields = ('devid', 'serial', 'displayname', 'length')
-    actions=[createsensors]
+    actions=[createsensors,gpson,postdevice]
     
 @admin.register(UBXFile)
 class UBXFileAdmin(admin.ModelAdmin):
     model = UBXFile
     actions = [create_pvts, rtkpost]
     list_filter = ('device', 'created')
-    list_display = ('__unicode__','device','created', 'start', 'stop')
+    list_display = ('__unicode__','device','created', 'start', 'stop','solution_count','solution_stdev')
          
-@admin.register(RTKConfig)
-class RTKAdmin(admin.ModelAdmin):
-    model = RTKConfig
-    list_display = ('name',)
-
 @admin.register(Sensor)
 class SensorAdmin(PolymorphicParentModelAdmin):
     base_model = Sensor
@@ -145,5 +140,14 @@ class PhotoAdmin(AdminImageMixin, admin.ModelAdmin):
 @admin.register(NavPVT)
 class NAVAdmin(admin.ModelAdmin):
     model = NavPVT
-    list_display = ('ubxfile', 'timestamp','lat','lon','alt','msl','hAcc','vAcc','numSV','pDOP')
-    list_filter = ('ubxfile__device','timestamp')    
+    list_display = ('ubx', 'timestamp','lat','lon','alt','msl','hAcc','vAcc','numSV','pDOP')
+    list_filter = ('ubx__device','timestamp')    
+    search_fields = ('ubx__device',)
+    
+@admin.register(RTKSolution)
+class RTKAdmin(admin.ModelAdmin):
+    model = RTKSolution
+    list_display = ('ubx', 'time','lat','lon','alt','q','ns','sde','sdn','sdu')
+    list_filter = ('ubx__device','time')    
+    search_fields = ('ubx__device',)
+    

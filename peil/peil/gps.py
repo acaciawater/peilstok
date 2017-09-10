@@ -6,8 +6,8 @@ Created on Apr 25, 2017
 import struct
 import datetime, pytz
 from csv import DictReader
-from mimeparse import best_match
 from django.conf import settings
+from datetime import timedelta
 
 # GPS time=0
 GPST0 = datetime.datetime(1980,1,6,0,0,0)
@@ -165,17 +165,17 @@ def showpos(posfile):
             if sdu < minsdu:
                 best = row
                 minsdu = sdu
-                time = row['GPST']
-                lat = float(row['latitude(deg)'])
-                lon = float(row['longitude(deg)'])
-                alt = float(row['height(m)'])
-                q = int(row['Q'])
-                ns = int(row['ns'])
-                sdn = float(row['sdn(m)'])
-                sde = float(row['sde(m)'])
-                sdu = float(row['sdu(m)'])
-                nap = trans.to_rdnap(lon,lat,alt)
-                print time,lat,lon,alt,q,ns,sdn,sde,sdu,nap 
+            time = row['GPST']
+            lat = float(row['latitude(deg)'])
+            lon = float(row['longitude(deg)'])
+            alt = float(row['height(m)'])
+            q = int(row['Q'])
+            ns = int(row['ns'])
+            sdn = float(row['sdn(m)'])
+            sde = float(row['sde(m)'])
+            sdu = float(row['sdu(m)'])
+            nap = trans.to_rdnap(lon,lat,alt)
+            print time,lat,lon,alt,q,ns,sdn,sde,sdu,nap 
                              
         return best
 """
@@ -221,8 +221,35 @@ RINEX_FILE_TYPES = (
 )
 
 def download(url,dest):
-    return True
-    
+    import os,ftplib
+    from urlparse import urlparse
+    res = urlparse(url)
+    ftp = ftplib.FTP(res.hostname)
+    ftp.login()
+    destdir = os.path.dirname(dest)
+    if not os.path.exists(destdir):
+        os.makedirs(destdir)
+    try:
+        with open(dest,"wb") as f:
+            def save(data):
+                f.write(data)
+            response = ftp.retrbinary("RETR "+res.path, callback=save, blocksize=1024)
+            return True
+    except:
+        os.remove(dest)
+        return False
+
+def getfile(local,path,remote):
+    """ get local file local/path. Download from remote if file does not exist """ 
+    local_file = os.path.join(local,path)
+    if not os.path.exists(local_file):
+        local_dir = os.path.dirname(local_file)
+        if not os.path.exists(local_dir):
+            os.makedirs(local_dir)
+        if not download(remote + path, local_file):
+            return None
+    return local_file
+
 def rinex_filename(station,date,filetype):
     """ return hourly rinex filenames at gnss1.tudelft.nl for specified station and time """
     ssss = station[:4].lower()
@@ -236,24 +263,51 @@ def get_rinex_files(station, time, types='odnhbc'):
     url = 'gnss.tudelft.nl/rinex/'
     station = station[:4].lower()
     year = time.year
-    day = time.timetuple().tm_day
+    day = time.timetuple().tm_yday
     yy = year - 2000
     hour = 'a' + time.hour
     files = []
     for _type in types:
         path = '{year}/{doy:03}/{station}{day:03}{yy:02}{type}.Z'.format(year=year,day=day,yy=yy,station=station,type=_type)
-        local_file = settings.MEDIA_ROOT+path
-        if not os._exists(local_file):
-            if not download(url + path, local_file):
-                continue
+        local_file = getfile(settings.MEDIA_ROOT, path, url)
+        if local_file is None:
+            continue
         file.append(local_file)
         break
     return files
+
+IGS_SATCODES = (
+    ('G', 'GPS'),
+    ('R', 'GLONASS'),
+    ('E', 'Galileo'),
+    ('C', 'Beidou'),
+    ('M', 'Mixed'),
+)
     
+def get_broadcast_files(time, satcodes='G'):
+    """ Gets broadcast files for given time. Possible satellite codes are:
+        G GPS
+        R GLONASS
+        E Galileo
+        C Beidou
+        M Mixed
+    """
+    url = 'ftp://igs.bkg.bund.de/IGS/'
+    year = time.year
+    doy = time.timetuple().tm_yday
+    files = []
+    for sat in satcodes:
+        path = 'BRDC/{year}/{doy:03}/BRDC00WRD_R_{year}{doy:03}0000_01D_{sat}N.rnx.gz'.format(year=year,doy=doy,sat=sat)
+        local_file = getfile(settings.GNSS_ROOT,path,url)
+        if local_file is None:
+            continue
+        files.append(local_file)
+    return files
+
 IGS_PRODUCTS = (
-    ('r', 'rapid'),
-    ('u', 'ultra'),
-    ('s', 'final')
+    ('u', 'ultra'), #3-9 hrs
+    ('r', 'rapid'), #17-41 hrs
+    ('s', 'final')  #12-18 days
 )
 
 IGS_FILE_TYPES = (
@@ -263,27 +317,47 @@ IGS_FILE_TYPES = (
 )
 
 def get_igs_files(time, types = ['clk','sp3','erp'], products='sru'):
-    """ get pathnames of local igs files for postprocessing a try to download if they do not exist """
+    """ get pathnames of local igs files for postprocessing and try to download if they do not exist """
     week, dow, _tow = time2gps(time)
+
+    delta = datetime.datetime.utcnow() - time
+    secs = delta.total_seconds()
+    if secs < (3*60*60):
+        # ultra not available
+        products = products.replace('u','')
+    if secs < (17*60*60):
+        # rapid not available
+        products = products.replace('r','')
+    if delta.days < 12:
+        # final not available
+        products = products.replace('s','')
+    
     files = []
     url = 'ftp://ftp.igs.org/pub/product/'
     for _type in types:
         for product in products:
             if product == 'u':
                 hour = (time.hour // 6) * 6 # 0, 6, 12, 18
-                path = '{week}/ig{product}{week}{dow}.{type}.Z'.format(week=week,dow=dow,product=product,type=_type)
-            else:
                 path = '{week}/ig{product}{week}{dow}_{hour:02}.{type}.Z'.format(week=week,dow=dow,hour=hour,product=product,type=_type)
-            local_file = settings.MEDIA_ROOT+path
-            if not os._exists(local_file):
-                if not download(url + path,local_file):
-                    continue
-            file.append(local_file)
+            else:
+                path = '{week}/ig{product}{week}{dow}.{type}.Z'.format(week=week,dow=dow,product=product,type=_type)
+            local_file = getfile(settings.GNSS_ROOT,path,url)
+            if not local_file:
+                continue
+            files.append(local_file)
             break
     return files
 
 if __name__ == '__main__':
     import os
+    time = datetime.datetime.utcnow()
+    yesterday = time - timedelta(days=1)
+    print get_broadcast_files(yesterday, 'GRECM')
+    time = datetime.datetime(2017,8,31,17,40,44)
+    print get_igs_files(time)
+    yesterday = time - timedelta(days=1)
+    print get_igs_files(yesterday)
+    
     pos = '/media/sf_C_DRIVE/Users/theo/Documents/projdirs/GNSS/peilstok/ubx/gps/0000DA2DC61F7064-0003.pos'
     best = showpos(pos)
     if best:

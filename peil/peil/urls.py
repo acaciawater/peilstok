@@ -16,15 +16,17 @@ Including another URLconf
 from django.conf.urls import url, include
 from django.contrib import admin
 from tastypie.api import Api
-from .api import DeviceResource
 from .views import ttn, ubx
 from peil.views import DeviceListView, MapView, json_locations,\
     PopupView, PeilView, chart_as_json, data_as_json, DeviceDetailView,\
-    chart_as_csv, data_as_csv, PhotoView
+    chart_as_csv, data_as_csv, PhotoView, PostView
 from django.views.decorators.cache import cache_page
+from peil.api import DeviceResource, SensorResource, MessageResource
 
 v1 = Api(api_name='v1')
 v1.register(DeviceResource())
+v1.register(SensorResource())
+v1.register(MessageResource())
 
 urlpatterns = [
     url(r'^$', cache_page(60)(MapView.as_view()), name='home'), # Keep mapview up-to-date
@@ -37,6 +39,7 @@ urlpatterns = [
     url(r'^chart/(?P<pk>\d+)/raw/csv', data_as_csv, name='data-csv'),
     url(r'^chart/(?P<pk>\d+)/raw', data_as_json, name='data-json'),
     url(r'^chart/(?P<pk>\d+)', PeilView.as_view(), name='chart-detail'),
+    url(r'^post/(?P<pk>\d+)', PostView.as_view(), name='post-detail'),
     url(r'^device/(?P<pk>\d+)', DeviceDetailView.as_view(), name='device-detail'),
     url(r'^device/', DeviceListView.as_view(), name='device-list'),
     url(r'^locs/', json_locations),

@@ -3,7 +3,7 @@ Created on Apr 25, 2017
 
 @author: theo
 '''
-from django.db import models
+from django.db import models, transaction
 from django.contrib.gis.db import models as geo
 from polymorphic.models import PolymorphicModel
 from sorl.thumbnail import ImageField
@@ -17,7 +17,7 @@ from django.urls.base import reverse
 
 logger = logging.getLogger(__name__)
 
-# Message types
+# Message types sent by a peilstok device
 GNSS_MESSAGE = 1
 EC_MESSAGE = 2
 PRESSURE_MESSAGE = 3
@@ -57,13 +57,16 @@ class Device(models.Model):
     
     last_seen = models.DateTimeField(null=True, verbose_name='Laatste contact')
 
+    # length of device in mm
     length = models.IntegerField(null=True, verbose_name='Lengte', help_text = 'Totale lengte peilstok in mm')
     
     def get_absolute_url(self):
         return reverse('device-detail',args=[self.pk])
     
     def statuscolor(self):
-        """ returns led color """
+        """ returns color for dots on home page.
+        Green is less than 2 hours old, yellow is 2 to 24 hrs, red is 1 - 7 days and gray is more than one week old 
+         """
         try:
             now = timezone.now()
             age = now - self.last_seen
@@ -473,66 +476,57 @@ class StatusMessage(LoraMessage):
 # GPS and RTK stuff
 # --------------------------------------------------------------------------------------------------------------
 
-class Fix(models.Model):
-    """ GNSS fix for a peilstok """
-    sensor = models.ForeignKey(GNSS_Sensor)
-    time = models.DateTimeField(verbose_name='Tijdstip van fix')
-    lon = models.DecimalField(max_digits=10,decimal_places=7,verbose_name='lengtegraad')
-    lat = models.DecimalField(max_digits=10,decimal_places=7,verbose_name='breedtegraad')
-    alt = models.DecimalField(max_digits=10,decimal_places=3,verbose_name='hoogte tov ellipsoide')
-    x = models.DecimalField(max_digits=10,decimal_places=3,verbose_name='x-coordinaat')
-    y = models.DecimalField(max_digits=10,decimal_places=3,verbose_name='y-coordinaat')
-    z = models.DecimalField(max_digits=10,decimal_places=3,verbose_name='hoogte tov NAP')
-    sdx = models.DecimalField(max_digits=6,decimal_places=3,verbose_name='Fout in x-richting')
-    sdy = models.DecimalField(max_digits=6,decimal_places=3,verbose_name='Fout in y-richting')
-    sdz = models.DecimalField(max_digits=6,decimal_places=3,verbose_name='Fout in hoogte')
-    ahn = models.DecimalField(max_digits=10,decimal_places=3,verbose_name='hoogte volgens AHN')
-    
-class Meta:
-    verbose_name = 'Fix'
-    verbose_name_plural = 'Fix'
-    unique_together=('sensor', 'time')
-    
-class RTKConfig(models.Model):
-    """ RTKLIB configuration for peilstok app """
-
-    class Meta:
-        verbose_name = 'RTKLIB configuratie'
-        verbose_name_plural = 'RTKLIB configuraties'
-        
-    name = models.CharField(max_length=20)
-    description = models.TextField(null=True,blank=True)
-    
-    #RTKLIB commands
-    convbin = models.CharField(max_length=200)
-    convbin_args = models.CharField(max_length=200)
-    rnx2rtkp = models.CharField(max_length=200)
-    rnx2rtkp_args = models.CharField(max_length=200)
-    
-    # igs corrrection files
-    # ultra after 6 hours (no clock files)
-    # rapid after 1 day 
-    # final after 3 weeks
-    #igsurl = models.URLField(default='ftp://ftp.igs.org/pub/product/')
-                
-    def __unicode__(self):
-        return self.name
-    
 class UBXFile(models.Model):
     """ u-blox GNSS raw datafile """
     device = models.ForeignKey(Device)
     ubxfile = models.FileField(upload_to='ubx')
     created = models.DateTimeField(auto_now_add=True)
-    start = models.DateTimeField(null=True,verbose_name = 'Tijdstip eerste observatie')
-    stop = models.DateTimeField(null=True,verbose_name = 'Tijdstip laatste observatie')
+    start = models.DateTimeField(null=True,verbose_name = 'begin')
+    stop = models.DateTimeField(null=True,verbose_name = 'einde')
         
     def create_pvts(self):
         """ parse file and extract UBX-NAV-PVT messages """
         from peil.util import iterpvt
+    
+        count = 0
         for fields in iterpvt(self.ubxfile):
             timestamp = fields.pop('timestamp')
             self.navpvt_set.update_or_create(timestamp=timestamp,defaults=fields)
-            
+            count += 1
+        return count
+    
+    def post(self):
+        """ run rtk post """
+        from peil import rtk
+        import pytz
+        
+        count=0
+        sol = rtk.post(self)
+        if sol:
+            with transaction.atomic():
+                self.rtksolution_set.all().delete()
+                for fields in rtk.itersol(sol):
+                    time = fields.pop('time')
+                    time = pytz.utc.localize(time) 
+                    self.rtksolution_set.create(time=time, **fields)
+                    count += 1
+        return count
+        
+    def solution_count(self):
+        return self.rtksolution_set.count()
+    solution_count.short_description='rtk fixes'
+    
+    def last_solution(self):
+        return self.rtksolution_set.latest('time')
+    last_solution.short_description='laatste rtk fix'
+
+    def solution_stdev(self):
+        from django.db.models import StdDev
+        agg = self.rtksolution_set.all().aggregate(std=StdDev('alt'))
+        std = agg['std']
+        return round(std,3) if std else None 
+    solution_stdev.short_description='stddev'
+        
     def __unicode__(self):
         return self.ubxfile.name
 
@@ -540,64 +534,48 @@ class UBXFile(models.Model):
         verbose_name = 'u-blox bestand'
         verbose_name_plural = 'u-blox bestanden'
 
-    def rtkpost(self, config, **kwargs):
-        """ postprocessing with RTKLIB """
-        import subprocess32 as subprocess
-
-        path = unicode(self.ubxfile.file)
-        dir = os.path.dirname(path)
-        ubx = os.path.basename(path)
-        logger.debug('RTKPOST started for {}'.format(ubx))
-        name, ext = os.path.splitext(ubx)
-        obs = name+'.obs'
-        nav = name+'.nav'
-        sbs = name+'.sbs'
-        pos = name+'.pos'
-        start = kwargs.get('start',self.start)
-        date = start.strftime('%Y/%m/%d')
-        time = start.strftime('%H:%M:%S')
-        vars = locals()
-
-        def build_command(command, args):
-            """ build array of popenargs (for subprocess call to Popen) """
-            arglist = [command] 
-            for arg in args.split():
-                arg = arg.strip()
-                match = re.match(r'\{(\w+)\}',arg)
-                if match:
-                    var = match.group(1)
-                    if var in vars:
-                        arg = vars[var]
-                    else: 
-                        continue
-                arglist.append(arg)
-            return  arglist 
-        
-        os.chdir(dir)
-        command = build_command(config.convbin, config.convbin_args)
-        logger.debug('Running {}'.format(' '.join(command)))
-        ret = subprocess.call(command)
-        logger.debug('{} returned exit code {}'.format(command[0], ret))
-        if ret == 0:
-            command = build_command(config.rnx2rtkp, config.rnx2rtkp_args)
-            logger.debug('Running {}'.format(' '.join(command)))
-            ret = subprocess.call(command)
-            logger.debug('{} returned exit code {}'.format(command[0], ret))
-        logger.debug('RTKPOST finished')
-        return ret
-
-from django.db.models.signals import pre_save
-from django.dispatch.dispatcher import receiver
-
 @receiver(pre_save, sender=UBXFile)
 def ubxfile_save(sender, instance, **kwargs):
     """ find out time of first and last message when saving to database """
     from peil.util import ubxtime
     instance.start, instance.stop = ubxtime(instance.ubxfile)
+
+QUALITY_CHOICES = (
+    (0, 'None'),
+    (1, 'Fixed'),
+    (2, 'Float'),
+    (4, 'DGPS'),
+    (5, 'Single'),
+    (6, 'PPP')
+    )
+
+class RTKSolution(models.Model):
+    """ RTK solution for a raw u-blox datafile """
+    ubx = models.ForeignKey(UBXFile)
+    time = models.DateTimeField(verbose_name='Tijdstip')
+    lon = models.DecimalField(max_digits=10,decimal_places=7,verbose_name='lengtegraad (deg)')
+    lat = models.DecimalField(max_digits=10,decimal_places=7,verbose_name='breedtegraad (deg)')
+    alt = models.DecimalField(max_digits=10,decimal_places=3,verbose_name='hoogte tov ellipsoide (m)')
+    q = models.PositiveSmallIntegerField(choices=QUALITY_CHOICES, verbose_name='Type of fix')
+    ns = models.PositiveSmallIntegerField(verbose_name='Aantal satellieten')
+    sde = models.DecimalField(max_digits=6,decimal_places=3,verbose_name='Stdev x (m)')
+    sdn = models.DecimalField(max_digits=6,decimal_places=3,verbose_name='Stdev y (m)')
+    sdu = models.DecimalField(max_digits=6,decimal_places=3,verbose_name='Stdev z (m)')
+    x = models.DecimalField(null=True,blank=True,max_digits=10,decimal_places=3,verbose_name='x-coordinaat (m)')
+    y = models.DecimalField(null=True,blank=True,max_digits=10,decimal_places=3,verbose_name='y-coordinaat (m)')
+    z = models.DecimalField(null=True,blank=True,max_digits=10,decimal_places=3,verbose_name='hoogte tov NAP (m)')
     
+    def __unicode__(self):
+        return ', '.join([str(self.lon), str(self.lat), str(self.alt), str(self.sdu)])
+    
+    class Meta:
+        verbose_name = 'RTK Fix'
+        verbose_name_plural = 'RTK Fixes'
+        unique_together=('ubx', 'time')
+        
 class NavPVT(models.Model):
     """ UBX-NAV-PVT message extracted from ubx file """
-    ubxfile = models.ForeignKey(UBXFile)
+    ubx = models.ForeignKey(UBXFile)
     timestamp = models.DateTimeField(verbose_name='Tijdstip')
     lat = models.DecimalField(max_digits=10, decimal_places=7,verbose_name='Breedtegraad')
     lon = models.DecimalField(max_digits=10, decimal_places=7,verbose_name='Lengtegraad')

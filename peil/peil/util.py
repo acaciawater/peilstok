@@ -192,8 +192,7 @@ UBX_HEADER = 0x62B5
 UBX_NAV_PVT = 0x0701
 
 def iterpvt(ubx):
-    """ iterate over ubx file and yield pvt instances """
-
+    """ iterate over ubx file and yield navpvt instances """
     import struct
 
     def decode(data):
@@ -237,7 +236,7 @@ def ubxtime(ubx):
     return start, stop
  
 def add_ubx(ubxfile):
-    
+    """ add ubx file to database """
     # extract serial number of peilstok from filename
     filename = os.path.basename(ubxfile.name)
     match = re.match('(?P<serial>[0-9A-F]+)\-\d+\.\w{3}',filename)
@@ -258,7 +257,7 @@ def add_ubx(ubxfile):
         ubx.ubxfile.save(filename,ubxfile)
         
 # GPS time=0
-GPST0 = datetime.datetime(1980,1,6,0,0,0)
+GPST0 = datetime.datetime(1980,1,6,0,0,0,tzinfo=pytz.utc)
 
 def gps2time(week,ms):
     ''' convert gps tow and week to python datetime '''
@@ -297,3 +296,89 @@ class TransNAP:
         return self.inv.TransformPoint(x,y,z)
 
 rdnap = TransNAP()
+
+def download(url,dest):
+    """ download a file from url and store as dest """
+    import ftplib
+    from urlparse import urlparse
+    res = urlparse(url)
+    ftp = ftplib.FTP(res.hostname)
+    ftp.login()
+    destdir = os.path.dirname(dest)
+    if not os.path.exists(destdir):
+        os.makedirs(destdir)
+    try:
+        with open(dest,"wb") as f:
+            def save(data):
+                f.write(data)
+            response = ftp.retrbinary("RETR "+res.path, callback=save, blocksize=1024)
+            return True
+    except:
+        os.remove(dest)
+        return False
+
+def getfile(root,path,remote):
+    """ get local file root/path. Download from remote if file does not exist """ 
+    local_file = os.path.join(root,path)
+    if not os.path.exists(local_file):
+        logger.debug('Downloading {} from {}'.format(path,remote))
+        try:
+            if not download(remote + path, local_file):
+                logger.debug('Download failed')
+                return None
+        except Exception as e:
+            logger.exception('Download failed: '+e)
+    return local_file
+
+def get_broadcast_files(time, satcodes='G'):
+    """ Gets broadcast files for the day of given time stamp. Download if they do not exist. 
+    Possible satellite codes are:
+        G GPS
+        R GLONASS
+        E Galileo
+        C Beidou
+        M Mixed
+    """
+    url = 'ftp://igs.bkg.bund.de/IGS/'
+    year = time.year
+    doy = time.timetuple().tm_yday
+    files = []
+    for sat in satcodes:
+        path = 'BRDC/{year}/{doy:03}/BRDC00WRD_R_{year}{doy:03}0000_01D_{sat}N.rnx.gz'.format(year=year,doy=doy,sat=sat)
+        local_file = getfile(settings.GNSS_ROOT,path,url)
+        if local_file is None:
+            continue
+        files.append(local_file)
+    return files
+
+def get_ephemeres_files(time, types = ['clk','sp3','erp'], products='sru'):
+    """ get pathnames of ephemeris and clock files for given time. Download if they do not exist """
+    week, dow, _tow = time2gps(time)
+
+    delta = datetime.datetime.now(pytz.utc) - time
+    secs = delta.total_seconds()
+    if secs < (3*60*60):
+        # ultra not available
+        products = products.replace('u','')
+    if secs < (17*60*60):
+        # rapid not available
+        products = products.replace('r','')
+    if delta.days < 12:
+        # final not available
+        products = products.replace('s','')
+    
+    files = []
+    url = 'ftp://ftp.igs.org/pub/product/'
+    for _type in types:
+        for product in products:
+            if product == 'u':
+                hour = (time.hour // 6) * 6 # 0, 6, 12, 18
+                path = '{week}/ig{product}{week}{dow}_{hour:02}.{type}.Z'.format(week=week,dow=dow,hour=hour,product=product,type=_type)
+            else:
+                path = '{week}/ig{product}{week}{dow}.{type}.Z'.format(week=week,dow=dow,product=product,type=_type)
+            local_file = getfile(settings.GNSS_ROOT,path,url)
+            if not local_file:
+                continue
+            files.append(local_file)
+            break
+    return files

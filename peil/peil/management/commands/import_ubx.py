@@ -31,7 +31,8 @@ class Command(BaseCommand):
             print 'importing folder',dname
             for path,_dirs,files in os.walk(dname):
                 for fname in files:
-                    print 'importing file', fname
-                    with open(os.path.join(path,fname)) as f:
-                        add_ubx(f)
+                    if fname.endswith('ubx'):
+                        print 'importing file', fname
+                        with open(os.path.join(path,fname)) as f:
+                            add_ubx(f)
         
