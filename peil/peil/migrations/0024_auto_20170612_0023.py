@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 from django.db import migrations
 from peil.models import Device
 def set_last(apps, schema_editor):
-#    Device = apps.get_model('peil', 'Device')
+    Device = apps.get_model('peil', 'Device')
     for dev in Device.objects.all():
         dev.last_seen = dev.last_time()
         dev.save()
