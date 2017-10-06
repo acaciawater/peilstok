@@ -33,6 +33,10 @@ html, body, .wrapper, .full {
 	float: right;
 }
 
+.table-320 {
+	with: 320px;
+}
+
 /* table { border: 1px solid white; } */
 /* td:first-child { font-weight: bold; } */
 /* tr:nth-child(odd) { background: Azure; } */

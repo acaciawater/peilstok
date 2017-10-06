@@ -79,8 +79,10 @@ class PopupView(DetailView):
         device = self.get_object()
         ec = last_ec(device)
         wl = last_waterlevel(device)
-        ec['EC1']['depth'] = wl['nap'] - ec['EC1']['sensor'].elevation()
-        ec['EC2']['depth'] = wl['nap'] - ec['EC2']['sensor'].elevation()
+        for pos in ('EC1','EC2'):
+            depth = wl['nap'] - ec[pos]['sensor'].elevation()
+            ec[pos]['depth'] = depth
+            ec[pos]['dry'] = depth <= 0
         context['lastec'] = ec
         context['lastwl'] = wl
         try:
