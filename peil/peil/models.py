@@ -112,8 +112,8 @@ class Device(models.Model):
         return status['icon']
 
     def battery_tag(self):
-        url = self.battery_icon()
-        return '<img style="height:24px;" src="{}"></img>'.format(url)
+        bat = self.battery_status()
+        return '<img style="height:24px;" src="{}" title="level {}%"></img>'.format(bat['icon'],bat['level'])
 
     battery_tag.allow_tags=True
     battery_tag.short_description='Batterij'
