@@ -14,7 +14,7 @@ from django.conf import settings
 import re, time
 import simplejson as json # allows for NaN conversion
 from peil.models import Device, UBXFile, RTKSolution
-from peil.util import handle_post_data, battery_status, last_waterlevel
+from peil.util import handle_post_data, battery_status, last_waterlevel, last_ec
 import pandas as pd
 import numpy as np
 
@@ -75,7 +75,19 @@ class PopupView(DetailView):
     template_name = 'peil/popup.html'
     
     def get_context_data(self, **kwargs):
-        return DetailView.get_context_data(self, **kwargs)
+        context = DetailView.get_context_data(self, **kwargs)
+        device = self.get_object()
+        ec = last_ec(device)
+        wl = last_waterlevel(device)
+        ec['EC1']['depth'] = wl['nap'] - ec['EC1']['sensor'].elevation()
+        ec['EC2']['depth'] = wl['nap'] - ec['EC2']['sensor'].elevation()
+        context['lastec'] = ec
+        context['lastwl'] = wl
+        try:
+            context['battery'] = device.battery_status()
+        except:
+            pass
+        return context
     
 @csrf_exempt
 def ttn(request):
@@ -167,9 +179,7 @@ class DeviceDetailView(NavDetailView):
         context = super(DeviceDetailView, self).get_context_data(**kwargs)
         device = self.get_object()
         try:
-            sensor = device.get_sensor('Batterij',position=0)
-            level = sensor.value(sensor.last_message())
-            context['battery'] = battery_status(level)
+            context['battery'] = device.battery_status()
         except:
             pass
         try:

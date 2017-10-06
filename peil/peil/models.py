@@ -70,7 +70,10 @@ class Device(models.Model):
         try:
             now = timezone.now()
             age = now - self.last_seen
-            if age.days < 1:
+            if age.days < 0:
+                # why does this happen??
+                return 'green'
+            elif age.days < 1:
                 hours = float(age.seconds)/3600.0
                 return 'green' if hours < 2 else 'yellow'
             else:
@@ -126,7 +129,8 @@ class Device(models.Model):
             return float(self.last_survey().altitude)
         except:
             try:
-                return self.get_sensor('GPS').last_message().NAPvalue()
+                x,y,z = self.get_sensor('GPS').last_message().NAPvalue()
+                return z
             except:
                 return None
                 
@@ -295,7 +299,7 @@ class ECSensor(Sensor):
         min2,max2 = json.loads(self.adc2_limits)
         sign = ''
         if adc1 >= max1:
-            # out of range
+            # out of range, dry?
             sign = '<'
             ec = None
         else:
@@ -317,9 +321,7 @@ class ECSensor(Sensor):
                 w2 = 0
             sumw = float(w1+w2)
             if sumw:
-                w1 = w1/sumw
-                w2 = w2/sumw
-                ec = ec1*w1 + ec2*w2
+                ec = (ec1*w1 + ec2*w2)/sumw
             else:
                 ec = None
         return sign, ec * 1e-3 if ec else None# to mS/cm

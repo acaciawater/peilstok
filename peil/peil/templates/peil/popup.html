@@ -1,2 +1,17 @@
-<h3><a href="{% url 'chart-detail' object.id %}">{{object}}</a></h3>
+<h3><a href="{% url 'chart-detail' object.id %}">{{object|title}}</a>
+{%if battery %}<img class="battery" src={{battery.icon}} title="batterijniveau {{battery.level}}%"></img>{%endif%}</h3>
 <p>laatste contact: {{object.last_seen}}</p>
+<table class="table table-condensed table-hover">
+<thead>
+<tr><td>Sensor</td><td>Tijdstip</td><td>Waarde</td></tr>
+</thead>
+<tbody>
+<tr><td>Waterpeil</td><td>{{lastwl.time|date:'j M Y H:i'}}</td><td>{{lastwl.nap|default:'-'|floatformat:2}} m tov NAP</td></tr>
+{% with lastec.EC1 as ec %}
+<tr><td>EC ondiep ({{ec.depth|floatformat:2}})</td><td>{{ec.time|date:'j M Y H:i'}}</td><td>{{ec.value|default:'-'}} mS/cm</td></tr>
+{% endwith %}
+{% with lastec.EC2 as ec %}
+<tr><td>EC diep ({{ec.depth|floatformat:2}})</td><td>{{ec.time|date:'j M Y H:i'}}</td><td>{{ec.value|default:'-'}} mS/cm</td></tr>
+{% endwith %}
+</tbody>
+</table>

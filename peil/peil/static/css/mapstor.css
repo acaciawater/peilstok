@@ -28,6 +28,11 @@ html, body, .wrapper, .full {
 	background: #ffff99;
 }
 
-table { border: 1px solid white; }
-td:first-child { font-weight: bold; }
-tr:nth-child(odd) { background: Azure; }
+.battery {
+	width: 12px;
+	float: right;
+}
+
+/* table { border: 1px solid white; } */
+/* td:first-child { font-weight: bold; } */
+/* tr:nth-child(odd) { background: Azure; } */

@@ -19,39 +19,71 @@ def last_waterlevel(device, hours=2):
     """ returns last known waterlevel for a device """
     wps = device.get_sensor('Waterdruk',position=3)
     wp = wps.last_message()
-    aps = device.get_sensor('Luchtdruk',position=0)
-    ap = aps.last_message()
+    if wp:
+        aps = device.get_sensor('Luchtdruk',position=0)
+        ap = aps.last_message()
+        if ap:
+            # we have some air pressure and water pressure messages, 
+            # now check if messages were sent within time tolerance
+            tolerance = timedelta(hours=hours)
+            if wp.time > ap.time:
+                delta = wp.time - ap.time 
+            else:
+                delta = ap.time - wp.time
+        
+            if delta > tolerance:
+                # tolerance exceeded.
+                if ap.time < wp.time:
+                    # find last water pressure within tolerance
+                    fromtime = ap.time - tolerance
+                    wp = wps.loramessage_set.filter(time__gte=fromtime).last()
+                else:
+                    # find last air pressure within tolerance
+                    fromtime = wp.time - tolerance
+                    ap = aps.loramessage_set.filter(time__gte=fromtime).last()
+            
+            if ap and wp:
+                air = aps.value(ap)
+                water = wps.value(wp)
+                level = (water - air) / 0.980638 # convert hPa to cm water column
+                z = wps.elevation()
+                nap = None if z is None else level/100 + z
+                return {'time': wp.time, 'cm': level, 'nap': nap}
+    return {}
 
-    tolerance = timedelta(hours=hours)
-    if wp.time > ap.time:
-        delta = wp.time - ap.time 
-    else:
-        delta = ap.time - wp.time
+def last_ec(device):
+    """ returns last known electrical conductivity for a device """
 
-    if delta > tolerance:
-        if ap.time < wp.time:
-            # find any water pressure within tolerance
-            fromtime = ap.time - tolerance
-            wp = wps.loramessage_set.filter(time__gte=fromtime).last()
-        else:
-            fromtime = wp.time - tolerance
-            ap = aps.loramessage_set.filter(time__gte=fromtime).last()
-
-    level = None
-    nap = None
-    if ap and wp:
-        time = wp.time
-        ap = aps.value(ap)
-        wp = wps.value(wp)
-        level = (wp - ap) / 0.980638
-        z = wps.elevation()
-        if z is not None:
-            nap = level/100.0 + z
-    return {'time': time, 'cm': level, 'nap': nap}
+    def last(name,pos):
+        try:
+            sensor = device.get_sensor(name,position=pos)
+            message = sensor.last_message()
+            return {'sensor': sensor, 'time': message.time, 'value': sensor.value(message)}
+        except:
+            return {}
+    return {'EC1': last('EC1',1),
+            'EC2': last('EC2',2)}
     
 def battery_status(battery):
+    '''
+    < 1% 0 bars 
+    1-5%: 1 red bar
+    5-20%: 1 green bar
+    20-40% 2 bars
+    40-60% 3 bars
+    60-80% 4 bars
+    80-100% 5 bars
+    '''
     level = min(500,max(0,battery-3000)) / 5 # percent
-    return {'level': level, 'icon': '{url}bat{index}.png'.format(url=settings.STATIC_URL, index=int(level/20))} 
+    if level < 1:
+        index = 0
+    elif level < 5:
+        # danger zone
+        index = '1red'
+    else:
+        index = int(level/20)+1
+    icon = '{url}bat{index}.png'.format(url=settings.STATIC_URL, index=index)
+    return {'level': level, 'icon': icon} 
     
 def update_or_create(manager, **kwargs):
     assert kwargs, \

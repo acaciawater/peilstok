@@ -115,7 +115,7 @@ function addMarkers(map,zoom) {
 		$.each(data, function(key,val) {
 			marker = L.marker([val.lat, val.lon],{title:val.name, icon: pinkIcon});
 			markers[val.id] = marker;
-			marker.bindPopup("Loading...");
+			marker.bindPopup("Loading...",{maxWidth: 500});
 			marker.bindTooltip(val.name,{permanent:true,className:"label",opacity:0.7});
 			marker.on("click", function(e) {
 				var popup = e.target.getPopup();
