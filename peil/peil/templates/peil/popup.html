@@ -5,7 +5,7 @@ Laatste contact: {{object.last_seen}}</br>
 
 {% with object.photo_set.first as photo %}
 {% thumbnail photo.photo "320" crop="center" as im %}
-<a href="{{photo.photo.url}}"><img src="{{ im.url }}"></img></a>
+<a href="{{photo.photo.url}}"><img width="320px" src="{{ im.url }}"></img></a>
 {% endthumbnail %}
 {% endwith %}
 
