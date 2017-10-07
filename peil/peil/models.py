@@ -133,7 +133,14 @@ class Device(models.Model):
                 return z
             except:
                 return None
-                
+
+    def popup_photo(self):
+        """ returns the foto to display in the leaflet popup on the map
+            This is the first photo marked with ispopup=True or the last photo of this device 
+        """
+        foto = self.photo_set.filter(ispopup=True)
+        return foto.first() if foto else self.photo_set.last()
+
     def __unicode__(self):
         return self.displayname
 
@@ -156,7 +163,17 @@ class Photo(models.Model):
     device = models.ForeignKey(Device)
     photo = ImageField(upload_to='photos')
     order = models.PositiveIntegerField(default=1)
-    
+    ispopup = models.BooleanField(default=False,verbose_name='popup',help_text='Wordt getoond in popup venster op de kaart')
+    ispopup.boolean = True
+
+    def set_as_popup(self):
+        ''' select this photo for the popup window on leaflet map '''
+        # deselect other candidates
+        self.device.photo_set.exclude(pk=self.pk).update(ispopup=False)
+        if not self.ispopup:
+            self.ispopup = True
+            self.save(update_fields=['ispopup'])
+            
     def __unicode__(self):
         return os.path.basename(self.photo.name)
     

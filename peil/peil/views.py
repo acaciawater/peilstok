@@ -13,16 +13,17 @@ from django.conf import settings
 
 import re, time
 import simplejson as json # allows for NaN conversion
-from peil.models import Device, UBXFile, RTKSolution
-from peil.util import handle_post_data, battery_status, last_waterlevel, last_ec
+from peil.models import Device, UBXFile, RTKSolution, Photo
+from peil.util import handle_post_data, last_waterlevel, last_ec
 import pandas as pd
 import numpy as np
 
 import logging
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from django.contrib.gis.gdal import CoordTransform, SpatialReference
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.text import slugify
+from django.contrib.auth.decorators import login_required
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,13 @@ def json_locations(request):
             pass
     return HttpResponse(json.dumps(result, ignore_nan = True, default=lambda x: time.mktime(x.timetuple())*1000.0), content_type='application/json')
 
+@login_required
+def select_photo(request, pk):
+    ''' select a photo to display on the leaflet popup window '''
+    photo = get_object_or_404(Photo, pk=pk)
+    photo.set_as_popup()
+    back = request.GET.get('next',None) or request.META.get('HTTP_REFERER',None)
+    return redirect(back)
 
 class PopupView(DetailView):
     """ returns html response for leaflet popup """
@@ -81,7 +89,7 @@ class PopupView(DetailView):
         wl = last_waterlevel(device)
         for pos in ('EC1','EC2'):
             depth = wl['nap'] - ec[pos]['sensor'].elevation()
-            ec[pos]['depth'] = depth
+            ec[pos]['depth'] = depth * 100
             ec[pos]['dry'] = depth <= 0
         context['lastec'] = ec
         context['lastwl'] = wl

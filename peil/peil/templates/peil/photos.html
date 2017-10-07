@@ -9,6 +9,19 @@ div a img {
 	width: 100%;
 	height: auto;
 }
+
+.caption {
+	font-size: large;
+	clear: both;
+	text-align: center;
+}
+.check {
+	font-size: medium;
+	clear: both;
+	float: right;
+	padding-top: 2px;
+}
+
 h3 {
 	padding-left:16px;
 }
@@ -43,7 +56,14 @@ h3 {
 {% empty %}
 <p class="text-center bg-warning">No image</p>
 {% endthumbnail %}
-<div class="text-center"><h4>{{photo}}</h4></div>
+<div class="caption">
+{{photo}}
+<a 
+href="{%url 'select-photo' photo.id %}" 
+title="Selecteer als standaard foto in popup op leaflet kaart" 
+class="check glyphicon {%if photo.ispopup%} glyphicon-check {%else%} glyphicon-unchecked {%endif%}">
+</a>
+</div>
 </div>
 {% endfor %}
 </div>

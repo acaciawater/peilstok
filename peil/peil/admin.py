@@ -32,14 +32,20 @@ def test_ecsensors(modeladmin, request, queryset):
         for raw1,raw2, e in zip(x1,x2,ec):
             print raw1, raw2, rounds(e/1000.0,3), rounds(s.EC(raw1,raw2)[1],3)
 
+
+class PhotoInline(AdminImageMixin, admin.TabularInline):
+    model = Photo
+    extra = 0
+
 @admin.register(Device)
 class DeviceAdmin(admin.ModelAdmin):
     model = Device
     list_display = ('displayname', 'serial', 'devid', 'last_seen', 'battery_tag')
     list_filter = ('displayname',)
     fields = ('devid', 'serial', 'displayname', 'length')
-    actions=[createsensors,gpson,postdevice]
-    
+    actions=[gpson,postdevice]
+    inlines = [PhotoInline]
+
 @admin.register(UBXFile)
 class UBXFileAdmin(admin.ModelAdmin):
     model = UBXFile
@@ -127,8 +133,8 @@ class SurveyAdmin(admin.ModelAdmin):
 @admin.register(Photo)
 class PhotoAdmin(AdminImageMixin, admin.ModelAdmin):
     model = Photo
-    list_display = ('device','order','thumb',)
-    list_filter = ('device',)
+    list_display = ('device','ispopup','order','thumb',)
+    list_filter = ('device','ispopup')
     search_fields = ('photo',)
 
     def thumb(self, obj):
