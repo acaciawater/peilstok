@@ -23,10 +23,25 @@ from django.shortcuts import get_object_or_404, redirect
 from django.contrib.gis.gdal import CoordTransform, SpatialReference
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.text import slugify
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
 
 logger = logging.getLogger(__name__)
 
+class StaffRequiredMixin(object):
+    @method_decorator(login_required)
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_staff:
+            messages.error(
+                request,
+                'You do not have the permission required to perform the '
+                'requested operation.')
+            return redirect(settings.LOGIN_URL)
+        return super(StaffRequiredMixin, self).dispatch(request,
+            *args, **kwargs)
+        
 def json_locations(request):
     """ return json response with last peilstok locations
         optionally filter messages on hacc (in mm)
@@ -69,7 +84,7 @@ def json_locations(request):
             pass
     return HttpResponse(json.dumps(result, ignore_nan = True, default=lambda x: time.mktime(x.timetuple())*1000.0), content_type='application/json')
 
-@login_required
+@staff_member_required
 def select_photo(request, pk):
     ''' select a photo to display on the leaflet popup window '''
     photo = get_object_or_404(Photo, pk=pk)
@@ -182,7 +197,7 @@ class NavDetailView(NavMixin, DetailView):
 class DeviceListView(ListView):
     model = Device
 
-class DeviceDetailView(NavDetailView):
+class DeviceDetailView(StaffRequiredMixin,NavDetailView):
     model = Device
 
     def get_context_data(self, **kwargs):
@@ -306,7 +321,7 @@ def data_as_csv(request, pk):
     resp['Content-Disposition'] = 'attachment; filename=%s.csv' % slugify(unicode(device))
     return resp
 
-class PhotoView(LoginRequiredMixin, NavDetailView):
+class PhotoView(StaffRequiredMixin, NavDetailView):
     model = Device
     template_name = 'peil/photos.html'
     
@@ -373,7 +388,7 @@ class PeilView(LoginRequiredMixin, NavDetailView):
         context['options2'] = json.dumps(options,default=lambda x: time.mktime(x.timetuple())*1000.0)
         return context
     
-class PostView(LoginRequiredMixin,DetailView):
+class PostView(StaffRequiredMixin,DetailView):
     model = Device
     template_name = 'peil/post.html'
 
