@@ -1,6 +1,6 @@
 '''
 Created on Apr 25, 2017
-
+Functions and utilities to test GPS stuff, final versions in peil.util
 @author: theo
 '''
 import struct

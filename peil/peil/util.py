@@ -7,6 +7,8 @@ from django.http.response import HttpResponse, HttpResponseServerError
 import datetime, pytz
 import logging
 import os, re
+import numpy as np
+import pandas as pd
 
 from .models import Device, GNSS_MESSAGE, EC_MESSAGE, STATUS_MESSAGE, PRESSURE_MESSAGE, ANGLE_MESSAGE
 from peil.models import PressureSensor,PressureMessage, GNSS_Sensor, BatterySensor, StatusMessage, \
@@ -14,6 +16,80 @@ from peil.models import PressureSensor,PressureMessage, GNSS_Sensor, BatterySens
 from datetime import timedelta
 
 logger = logging.getLogger(__name__)
+
+def get_raw_sensor_data(device, sensor_name, **kwargs):
+    """ 
+    @return: Pandas dataframe with timeseries of raw sensor data
+    @param device: the device to query 
+    """  
+    try:
+        columns = kwargs.pop('columns',None)
+        data = device.get_sensor(sensor_name,**kwargs).raw_data()
+        df = pd.DataFrame(data).set_index('time')
+        df = df.where(df<4096,np.nan).resample('H').mean() # clear extreme values and resample on every hour
+        return df.rename(columns=columns) if columns else df
+    except:
+        return pd.DataFrame()
+
+def get_raw_data(device, **kwargs):
+    """ 
+    @return: Pandas dataframe with timeseries of all raw sensor data
+    @param device: the device to query 
+    """  
+    bat = get_raw_sensor_data(device,'Batterij',position=0,columns={'battery': 'BAT'})
+    ec1 = get_raw_sensor_data(device,'EC1',position=1,columns={'adc1': 'EC1-ADC1', 'adc2': 'EC1-ADC2', 'temperature': 'EC1-TEMP'})
+    ec2 = get_raw_sensor_data(device,'EC2',position=2,columns={'adc1': 'EC2-ADC1', 'adc2': 'EC2-ADC2', 'temperature': 'EC2-TEMP'})
+    p1 = get_raw_sensor_data(device,'Luchtdruk',position=0,columns={'adc': 'PRES0-ADC'})
+    p2 = get_raw_sensor_data(device,'Waterdruk',position=3,columns={'adc': 'PRES3-ADC'})
+    return pd.concat([bat,ec1,ec2,p1,p2],axis=1)
+
+def get_sensor_series(device, sensor_name, **kwargs):
+    ''' returns pandas series with calibrated sensor data '''
+    try:
+        t,x=zip(*list(device.get_sensor(sensor_name,**kwargs).data()))       
+        return pd.Series(x,index=t).resample(rule='H').mean()
+    except Exception as e:
+        logger.error('ERROR loading sensor data for {}: {}'.format(sensor_name,e))
+        return pd.Series()
+
+def get_ec_series(device):
+    """ 
+    @return: Pandas dataframe with timeseries of EC
+    @param device: the device to query 
+    """  
+    return pd.DataFrame({'EC1':get_sensor_series(device,'EC1',position=1),
+                         'EC2': get_sensor_series(device,'EC2',position=2)})
+
+def get_level_series(device):
+    """ 
+    @return: Pandas dataframe with timeseries of water level
+    @param device: the device to query 
+    """  
+    waterpressure=get_sensor_series(device,'Waterdruk',position=3)
+    airpressure=get_sensor_series(device,'Luchtdruk',position=0)
+    # take the nearest air pressure values within a range of 2 hours from the time of water pressure measurements
+    airpressure = airpressure.reindex(waterpressure.index,method='nearest',tolerance='2h')
+    # calculate water level in cm above the sensor
+    waterlevel = (waterpressure-airpressure)/0.980638
+
+    # calculate elevation (m to NAP) of sensor
+    sensor = device.get_sensor('Waterdruk',position=3)
+    elevation = sensor.elevation()
+    if elevation is None:
+        # tolerate missing sensor elevation 
+        elevation = 0
+    # convert to water level in cm to meter to NAP
+    return pd.DataFrame({'Waterhoogte': waterlevel, 'Waterpeil': waterlevel/100.0 + elevation})
+    
+def get_chart_series(device):
+    """ 
+    @return: Pandas dataframe with timeseries of EC and water level
+    @param device: the device to query 
+    @summary: Query a device for EC and water level resampled per hour
+    """  
+    ecdata = get_ec_series(device)
+    wldata = get_level_series(device)
+    return pd.concat([ecdata,wldata],axis=1)
 
 def last_waterlevel(device, hours=2):
     """ returns last known waterlevel for a device """
@@ -85,31 +161,6 @@ def battery_status(battery):
     icon = '{url}bat{index}.png'.format(url=settings.STATIC_URL, index=index)
     return {'level': level, 'icon': icon} 
     
-def update_or_create(manager, **kwargs):
-    assert kwargs, \
-            'update_or_create() must be passed at least one keyword argument'
-    obj, created = manager.get_or_create(**kwargs)
-    if created:
-        return obj, True, False
-    else:
-        defaults = kwargs.pop('defaults', {})
-        try:
-            params = dict([(k, v) for k, v in kwargs.items() if '__' not in k])
-            params.update(defaults)
-            for attr, val in params.items():
-                if hasattr(obj, attr):
-                    setattr(obj, attr, val)
-            sid = transaction.savepoint()
-            obj.save(force_update=True)
-            transaction.savepoint_commit(sid)
-            return obj, False, True
-        except IntegrityError, e:
-            transaction.savepoint_rollback(sid)
-            try:
-                return manager.get(**kwargs), False, False
-            except:
-                raise e
-
 def parse_payload(device,server_time,payload):
     message_type = payload['type']
     msg = None

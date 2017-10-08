@@ -14,9 +14,7 @@ from django.conf import settings
 import re, time
 import simplejson as json # allows for NaN conversion
 from peil.models import Device, UBXFile, RTKSolution, Photo
-from peil.util import handle_post_data, last_waterlevel, last_ec
-import pandas as pd
-import numpy as np
+from peil import util
 
 import logging
 from django.shortcuts import get_object_or_404, redirect
@@ -36,11 +34,9 @@ class StaffRequiredMixin(object):
         if not request.user.is_staff:
             messages.error(
                 request,
-                'You do not have the permission required to perform the '
-                'requested operation.')
+                'Je het niet de vereiste rechten om de gevraagde bewerking uit te voeren.')
             return redirect(settings.LOGIN_URL)
-        return super(StaffRequiredMixin, self).dispatch(request,
-            *args, **kwargs)
+        return super(StaffRequiredMixin, self).dispatch(request, *args, **kwargs)
         
 def json_locations(request):
     """ return json response with last peilstok locations
@@ -89,7 +85,7 @@ def select_photo(request, pk):
     ''' select a photo to display on the leaflet popup window '''
     photo = get_object_or_404(Photo, pk=pk)
     photo.set_as_popup()
-    back = request.GET.get('next',None) or request.META.get('HTTP_REFERER',None)
+    back = request.GET.get('next',None) or request.META.get('HTTP_REFERER','/')
     return redirect(back)
 
 class PopupView(DetailView):
@@ -100,8 +96,8 @@ class PopupView(DetailView):
     def get_context_data(self, **kwargs):
         context = DetailView.get_context_data(self, **kwargs)
         device = self.get_object()
-        ec = last_ec(device)
-        wl = last_waterlevel(device)
+        ec = util.last_ec(device)
+        wl = util.last_waterlevel(device)
         for pos in ('EC1','EC2'):
             depth = wl['nap'] - ec[pos]['sensor'].elevation()
             ec[pos]['depth'] = depth * 100
@@ -116,11 +112,11 @@ class PopupView(DetailView):
     
 @csrf_exempt
 def ttn(request):
-    """ handle post from TTN server and update database """
+    """ handle post data from TTN server and update database """
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            return handle_post_data(data)
+            return util.handle_post_data(data)
         except:
             logger.exception('Cannot parse POST data')
             return HttpResponseServerError(reason='Error parsing POST data')
@@ -179,11 +175,11 @@ class NavMixin(object):
     """ Mixin for browsing through devices sorted by name """
 
     def nav(self,device):
-        next = Device.objects.filter(displayname__gt=device.displayname)
-        next = next.first() if next else None
-        prev = Device.objects.filter(displayname__lt=device.displayname)
-        prev = prev.last() if prev else None
-        return {'next': next, 'prev': prev}
+        nxt = Device.objects.filter(displayname__gt=device.displayname)
+        nxt = nxt.first() if nxt else None
+        prv = Device.objects.filter(displayname__lt=device.displayname)
+        prv = prv.last() if prv else None
+        return {'next': nxt, 'prev': prv}
 
 class NavDetailView(NavMixin, DetailView):
     """ Detailview with browsing through devices sorted by name """
@@ -208,53 +204,18 @@ class DeviceDetailView(StaffRequiredMixin,NavDetailView):
         except:
             pass
         try:
-            context['level'] = last_waterlevel(device)
+            context['level'] = util.last_waterlevel(device)
         except:
             pass
         return context
-
-def get_chart_data(device):
-    """ 
-    @return: Pandas dataframe with timeseries of EC and water level
-    @param device: the device to query 
-    @summary: Query a device for EC and water level resampled per hour
-    """  
-    def getdata(name,**kwargs): 
-        try:
-            t,x=zip(*list(device.get_sensor(name,**kwargs).data()))       
-            return pd.Series(x,index=t).resample(rule='H').mean()
-        except Exception as e:
-            logger.error('ERROR loading sensor data for {}: {}'.format(name,e))
-            return pd.Series()
-    data = pd.DataFrame()
-    data['EC ondiep'] = getdata('EC1',position=1)
-    data['EC diep'] = getdata('EC2',position=2)
-    
-    waterpressure=getdata('Waterdruk',position=3)
-    airpressure=getdata('Luchtdruk',position=0)
-    # take the nearest air pressure values within a range of 2 hours from the time of water pressure measurements
-    airpressure = airpressure.reindex(waterpressure.index,method='nearest',tolerance='2h')
-    # calculate water level in cm above the sensor
-    data['Waterhoogte'] = (waterpressure-airpressure)/0.980638
-
-    # calculate elevation (m to NAP) of sensor
-    sensor = device.get_sensor('Waterdruk',position=3)
-    elevation = sensor.elevation()
-    if elevation is None:
-        # tolerate missing sensor elevation 
-        elevation = 0
-    # convert to water level in cm to meter
-    data['Waterpeil'] = data['Waterhoogte']/100.0 + elevation
-    
-    return data
     
 @gzip_page
 def chart_as_json(request,pk):
     """ get chart data as json array for highcharts """
     device = get_object_or_404(Device, pk=pk)
-    pts = get_chart_data(device)
-    data = {'EC1': zip(pts.index,pts['EC ondiep']),        
-            'EC2': zip(pts.index,pts['EC diep']),
+    pts = util.get_chart_series(device)
+    data = {'EC1': zip(pts.index,pts['EC1']),        
+            'EC2': zip(pts.index,pts['EC2']),
             'NAP': zip(pts.index,pts['Waterpeil']),
             'H': zip(pts.index,pts['Waterhoogte'])
             }
@@ -264,40 +225,17 @@ def chart_as_json(request,pk):
 def chart_as_csv(request,pk):
     """ get chart data as csv for download """
     device = get_object_or_404(Device, pk=pk)
-    data = get_chart_data(device)
+    data = util.get_chart_series(device)
     data.dropna(inplace=True,how='all')
     resp = HttpResponse(data.to_csv(float_format='%.2f'), content_type='text/csv')
     resp['Content-Disposition'] = 'attachment; filename=%s.csv' % slugify(unicode(device))
     return resp
 
-def get_sensor_data(device):
-    """ 
-    @return: Pandas dataframe with timeseries of raw sensor data
-    @param device: the device to query 
-    @summary: Query a device for raw sensor data
-    """  
-    def getdata(name,**kwargs): 
-        try:
-            columns = kwargs.pop('columns',None)
-            data = device.get_sensor(name,**kwargs).raw_data()
-            df = pd.DataFrame(data).set_index('time')
-            df = df.where(df<4096,np.nan).resample('H').mean() # clear extreme values and resample on every hour
-            return df.rename(columns=columns) if columns else df
-        except:
-            return pd.DataFrame()
-               
-    bat = getdata('Batterij',position=0,columns={'battery': 'BAT'})
-    ec1 = getdata('EC1',position=1,columns={'adc1': 'EC1-ADC1', 'adc2': 'EC1-ADC2', 'temperature': 'EC1-TEMP'})
-    ec2 = getdata('EC2',position=2,columns={'adc1': 'EC2-ADC1', 'adc2': 'EC2-ADC2', 'temperature': 'EC2-TEMP'})
-    p1=getdata('Luchtdruk',position=0,columns={'adc': 'PRES0-ADC'})
-    p2=getdata('Waterdruk',position=3,columns={'adc': 'PRES3-ADC'})
-    return pd.concat([bat,ec1,ec2,p1,p2],axis=1)
-    
 @gzip_page
 def data_as_json(request,pk):
     """ get raw sensor data as json array for highcharts """
     device = get_object_or_404(Device, pk=pk)
-    pts = get_sensor_data(device)
+    pts = util.get_raw_data(device)
     data = {
         'Bat': zip(pts.index,pts['BAT']),
         'EC1adc1': zip(pts.index,pts['EC1-ADC1']),        
@@ -315,7 +253,7 @@ def data_as_json(request,pk):
 @gzip_page
 def data_as_csv(request, pk):
     device = get_object_or_404(Device, pk=pk)
-    data = get_sensor_data(device)
+    data = util.get_raw_data(device)
     data.dropna(inplace=True,how='all')
     resp = HttpResponse(data.to_csv(), content_type='text/csv')
     resp['Content-Disposition'] = 'attachment; filename=%s.csv' % slugify(unicode(device))
@@ -335,7 +273,7 @@ class PeilView(LoginRequiredMixin, NavDetailView):
         device = self.get_object()
                 
         options = {
-            'chart': {'type': 'spline', 
+            'chart': {'type': 'line', 
                       'animation': False, 
                       'zoomType': 'x',
                       'events': {'load': None},
@@ -351,7 +289,7 @@ class PeilView(LoginRequiredMixin, NavDetailView):
                       },
             'legend': {'enabled': True},
             'tooltip': {'shared': True, 'xDateFormat': '%a %d %B %Y %H:%M:%S', 'valueDecimals': 2},
-            'plotOptions': {'spline': {'connectNulls': True, 'marker': {'enabled': False}}},            
+            'plotOptions': {'line': {'connectNulls': True, 'marker': {'enabled': False}}},            
             'credits': {'enabled': True, 
                         'text': 'acaciawater.com', 
                         'href': 'http://www.acaciawater.com',
