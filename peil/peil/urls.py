@@ -21,12 +21,14 @@ from peil.views import DeviceListView, MapView, json_locations,\
     PopupView, PeilView, chart_as_json, data_as_json, DeviceDetailView,\
     chart_as_csv, data_as_csv, PhotoView, PostView, select_photo
 from django.views.decorators.cache import cache_page
-from peil.api import DeviceResource, SensorResource, MessageResource
+from peil.api import DeviceResource, SensorResource, MessageResource,\
+    BatteryResource
 
 v1 = Api(api_name='v1')
 v1.register(DeviceResource())
 v1.register(SensorResource())
 v1.register(MessageResource())
+v1.register(BatteryResource())
 
 urlpatterns = [
     url(r'^$', MapView.as_view(), name='home'),
