@@ -1,16 +1,30 @@
 {% extends "base.html" %}
 {% load bootstrap3 %}
-
+{% load alerts %}
 {% block title %}Inloggen{% endblock %}
 
 {% block content %}
 <div class="container">
+
   <div class="row">
     <div class="col-sm-offset-2 col-sm-10">
       <h2>Inloggen</h2>
     </div>
   </div>
 
+{% if messages %}
+<div class="container messages">
+	<div class="row">
+		{% for message in messages %}
+			{% bootstrap_alert message.tags as tag %}
+		    <div class="col-sm-offset-3 col-sm-9 alert {% if message.tags %} alert-{{ tag }}{% endif %}">
+		        <a class="close" data-dismiss="alert" href="#">×</a>
+		        {{ message }}
+		    </div>
+		{% endfor %}
+	</div>
+</div>
+{% endif %}
   {% if form.errors %}
   <div class="row">
     <div class="alert alert-danger col-sm-offset-2 col-sm-6">
