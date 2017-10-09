@@ -1,5 +1,3 @@
-from django.db import transaction
-from django.db.utils import IntegrityError
 from django.utils.dateparse import parse_datetime
 from django.conf import settings
 from django.http.response import HttpResponse, HttpResponseServerError
@@ -355,7 +353,7 @@ def time2gps(time):
     sec = delta.total_seconds()
     week = int(sec/(86400*7))
     tow = sec - week * 86400*7 + delta.seconds # time of week
-    dow = int(tow / 86400)-1 # day of week
+    dow = int(tow / 86400) # day of week
     return week, dow, tow
 
 class TransNAP:

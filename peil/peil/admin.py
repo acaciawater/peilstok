@@ -46,13 +46,6 @@ class DeviceAdmin(admin.ModelAdmin):
     actions=[gpson,postdevice]
     inlines = [PhotoInline]
 
-@admin.register(UBXFile)
-class UBXFileAdmin(admin.ModelAdmin):
-    model = UBXFile
-    actions = [create_pvts, rtkpost]
-    list_filter = ('device', 'created')
-    list_display = ('__unicode__','device','created', 'start', 'stop','solution_count','solution_stdev')
-         
 @admin.register(Sensor)
 class SensorAdmin(PolymorphicParentModelAdmin):
     base_model = Sensor
@@ -143,17 +136,30 @@ class PhotoAdmin(AdminImageMixin, admin.ModelAdmin):
                 })
     thumb.allow_tags = True
 
-@admin.register(NavPVT)
-class NAVAdmin(admin.ModelAdmin):
-    model = NavPVT
-    list_display = ('ubx', 'timestamp','lat','lon','alt','msl','hAcc','vAcc','numSV','pDOP')
-    list_filter = ('ubx__device','timestamp')    
-    search_fields = ('ubx__device',)
-    
 @admin.register(RTKSolution)
 class RTKAdmin(admin.ModelAdmin):
     model = RTKSolution
     list_display = ('ubx', 'time','lat','lon','alt','q','ns','sde','sdn','sdu')
     list_filter = ('ubx__device','time')    
+    search_fields = ('ubx__device',)
+    ordering = ('-time',)
+
+class RTKInline(admin.TabularInline):
+    model = RTKSolution
+    extra = 0    
+
+@admin.register(UBXFile)
+class UBXFileAdmin(admin.ModelAdmin):
+    model = UBXFile
+    actions = [create_pvts, rtkpost]
+    list_filter = ('device','start')
+    list_display = ('__unicode__','device','start', 'stop','solution_count','solution_stats')
+    #inlines = [RTKInline]
+    
+@admin.register(NavPVT)
+class NAVAdmin(admin.ModelAdmin):
+    model = NavPVT
+    list_display = ('ubx', 'timestamp','lat','lon','alt','msl','hAcc','vAcc','numSV','pDOP')
+    list_filter = ('ubx__device','timestamp')    
     search_fields = ('ubx__device',)
     

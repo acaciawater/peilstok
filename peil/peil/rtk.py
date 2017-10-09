@@ -85,7 +85,7 @@ def post(ubx, **kwargs):
         for fname in get_ephemeres_files(start):
             shutil.copy(fname, tempdir)
             
-        command = ['rnx2rtkp', '-t', '-s', ',', '-p', '7', '-c', '-o', pos, obs, nav, sbs, tempdir+'/*']
+        command = ['rnx2rtkp', '-k', 'rtkpost.conf', '-t', '-s', ',', '-p', '7', '-c', '-o', pos, obs, nav, sbs, tempdir+'/*']
         logger.debug('Running {}'.format(' '.join(command)))
         ret = subprocess.call(command)
         if ret:

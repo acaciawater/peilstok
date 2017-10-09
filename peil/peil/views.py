@@ -340,7 +340,7 @@ class PostView(StaffRequiredMixin,DetailView):
                       'animation': False, 
                       'zoomType': 'x',
                       'events': {'load': None},
-                      'marginLeft': 60, 
+                      'marginLeft': 80, 
                       'marginRight': 80,
                       'spacingTop': 20,
                       'spacingBottom': 20

@@ -482,8 +482,8 @@ class LocationMessage(LoraMessage):
             return None
         
     class Meta:
-        verbose_name = 'Plaatsbepaling'
-        verbose_name_plural = 'Plaatsbepalingen'
+        verbose_name = 'GPS bericht'
+        verbose_name_plural = 'GPS berichten'
 
 
 class InclinationMessage(LoraMessage):
@@ -560,19 +560,20 @@ class UBXFile(models.Model):
         return self.rtksolution_set.latest('time')
     last_solution.short_description='laatste rtk fix'
 
-    def solution_stdev(self):
-        from django.db.models import StdDev
-        agg = self.rtksolution_set.all().aggregate(std=StdDev('alt'))
+    def solution_stats(self):
+        from django.db.models import StdDev, Avg
+        agg = self.rtksolution_set.all().aggregate(avg=Avg('z'), std=StdDev('z'))
+        avg = agg['avg']
         std = agg['std']
-        return round(std,3) if std else None 
-    solution_stdev.short_description='stddev'
+        return (round(avg,3) if avg else None, round(std,3) if std else None) 
+    solution_stats.short_description='avg, std'
         
     def __unicode__(self):
         return self.ubxfile.name
 
     class Meta:
-        verbose_name = 'u-blox bestand'
-        verbose_name_plural = 'u-blox bestanden'
+        verbose_name = 'GPS bestand'
+        verbose_name_plural = 'GPS bestanden'
 
 @receiver(pre_save, sender=UBXFile)
 def ubxfile_save(sender, instance, **kwargs):
@@ -607,6 +608,9 @@ class RTKSolution(models.Model):
     
     def __unicode__(self):
         return ', '.join([str(self.lon), str(self.lat), str(self.alt), str(self.sdu)])
+    
+    def device(self):
+        return self.ubx.device
     
     class Meta:
         verbose_name = 'RTK Fix'
