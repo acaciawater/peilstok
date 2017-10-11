@@ -1,25 +1,3 @@
-{% load thumbnail %}
 <h3><a href="{% url 'chart-detail' object.id %}">{{object|title}}</a>
-{%if battery %}<img class="battery" src={{battery.icon}} title="batterijniveau {{battery.level}}%"></img>{%endif%}</h3>
+
 Laatste contact: {{object.last_seen}}</br>
-
-{% with object.popup_photo as photo %}
-{% thumbnail photo.photo "320" crop="center" as im %}
-<a href="{% url 'device-photos' object.id %}"><img width="320px" src="{{ im.url }}"></img></a>
-{% endthumbnail %}
-{% endwith %}
-
-<table class="table table-condensed table-hover table-320">
-<thead>
-<tr><td>Sensor</td><td>Tijdstip</td><td>Waterhoogte</td><td>Waarde</td></tr>
-</thead>
-<tbody>
-{% with lastec.EC1 as ec %}
-<tr><td>EC ondiep</td><td>{{ec.time|date:'j M H:i'}}</td><td>{{ec.depth|floatformat:0}} cm</td><td>{%if ec.dry%}droog{%else%}{{ec.value|default:'-'}} mS/cm{%endif%}</td></tr>
-{% endwith %}
-{% with lastec.EC2 as ec %}
-<tr><td>EC diep</td><td>{{ec.time|date:'j M H:i'}}</td><td>{{ec.depth|floatformat:0}} cm</td><td>{%if ec.dry%}droog{%else%}{{ec.value|default:'-'}} mS/cm{%endif%}</td></tr>
-{% endwith %}
-<tr><td>Peil</td><td>{{lastwl.time|date:'j M H:i'}}</td><td>{{lastwl.cm|floatformat:0}} cm</td><td>{{lastwl.nap|default:'-'|floatformat:2}} m NAP</td></tr>
-</tbody>
-</table>
