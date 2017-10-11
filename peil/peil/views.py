@@ -326,7 +326,7 @@ class PeilView(LoginRequiredMixin, NavDetailView):
         context['options2'] = json.dumps(options,default=lambda x: time.mktime(x.timetuple())*1000.0)
         return context
     
-class PostView(StaffRequiredMixin,DetailView):
+class PostView(StaffRequiredMixin,NavDetailView):
     model = Device
     template_name = 'peil/post.html'
 
@@ -357,12 +357,23 @@ class PostView(StaffRequiredMixin,DetailView):
                         'text': 'acaciawater.com', 
                         'href': 'http://www.acaciawater.com',
                        },
-            'yAxis': [{'title': {'text': 'm tov NAP'},},
+            'yAxis': [{'title': {'text': 'm tov NAP'}}
                       ],
             'series': [{'name': 'Hoogte', 'id': 'NAP', 'yAxis': 0, 'data': data, 'tooltip': {'valueSuffix': ' m tov NAP'}},
                         ]
             }
 
+        try:
+            survey = device.last_survey()
+            alt = float(survey.altitude)
+            maxalt = alt + survey.vacc*1e-3
+            minalt = alt - survey.vacc*1e-3
+            #surveydata = [[data[0][0],minalt,maxalt],[data[-1][0],minalt,maxalt]]
+            surveydata = [[data[0][0],alt],[data[-1][0],alt]]
+            options['series'].append({'name': 'survey', 'id': 'survey', 'yAxis': 0, 'data': surveydata})
+        except Exception as e:
+            survey = None
+            
         context['options'] = json.dumps(options,default=lambda x: time.mktime(x.timetuple())*1000.0)
         return context
     

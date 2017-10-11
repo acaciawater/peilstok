@@ -1,5 +1,13 @@
 {% extends 'peil/base.html' %}
 {% block title%}Hoogte {{object}} {% endblock %}
+{% block navbar-right %}
+{% if nav.prev %}
+<li><a href="{%url 'post-detail' nav.prev.id %}" title="Toon grafiek van {{nav.prev|title}}">{{nav.prev|title}}</a></li>
+{% endif %}
+{% if nav.next %}
+<li><a href="{%url 'post-detail' nav.next.id %}" title="Toon grafiek van {{nav.next|title}}">{{nav.next|title}}</a></li>
+{% endif %}
+{% endblock %}
 {% block script %}
 {{ block.super }}
 <script src="//code.highcharts.com/highcharts.js"></script>
