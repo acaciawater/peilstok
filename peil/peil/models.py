@@ -65,7 +65,7 @@ class Device(models.Model):
     
     def statuscolor(self):
         """ returns color for dots on home page.
-        Green is less than 2 hours old, yellow is 2 to 24 hrs, red is 1 - 7 days and gray is more than one week old 
+        Green is less than 6 hours old, yellow is 6 to 24 hrs, red is 1 - 7 days and gray is more than one week old 
          """
         try:
             now = timezone.now()
@@ -75,7 +75,7 @@ class Device(models.Model):
                 return 'green'
             elif age.days < 1:
                 hours = float(age.seconds)/3600.0
-                return 'green' if hours < 2 else 'yellow'
+                return 'green' if hours < 6 else 'yellow'
             else:
                 return 'red' if age.days < 7 else 'grey'
         except:
@@ -511,7 +511,23 @@ class StatusMessage(LoraMessage):
     class Meta:
         verbose_name = 'Batterijmeting'
         verbose_name_plural = 'Batterijmetingen'
-        
+
+# class Latest(models.Model):
+#     ''' Latest valid measurements for a device '''
+#     device = models.ForeignKey(Device,verbose_name='peilstok')
+#     time = models.DateTimeField(verbose_name='tijdstip')
+#     measurement = models.CharField(max_length = 20,verbose_name='meting')
+#     value = models.CharField(max_length = 20,verbose_name='waarde')
+#     unit = models.CharField(max_length = 20,verbose_name='eenheid')
+# 
+#     class Meta:
+#         verbose_name = 'Laatste waarde'
+#         verbose_name_plural = 'Laatste waardes'
+#         unique_together = ('device', 'measurement')
+#     
+#     def __unicode__(self):
+#         return '{} {}'.format(self.device, self.measurement)
+            
 # --------------------------------------------------------------------------------------------------------------
 # GPS and RTK stuff
 # --------------------------------------------------------------------------------------------------------------
