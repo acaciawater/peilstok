@@ -91,7 +91,7 @@ def select_photo(request, pk):
 class PopupView(DetailView):
     """ returns html response for leaflet popup """
     model = Device
-    template_name = 'peil/popup.html'
+    template_name = 'peil/popup_new.html'
     
     def get_context_data(self, **kwargs):
         context = DetailView.get_context_data(self, **kwargs)

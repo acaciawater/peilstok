@@ -2,7 +2,7 @@
 <h3><a href="{% url 'chart-detail' object.id %}">{{object|title}}</a>
 {%if battery %}<img class="battery" src={{battery.icon}} title="batterijniveau {{battery.level}}%"></img>{%endif%}</h3>
 Laatste contact: {{object.last_seen}}</br>
-
+{% if user.is_staff %}
 {% with object.popup_photo as photo %}
 {% thumbnail photo.photo "320" crop="center" as im %}
 <a href="{% url 'device-photos' object.id %}"><img width="320px" src="{{ im.url }}"></img></a>
@@ -23,3 +23,4 @@ Laatste contact: {{object.last_seen}}</br>
 <tr><td>Peil</td><td>{{lastwl.time|date:'j M H:i'}}</td><td>{{lastwl.cm|floatformat:0}} cm</td><td>{{lastwl.nap|default:'-'|floatformat:2}} m NAP</td></tr>
 </tbody>
 </table>
+{% endif %}
