@@ -4,7 +4,7 @@ from peil.models import Device, Sensor,\
     BatterySensor, AngleSensor, LoraMessage, ECMessage, PressureMessage,\
     InclinationMessage, StatusMessage, LocationMessage, GNSS_Sensor, Survey,\
     Photo, NavPVT, RTKSolution
-from peil.actions import create_pvts, rtkpost, gpson, postdevice
+from peil.actions import create_pvts, rtkpost, gpson, postdevice, to_orion
 from peil.sensor import create_sensors, load_offsets,\
     load_distance, load_survey
 from polymorphic.admin import PolymorphicChildModelFilter, PolymorphicChildModelAdmin, PolymorphicParentModelAdmin
@@ -43,7 +43,7 @@ class DeviceAdmin(admin.ModelAdmin):
     list_display = ('displayname', 'serial', 'devid', 'last_seen', 'battery_tag')
     list_filter = ('displayname',)
     fields = ('devid', 'serial', 'displayname', 'length')
-    actions=[gpson,postdevice]
+    actions=[gpson,postdevice,to_orion]
     inlines = [PhotoInline]
 
 @admin.register(Sensor)

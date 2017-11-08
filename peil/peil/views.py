@@ -4,7 +4,7 @@ Created on Apr 25, 2017
 @author: theo
 '''
 from django.http.response import HttpResponse, HttpResponseBadRequest,\
-    HttpResponseServerError
+    HttpResponseServerError, HttpResponseNotFound
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.detail import DetailView
 from django.views.generic.list import ListView
@@ -39,42 +39,16 @@ class StaffRequiredMixin(object):
         return super(StaffRequiredMixin, self).dispatch(request, *args, **kwargs)
         
 def json_locations(request):
-    """ return json response with last peilstok locations
+    """ return json response with last known peilstok locations
         optionally filter messages on hacc (in mm)
     """
     result = []
-    hacc = request.GET.get('hacc',None)
-    trans = None
+    hacc = request.GET.get('hacc',10000)
     for p in Device.objects.all():
         try:
-            # select survey
-            s = p.survey_set.last()
-            if s:
-                pnt = s.location
-                if trans is None:
-                    wgs84 = SpatialReference(4326)
-                    rdnew = SpatialReference(28992)
-                    trans = CoordTransform(rdnew,wgs84)
-                pnt.transform(trans)
-                result.append({'id': p.id, 'name': p.displayname, 'lon': pnt.x, 'lat': pnt.y})
-            else:
-                # get location from on-board GPS
-                # select only valid fixes (with hacc > 0)
-                g = p.get_sensor('GPS').loramessage_set.filter(locationmessage__hacc__gt=0).order_by('time')
-                if g:
-                    if hacc:
-                        # filter messages on maximum hacc
-                        g = g.filter(hacc__lt=hacc)
-                        
-                    # use last valid gps message
-                    g = g.last()
-        
-                    if g.lon > 40*1e7 and g.lat < 10*1e7:
-                        # verwisseling lon/lat?
-                        t = g.lon
-                        g.lon = g.lat
-                        g.lat = t
-                    result.append({'id': p.id, 'name': p.displayname, 'lon': g.lon*1e-7, 'lat': g.lat*1e-7, 'msl': g.msl*1e-3, 'hacc': g.hacc*1e-3, 'vacc': g.vacc*1e-3, 'time': g.time})
+            loc = p.current_location(hacc)
+            if loc:
+                result.append(loc)
         except Exception as e:
             print e
             pass
@@ -230,6 +204,16 @@ def chart_as_csv(request,pk):
     resp = HttpResponse(data.to_csv(float_format='%.2f'), content_type='text/csv')
     resp['Content-Disposition'] = 'attachment; filename=%s.csv' % slugify(unicode(device))
     return resp
+
+@gzip_page
+def to_csv(request):
+    """ get data as csv for wirecloud """
+    query = {str(k):str(v) for k,v in request.GET.items()}
+    try:
+        device = Device.objects.get(**query)
+    except Exception as ex:
+        return HttpResponseNotFound(str(ex))
+    return chart_as_csv(request,device.pk)
 
 @gzip_page
 def data_as_json(request,pk):

@@ -141,6 +141,38 @@ class Device(models.Model):
         foto = self.photo_set.filter(ispopup=True)
         return foto.first() if foto else self.photo_set.last()
 
+    def current_location(self, hacc=10000):
+        ''' returns current location '''
+        from django.contrib.gis.gdal.srs import CoordTransform, SpatialReference
+
+        s = self.survey_set.last()
+        if s:
+            pnt = s.location
+            wgs84 = SpatialReference(4326)
+            rdnew = SpatialReference(28992)
+            trans = CoordTransform(rdnew,wgs84)
+            pnt.transform(trans)
+            return {'id': self.id, 'name': self.displayname, 'lon': pnt.x, 'lat': pnt.y}
+        else:
+            # get location from on-board GPS
+            # select only valid fixes (with hacc > 0)
+            g = self.get_sensor('GPS').loramessage_set.filter(locationmessage__hacc__gt=0).order_by('time')
+            if g:
+                if hacc:
+                    # filter messages on maximum hacc
+                    g = g.filter(hacc__lt=hacc)
+                    
+                # use last valid gps message
+                g = g.last()
+    
+                if g.lon > 40*1e7 and g.lat < 10*1e7:
+                    # verwisseling lon/lat?
+                    t = g.lon
+                    g.lon = g.lat
+                    g.lat = t
+                    return {'id': self.id, 'name': self.displayname, 'lon': g.lon*1e-7, 'lat': g.lat*1e-7, 'msl': g.msl*1e-3, 'hacc': g.hacc*1e-3, 'vacc': g.vacc*1e-3, 'time': g.time}
+        return {}
+    
     def __unicode__(self):
         return self.displayname
 

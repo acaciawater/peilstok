@@ -15,6 +15,22 @@ def calcseries(modeladmin, request, queryset):
         
 calcseries.short_description='Tijdreeksen  berekenen'
 
+def to_orion(modeladmin, request, queryset):
+    from peil.fiware import Orion
+    orion = Orion('http://fiware.acaciadata.com:1026/v2/')
+    errors = 0
+    created = 0
+    for dev in queryset:
+        response = orion.createDevice(dev)
+        if response.ok:
+            created += 1
+        else:
+            messages.error(request,response.json())
+            errors += 1
+    if not errors:
+        messages.success(request,'{} Orion entities created'.format(created))
+to_orion.short_description = 'Orion entities aanmaken'
+        
 def rtkpost(modeladmin, request, queryset):
     ''' Run postprocessing for ubx files '''
     success = 0
