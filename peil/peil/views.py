@@ -18,7 +18,6 @@ from peil import util
 
 import logging
 from django.shortcuts import get_object_or_404, redirect
-from django.contrib.gis.gdal import CoordTransform, SpatialReference
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.text import slugify
 from django.contrib.admin.views.decorators import staff_member_required

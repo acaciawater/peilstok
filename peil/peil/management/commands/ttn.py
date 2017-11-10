@@ -4,7 +4,7 @@ Created on Apr 26, 2017
 @author: theo
 '''
 from django.core.management.base import BaseCommand
-from django.conf import settings, Settings
+from django.conf import settings
 from django.utils.dateparse import parse_datetime
 import requests
 
