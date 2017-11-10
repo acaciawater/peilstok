@@ -17,11 +17,11 @@ calcseries.short_description='Tijdreeksen  berekenen'
 
 def to_orion(modeladmin, request, queryset):
     from peil.fiware import Orion
-    orion = Orion('http://fiware.acaciadata.com:1026/v2/')
+    orion = Orion(settings.ORION_URL)
     errors = 0
     created = 0
     for dev in queryset:
-        response = orion.createDevice(dev)
+        response = orion.create_device(dev)
         if response.ok:
             created += 1
         else:

@@ -139,6 +139,10 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 GNSS_URL = '/gnss/'
 GNSS_ROOT = os.path.join(BASE_DIR, 'media','gnss')
 
+# send updates to Orion Context broker?
+USE_ORION = True
+ORION_URL = 'http://fiware.acaciadata.com:1026/v2/'
+
 # Logging
 LOGGING_ROOT = os.path.join(BASE_DIR, 'logs')
 LOGGING = {
@@ -149,6 +153,15 @@ LOGGING = {
             'level': 'DEBUG',
             'class': 'logging.handlers.TimedRotatingFileHandler',
             'filename': os.path.join(LOGGING_ROOT, 'peil.log'),
+            'when': 'D',
+            'interval': 1, # every day a new file
+            'backupCount': 0,
+            'formatter': 'default'
+        },
+        'fiware': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': os.path.join(LOGGING_ROOT, 'fiware.log'),
             'when': 'D',
             'interval': 1, # every day a new file
             'backupCount': 0,
@@ -185,6 +198,11 @@ LOGGING = {
         },
         'peil.management.commands': {
             'handlers': ['console',],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'peil.fiware': {
+            'handlers': ['fiware',],
             'level': 'DEBUG',
             'propagate': True,
         },
