@@ -87,7 +87,9 @@ def get_chart_series(device):
     """  
     ecdata = get_ec_series(device)
     wldata = get_level_series(device)
-    return pd.concat([ecdata,wldata],axis=1)
+    df = pd.concat([ecdata,wldata],axis=1)
+    df.index.rename('Datum',inplace=True)
+    return df
 
 def last_waterlevel(device, hours=2):
     """ returns last known waterlevel for a device """
@@ -159,7 +161,7 @@ def battery_status(battery):
     icon = '{url}bat{index}.png'.format(url=settings.STATIC_URL, index=index)
     return {'level': level, 'icon': icon} 
     
-def parse_payload(device,server_time,payload):
+def parse_payload(device,server_time,payload,orion=None):
     message_type = payload['type']
     msg = None
     
@@ -169,7 +171,9 @@ def parse_payload(device,server_time,payload):
     
     def logmsg(msg, created):
         logger.debug('{}: {} {}. time={}'.format(msg.sensor.device, unicode(msg), 'added' if created else 'updated', msg.time ))
-
+        if orion:
+            orion.update_message(msg)
+        
     if message_type == STATUS_MESSAGE:
 
         sensor, created = PressureSensor.objects.get_or_create(device=device,position=0,defaults={'ident':'Luchtdruk'})
@@ -235,7 +239,7 @@ def parse_ttn(ttn):
     try:
         serial = ttn['hardware_serial']
         devid = ttn['dev_id']
-        appid = ttn['app_id']
+        #appid = ttn['app_id']
         meta = ttn['metadata']
         server_time = parse_datetime(meta['time'])
         pf = ttn['payload_fields']
@@ -244,12 +248,20 @@ def parse_ttn(ttn):
         raise e
 
     try:
+        if settings.USE_ORION:
+            from peil.fiware import Orion
+            orion = Orion(settings.ORION_URL)
+        else:
+            orion = None
+
         device, created = Device.objects.update_or_create(serial=serial,devid=devid, defaults={'last_seen': server_time})
         if created:
             logger.debug('device {} created'.format(unicode(device)))
-        
-        mod, created, updated = parse_payload(device, server_time, pf)
-        
+            if orion:
+                orion.create_device(device)
+
+        mod, created, updated = parse_payload(device, server_time, pf, orion)
+
         return mod, created, updated
     except Exception as e:
         logger.exception('Error parsing payload: {}'.format(ttn))

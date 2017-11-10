@@ -4,13 +4,14 @@ Created on Apr 26, 2017
 @author: theo
 '''
 from django.core.management.base import BaseCommand
-from django.conf import settings
+from django.conf import settings, Settings
 from django.utils.dateparse import parse_datetime
 import requests
 
 import logging
 from peil.models import Device, MESSAGES
 from peil.util import parse_payload
+from peil.fiware import Orion
 logger = logging.getLogger(__name__)
 
 def download_ttn(devid,since):
@@ -40,13 +41,18 @@ def parse_ttn(ttn):
     except Exception as e:
         logger.error('Error parsing response {}\n{}'.format(ttn,e))
         raise e
-
+ 
     device, created = Device.objects.update_or_create(devid=devid, defaults={'last_seen': server_time})
-
+ 
     if created:
         logger.debug('device {} created'.format(devid))
     
-    parse_payload(device, server_time, ttn)
+    if settings.USE_ORION:
+        orion = Orion(settings.ORION_URL)
+    else:
+        orion = None
+        
+    parse_payload(device, server_time, ttn, orion)
 
 class Command(BaseCommand):
     help = 'Download from The Things Network'
