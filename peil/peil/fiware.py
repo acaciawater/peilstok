@@ -6,7 +6,7 @@ Created on Nov 7, 2017
 
 import requests
 import json
-from peil.util import last_ec, last_waterlevel
+from peil.util import last_waterlevel
 from peil.models import StatusMessage, PressureMessage, InclinationMessage,\
     ECMessage
 import six
@@ -26,10 +26,12 @@ class NGSI:
             return 'airPressure'  if msg.sensor.position == 0 else 'waterPressure'
         elif isinstance(msg, ECMessage):
             return 'ecShallow' if msg.sensor.position < 3 else 'ecDeep'
-        elif isinstance(msg,dict):
+        elif isinstance(msg,dict) and 'name' in msg:
             return msg['name']
         elif isinstance(msg, six.string_types):
             return msg
+        else:
+            return str(msg)
         
     @staticmethod
     def entity(msg):
@@ -179,7 +181,11 @@ class Orion:
 
         logger.debug('Creating entity {}'.format(device.devid))
         response = self.create_entity(data)
-        return self.log_response(response)
+        self.log_response(response)
+        if response.ok:
+            # Create simple view for popups
+            self.create_view(device)
+        return response
 
     def update_message(self, msg):
         ''' update value of attribute using LoraMessage msg '''
@@ -187,5 +193,87 @@ class Orion:
         attribute = NGSI.attribute(msg)
         logger.debug('Updating entity "{}", attribute "{}"'.format(entity,attribute))
         response = self.update_value(entity, attribute, NGSI.value(msg))
+        self.log_response(response)
+        if attribute in ['airPressure','waterPressure']:
+            attribute = 'waterLevel'
+            level = last_waterlevel(msg.sensor.device)
+            logger.debug('Updating entity "{}", attribute "{}"'.format(entity,attribute))
+            response2 = self.update_value(entity, attribute, {'value': level['nap'],'timestamp': NGSI.timestamp(level['time'])})
+            self.log_response(response2)
+        if response.ok:
+            response = self.update_view(msg)
+        return response
+    
+    def create_view(self, device):
+        ''' create a peilstok view in Orion for wirecloud popups '''
+        data = {
+            'id': 'view_'+device.devid,
+            'type': 'PeilstokView',
+            'displayName': {
+                'value': device.displayname
+            }
+        }
+
+        pos = device.current_location()
+        if pos:
+            data['latitude'] = {
+                'value': pos['lat'],
+                'type': 'Float'
+            }
+            data['longitude'] = {
+                'value': pos['lon'],
+                'type': 'Float'
+            }
+            
+        def update(msg):
+            if msg:
+                val = msg.value()
+                if isinstance(val,(int,long)):
+                    typename = 'Integer'
+                elif isinstance(val, float):
+                    typename = 'Float'
+                else:
+                    val = str(val)
+                    typename = 'Text'
+                data.update({NGSI.attribute(msg):{'value':val,'type':typename}})
+
+        inc = device.get_sensor('Inclinometer',position=0).last_message()
+        update(inc)
+        
+        bat = device.get_sensor('Batterij',position=0).last_message()
+        update(bat)
+
+        air = device.get_sensor('Luchtdruk',position=0).last_message()
+        update(air)
+        
+        wat = device.get_sensor('Waterdruk',position=3).last_message()
+        update(wat)
+        
+        ec = device.get_sensor('EC1',position=1).last_message() 
+        update(ec)
+
+        ec = device.get_sensor('EC2',position=2).last_message() 
+        update(ec)
+
+        level = last_waterlevel(device)
+        if level:
+            data.update({'waterLevel':{'value':level['nap'],'type':'Float'}})
+
+        logger.debug('Creating entity {}'.format(data['id']))
+        response = self.create_entity(data)
         return self.log_response(response)
     
+    def update_view(self, msg):
+        ''' update value of attribute for wirecloud popup using LoraMessage msg '''
+        entity = 'view_'+NGSI.entity(msg)
+        attribute = NGSI.attribute(msg)
+        logger.debug('Updating entity "{}", attribute "{}"'.format(entity,attribute))
+        response = self.update_value(entity, attribute, {'value': msg.value()})
+        self.log_response(response)
+        if attribute in ['airPressure','waterPressure']:
+            attribute = 'waterLevel'
+            level = last_waterlevel(msg.sensor.device)
+            logger.debug('Updating entity "{}", attribute "{}"'.format(entity,attribute))
+            response = self.update_value(entity, attribute, {'value': level['nap']})
+            self.log_response(response)
+        return response
