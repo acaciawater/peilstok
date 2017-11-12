@@ -12,12 +12,6 @@ from tastypie.authentication import BasicAuthentication
 from .models import Device
 from peil.models import Sensor, LoraMessage, StatusMessage
 
-class OpenGETAuthentication(BasicAuthentication):
-    def is_authenticated(self, request, **kwargs):
-        if request.method == 'GET':
-            return True
-        return BasicAuthentication.is_authenticated(self, request, **kwargs)
-
 class DeviceResource(ModelResource): 
 
     def dehydrate(self, bundle):
@@ -27,7 +21,7 @@ class DeviceResource(ModelResource):
         return bundle
 
     class Meta:
-        queryset = Device.objects.all()
+        queryset = Device.objects.order_by('-last_seen')
         resource_name = 'device'
         authentication = BasicAuthentication(realm='Acacia Water')
         authorization = DjangoAuthorization()
@@ -61,6 +55,15 @@ class SensorResource(ModelResource):
     
 class MessageResource(ModelResource): 
     sensor = fields.ForeignKey(SensorResource,'sensor')
+
+    def dehydrate(self, bundle):
+        msg = bundle.obj
+        if msg:
+            bundle.data.update(msg.to_dict())
+            bundle.data['value'] = msg.value()
+            bundle.data['unit'] = msg.sensor.unit
+        return bundle
+    
     class Meta:
         queryset = LoraMessage.objects.order_by('-time')
         resource_name = 'message'
