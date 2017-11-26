@@ -172,7 +172,7 @@ def parse_payload(device,server_time,payload,orion=None):
     def logmsg(msg, created):
         logger.debug('{}: {} {}. time={}'.format(msg.sensor.device, unicode(msg), 'added' if created else 'updated', msg.time ))
         if orion:
-            orion.update_message(msg)
+            orion.update_view(msg)
         
     if message_type == STATUS_MESSAGE:
 
