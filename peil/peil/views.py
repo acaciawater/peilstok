@@ -212,8 +212,17 @@ def to_csv(request):
         device = Device.objects.get(**query)
     except Exception as ex:
         return HttpResponseNotFound(str(ex))
-    return chart_as_csv(request,device.pk)
+    
+    data = util.get_chart_series(device)
+    data.dropna(inplace=True,how='all')
+    
+    # fill empty cells, first forward, then backwards
+    data = data.fillna(method='ffill').fillna(method='bfill')
 
+    resp = HttpResponse(data.to_csv(float_format='%.2f'), content_type='text/csv')
+    resp['Content-Disposition'] = 'attachment; filename=%s.csv' % slugify(unicode(device))
+    return resp
+    
 @gzip_page
 def data_as_json(request,pk):
     """ get raw sensor data as json array for highcharts """
