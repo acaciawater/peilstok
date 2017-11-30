@@ -218,7 +218,7 @@ def to_csv(request):
     data.dropna(inplace=True,how='all')
     
     # fill empty cells, first forward, then backwards
-    data = data.fillna(method='ffill').fillna(method='bfill')
+    data = data.fillna(method='ffill').fillna(method='bfill').sort_index(ascending=False)
     # add timestamp column in msec after 1/1/1970 (for highcharts)
     data['Timestamp']= data.index.astype(np.int64) // 10 ** 6
     resp = HttpResponse(data.to_csv(float_format='%.2f'), content_type='text/csv')
