@@ -52,7 +52,8 @@ class NGSI:
             t = arg
 
         if isinstance(t, datetime):
-            return {'type':'DateTime','value': t.isoformat()}
+            return {'type':'Text','value': t.strftime('%Y-%m-%d %H:%M:%S')}
+#            return {'type':'DateTime','value': t.isoformat()}
         else:
             raise ValueError('datetime expected')
 
@@ -140,6 +141,7 @@ class Orion:
         logger.debug('Updating entity "{}", attribute "{}"'.format(entity,attribute))
         response = self.update_value(entity, attribute, NGSI.value(msg))
         self.log_response(response)
+        self.update_attribute(entity,'lastSeen',NGSI.timestamp(msg))
         if attribute in ['airPressure','waterPressure']:
             attribute = 'waterLevel'
             level = last_waterlevel(msg.sensor.device)
@@ -158,6 +160,7 @@ class Orion:
         logger.debug('Updating entity "{}", attribute "{}", value "{}"'.format(entity,attribute,value))
         response = self.update_attribute(entity, attribute, {'value': value})
         self.log_response(response)
+        self.update_attribute(entity,'lastSeen',NGSI.timestamp(msg))
         if attribute in ['airPressure','waterPressure']:
             attribute = 'waterLevel'
             level = last_waterlevel(msg.sensor.device)
@@ -174,7 +177,8 @@ class Orion:
             'type': 'Peilstok',
             'displayName': {
                 'value': device.displayname
-            }
+            },
+            'lastSeen': NGSI.timestamp(device.last_seen)
         }
 
         pos = device.current_location()
@@ -228,6 +232,7 @@ class Orion:
             data.update(NGSI.lora_message(ec,ec.value(),'Float','mS/cm'))
 
         logger.debug('Creating entity {}'.format(device.devid))
+
         response = self.create_entity(data)
         self.log_response(response)
         if response.ok:
@@ -242,7 +247,8 @@ class Orion:
             'type': 'PeilstokView',
             'displayName': {
                 'value': device.displayname
-            }
+            },
+            'lastSeen': NGSI.timestamp(device.last_seen)
         }
 
         pos = device.current_location()
