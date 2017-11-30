@@ -217,8 +217,7 @@ def to_csv(request):
     data.dropna(inplace=True,how='all')
     
     # fill empty cells, first forward, then backwards
-    data = data.fillna(method='ffill').fillna(method='bfill')
-
+    data = data.fillna(method='ffill').fillna(method='bfill').sort_index(ascending=False)
     resp = HttpResponse(data.to_csv(float_format='%.2f'), content_type='text/csv')
     resp['Content-Disposition'] = 'attachment; filename=%s.csv' % slugify(unicode(device))
     return resp
