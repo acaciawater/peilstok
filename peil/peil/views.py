@@ -13,6 +13,7 @@ from django.conf import settings
 
 import re, time
 import simplejson as json # allows for NaN conversion
+import numpy as np
 from peil.models import Device, UBXFile, RTKSolution, Photo
 from peil import util
 
@@ -217,7 +218,9 @@ def to_csv(request):
     data.dropna(inplace=True,how='all')
     
     # fill empty cells, first forward, then backwards
-    data = data.fillna(method='ffill').fillna(method='bfill').sort_index(ascending=False)
+    data = data.fillna(method='ffill').fillna(method='bfill')
+    # add timestamp column in msec after 1/1/1970 (for highcharts)
+    data['Timestamp']= data.index.astype(np.int64) // 10 ** 6
     resp = HttpResponse(data.to_csv(float_format='%.2f'), content_type='text/csv')
     resp['Content-Disposition'] = 'attachment; filename=%s.csv' % slugify(unicode(device))
     return resp
