@@ -89,6 +89,7 @@ def kpn(request):
     """ handle post data from KPN server and update database """
     if request.method == 'POST':
         try:
+            logger.debug('KPN Post received')
             data = request.body
             return util.handle_kpn_post_data(data)
         except:
@@ -101,6 +102,7 @@ def ttn(request):
     """ handle post data from TTN server and update database """
     if request.method == 'POST':
         try:
+            logger.debug('TTN Post received')
             data = json.loads(request.body)
             return util.handle_post_data(data)
         except:
