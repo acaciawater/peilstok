@@ -123,10 +123,11 @@ def last_waterlevel(device, hours=2):
             if ap and wp:
                 air = aps.value(ap)
                 water = wps.value(wp)
-                level = (water - air) / 0.980638 # convert hPa to cm water column
-                z = wps.elevation()
-                nap = None if z is None else level/100 + z
-                return {'time': wp.time, 'cm': level, 'nap': nap}
+                if air and water:
+                    level = (water - air) / 0.980638 # convert hPa to cm water column
+                    z = wps.elevation()
+                    nap = None if z is None else level/100 + z
+                    return {'time': wp.time, 'cm': level, 'nap': nap}
     return {}
 
 def last_ec(device):
