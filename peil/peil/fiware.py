@@ -240,8 +240,8 @@ class Orion:
             data.update(NGSI.lora_message(wat,wat.value(),'Float','hPa'))        
         
         level = last_waterlevel(device)
-        level['name'] = 'waterLevel'
-        if level:
+        if 'cm' in level:
+            level['name'] = 'waterLevel'
             data.update(NGSI.lora_message(level,level['cm'],'Float','cm'))
 
         ec = device.get_sensor('EC1',position=1).last_message() 
