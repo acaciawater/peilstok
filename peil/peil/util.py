@@ -287,6 +287,7 @@ def parse_kpn(xml):
         time = tree.find('lora:Time',ns).text
         time = parse_datetime(time)
         hex = tree.find('lora:payload_hex',ns).text 
+        payload = decode(hex)
     except Exception as e:
         logger.error('Error parsing payload {}\n{}'.format(xml,e))
         raise e
@@ -312,7 +313,6 @@ def parse_kpn(xml):
             if orion:
                 orion.create_device(device)
 
-        payload = decode(hex)
         mod, created, updated = parse_payload(device, time, payload, orion)
 
         return payload, True, False
