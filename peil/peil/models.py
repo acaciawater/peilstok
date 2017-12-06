@@ -47,10 +47,10 @@ class Device(models.Model):
     serial = models.CharField(max_length=20,verbose_name='MAC-adres')
     
     """ identification of device """
-    devid = models.CharField(max_length=20,verbose_name='identificatie')
+    devid = models.CharField(max_length=40,verbose_name='identificatie')
     
     """ displayed name of device """
-    displayname = models.CharField(max_length=20,verbose_name = 'naam')
+    displayname = models.CharField(max_length=40,verbose_name = 'naam')
     
     # date/time created
     created = models.DateTimeField(auto_now_add = True, verbose_name='Geregistreerd')
@@ -100,20 +100,27 @@ class Device(models.Model):
     def battery_status(self):
         from peil import util
         sensor = self.get_sensor('Batterij',position=0)
-        level = sensor.value(sensor.last_message())
-        return util.battery_status(level)
-
+        if sensor:
+            msg = sensor.last_message()
+            if msg:
+                level = sensor.value(msg)
+                return util.battery_status(level)
+        return None
+    
     def battery_level(self):
         status = self.battery_status()
         return status['level']
 
     def battery_icon(self):
         status = self.battery_status()
-        return status['icon']
+        return status['icon'] if status else None
 
     def battery_tag(self):
         bat = self.battery_status()
-        return '<img style="height:24px;" src="{}" title="level {}%"></img>'.format(bat['icon'],bat['level'])
+        if bat:
+            return '<img style="height:24px;" src="{}" title="level {}%"></img>'.format(bat['icon'],bat['level'])
+        else:
+            return None
 
     battery_tag.allow_tags=True
     battery_tag.short_description='Batterij'

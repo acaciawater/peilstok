@@ -83,6 +83,18 @@ class PopupView(DetailView):
         except:
             pass
         return context
+
+@csrf_exempt
+def kpn(request):
+    """ handle post data from KPN server and update database """
+    if request.method == 'POST':
+        try:
+            data = request.body
+            return util.handle_kpn_post_data(data)
+        except:
+            logger.exception('Cannot parse POST data')
+            return HttpResponseServerError(reason='Error parsing POST data')
+    return HttpResponseBadRequest()
     
 @csrf_exempt
 def ttn(request):

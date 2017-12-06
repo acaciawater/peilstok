@@ -134,6 +134,27 @@ class Orion:
         path = 'entities/{id}/attrs/{att}/value'.format(id=entity_id,att=attribute_name)
         return self.put(path,json.dumps(data))
 
+    def subscribe(self,data):
+        return self.post('subscriptions',json.dumps(data))
+        
+    def subscribe_device(self, url, device):
+        ''' subscribe to any change of device '''
+        data = {
+            'subject': {
+                'entities': [{'id': device.devid, 'type': 'Peilstok'}],
+            },
+            'notification': {
+                'http': {
+                    'url': url
+                },
+            },
+            'expires' : '2040-01-01T12:00:00.00Z',
+            #'throttling': 5
+        }
+        response = self.subscribe(data)
+        response.raise_for_status()
+        return response.headers['Location']
+    
     def update_message(self, msg):
         ''' update value of attribute using LoraMessage msg '''
         entity = NGSI.entity(msg)
@@ -300,3 +321,4 @@ class Orion:
         response = self.create_entity(data)
         return self.log_response(response)
     
+        

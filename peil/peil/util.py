@@ -12,6 +12,8 @@ from .models import Device, GNSS_MESSAGE, EC_MESSAGE, STATUS_MESSAGE, PRESSURE_M
 from peil.models import PressureSensor,PressureMessage, GNSS_Sensor, BatterySensor, StatusMessage, \
     AngleSensor, InclinationMessage, LocationMessage, ECSensor, ECMessage, UBXFile
 from datetime import timedelta
+from peil.sensor import create_sensors
+from peil.decoder import decode
 
 logger = logging.getLogger(__name__)
 
@@ -274,6 +276,56 @@ def handle_post_data(json):
     except Exception as e:
         return HttpResponseServerError(e)
 
+def parse_kpn(xml):
+    """ parse xml pushed from kpn server """
+    import xml.etree.ElementTree as ET
+    try:
+        ns = {'lora':'http://uri.actility.com/lora'}
+        tree = ET.fromstring(xml)
+        serial = tree.find('lora:DevEUI',ns).text
+        time = tree.find('lora:Time',ns).text
+        time = parse_datetime(time)
+        hex = tree.find('lora:payload_hex',ns).text 
+    except Exception as e:
+        logger.error('Error parsing payload {}\n{}'.format(xml,e))
+        raise e
+
+    try:
+        if settings.USE_ORION:
+            from peil.fiware import Orion
+            orion = Orion(settings.ORION_URL)
+        else:
+            orion = None
+
+        device, created = Device.objects.get_or_create(serial=serial,defaults={
+            'devid': 'peilstok{}'.format(serial),
+            'displayname':'Peilstok_{}'.format(serial),
+            'last_seen': time})
+
+        if not created:
+            device.last_seen=time
+            device.save()
+        else:
+            logger.debug('device {} created'.format(unicode(device)))
+            create_sensors(device)
+            if orion:
+                orion.create_device(device)
+
+        payload = decode(hex)
+        mod, created, updated = parse_payload(device, time, payload, orion)
+
+        return payload, True, False
+    except Exception as e:
+        logger.exception('Error parsing payload: {}'.format(payload))
+        raise e
+    
+def handle_kpn_post_data(json):
+    try:
+        mod, created, updated = parse_kpn(json)
+        return HttpResponse(unicode(mod),status=201)
+    except Exception as e:
+        return HttpResponseServerError(e)
+
 def handle_post_data_async(json):
     # start background process that handles post data from TTN server
     from threading import Thread
@@ -475,3 +527,8 @@ def get_ephemeres_files(time, types = ['clk','sp3','erp'], products='sru'):
             files.append(local_file)
             break
     return files
+
+# if __name__ == '__main__':
+#     with open('/home/theo/git/peil/peil/peil/kpnpost.xml') as f:
+#         xml = f.read()
+#         parse_kpn(xml) 

@@ -19,7 +19,7 @@ from tastypie.api import Api
 from .views import ttn, ubx
 from peil.views import DeviceListView, MapView, json_locations,\
     PopupView, PeilView, chart_as_json, data_as_json, DeviceDetailView,\
-    chart_as_csv, data_as_csv, PhotoView, PostView, select_photo, to_csv
+    chart_as_csv, data_as_csv, PhotoView, PostView, select_photo, to_csv, kpn
 from django.views.decorators.cache import cache_page
 from peil.api import DeviceResource, SensorResource, MessageResource,\
     BatteryResource
@@ -34,6 +34,7 @@ urlpatterns = [
     url(r'^$', MapView.as_view(), name='home'),
     url(r'^admin/', admin.site.urls),
     url(r'^ttn/', ttn),
+    url(r'^kpn', kpn),
     url(r'^ubx/', ubx),
     url(r'^map/', MapView.as_view(), name='device-map'),
     url(r'^chart/(?P<pk>\d+)/data/csv', chart_as_csv, name='chart-csv'),
