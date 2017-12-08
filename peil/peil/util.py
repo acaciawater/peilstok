@@ -285,8 +285,11 @@ def parse_kpn(xml):
         tree = ET.fromstring(xml)
         serial = tree.find('lora:DevEUI',ns).text
         time = tree.find('lora:Time',ns).text
+        hex = tree.find('lora:payload_hex',ns).text
+        
+        logger.debug('KPN Post: time={}, serial={}, payload={}'.format(time,serial,hex)) 
+
         time = parse_datetime(time)
-        hex = tree.find('lora:payload_hex',ns).text 
         payload = decode(hex)
     except Exception as e:
         logger.error('Error parsing payload {}\n{}'.format(xml,e))
