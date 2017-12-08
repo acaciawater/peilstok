@@ -166,9 +166,11 @@ class Orion:
         if attribute in ['airPressure','waterPressure']:
             attribute = 'waterLevel'
             level = last_waterlevel(msg.sensor.device)
-            logger.debug('Updating entity "{}", attribute "{}"'.format(entity,attribute))
-            response2 = self.update_value(entity, attribute, {'value': level['nap'],'timestamp': NGSI.timestamp(level['time'])})
-            self.log_response(response2)
+            if 'nap' in level:
+                value = level['nap']
+                logger.debug('Updating entity "{}", attribute "{}", value "{}"'.format(entity,attribute,value))
+                response2 = self.update_value(entity, attribute, {'value': level['nap'],'timestamp': NGSI.timestamp(level['time'])})
+                self.log_response(response2)
         if response.ok:
             response = self.update_view(msg)
         return response
@@ -185,10 +187,11 @@ class Orion:
         if attribute in ['airPressure','waterPressure']:
             attribute = 'waterLevel'
             level = last_waterlevel(msg.sensor.device)
-            value = level['nap']
-            logger.debug('Updating entity "{}", attribute "{}", value "{}"'.format(entity,attribute,value))
-            response = self.update_attribute(entity, attribute, {'value': value})
-            self.log_response(response)
+            if 'nap' in level:
+                value = level['nap']
+                logger.debug('Updating entity "{}", attribute "{}", value "{}"'.format(entity,attribute,value))
+                response = self.update_attribute(entity, attribute, {'value': value})
+                self.log_response(response)
         return response
     
     def create_device(self, device):
