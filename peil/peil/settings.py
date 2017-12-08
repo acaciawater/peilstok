@@ -43,6 +43,9 @@ INSTALLED_APPS = [
     'django_extensions', # for debugging ssl with runserver_plus
     'django_redis',
     'debug_toolbar',
+    'acacia.data',
+    'acacia.data.knmi',
+    'acacia'
 ]
 
 MIDDLEWARE = [
@@ -143,6 +146,8 @@ GNSS_ROOT = os.path.join(BASE_DIR, 'media','gnss')
 USE_ORION = True
 ORION_URL = 'http://fiware.acaciadata.com:1026/v2/'
 
+UPLOAD_DATAFILES = 'datafiles'
+
 # Logging
 LOGGING_ROOT = os.path.join(BASE_DIR, 'logs')
 LOGGING = {
@@ -153,6 +158,15 @@ LOGGING = {
             'level': 'DEBUG',
             'class': 'logging.handlers.TimedRotatingFileHandler',
             'filename': os.path.join(LOGGING_ROOT, 'peil.log'),
+            'when': 'D',
+            'interval': 1, # every day a new file
+            'backupCount': 0,
+            'formatter': 'default'
+        },
+        'acacia': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': os.path.join(LOGGING_ROOT, 'acacia.log'),
             'when': 'D',
             'interval': 1, # every day a new file
             'backupCount': 0,
@@ -191,6 +205,11 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': True,
         },
+        'acacia': {
+            'handlers': ['acacia',],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
         'peil': {
             'handlers': ['file',],
             'level': 'DEBUG',
@@ -204,7 +223,7 @@ LOGGING = {
         'peil.fiware': {
             'handlers': ['fiware',],
             'level': 'DEBUG',
-            'propagate': True,
+            'propagate': False,
         },
     },
 }

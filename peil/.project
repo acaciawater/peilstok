@@ -3,6 +3,7 @@
 	<name>peil</name>
 	<comment></comment>
 	<projects>
+		<project>acacia</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

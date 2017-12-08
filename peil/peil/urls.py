@@ -36,6 +36,7 @@ urlpatterns = [
     url(r'^ttn/', ttn),
     url(r'^kpn', kpn),
     url(r'^ubx/', ubx),
+    url(r'^data/', include('acacia.data.urls',namespace='acacia')),
     url(r'^map/', MapView.as_view(), name='device-map'),
     url(r'^chart/(?P<pk>\d+)/data/csv', chart_as_csv, name='chart-csv'),
     url(r'^csv', to_csv, name='to-csv'),
