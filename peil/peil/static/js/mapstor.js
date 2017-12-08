@@ -149,9 +149,9 @@ function addMarkerGroup(map) {
  * @returns the map
  */
 function initMap(div) {
-	var osm = L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+	var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 		maxZoom: 19,
- 		attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+ 		attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 	});
 	
 	var roads = L.gridLayer.googleMutant({
@@ -162,36 +162,36 @@ function initMap(div) {
 	    type: 'satellite' // valid values are 'roadmap', 'satellite', 'terrain' and 'hybrid'
 	});
 	
-	var topo = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+	var topo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
 		attribution: 'Tiles &copy; Esri'
 	});
 	
-	var imagery = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+	var imagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
 		attribution: 'Tiles &copy; Esri'
 	});
 	
-	var bodemkaart = L.tileLayer.wms('http://geodata.nationaalgeoregister.nl/bodemkaart50000/wms', {
+	var bodemkaart = L.tileLayer.wms('https://geodata.nationaalgeoregister.nl/bodemkaart50000/wms', {
 		layers: 'bodemkaart50000',
 		format: 'image/png',
 		srs: 'EPSG:3857',
 		opacity: 0.4
 	});
 
-	var ahn25 = L.tileLayer.wms('http://geodata.nationaalgeoregister.nl/ahn2/wms', {
+	var ahn25 = L.tileLayer.wms('https://geodata.nationaalgeoregister.nl/ahn2/wms', {
 		layers: 'ahn2_5m',
 		format: 'image/png',
 		srs: 'EPSG:3857',
 		opacity: 0.4
 	});
 
-	var ahn205 = L.tileLayer.wms('http://geodata.nationaalgeoregister.nl/ahn2/wms', {
+	var ahn205 = L.tileLayer.wms('https://geodata.nationaalgeoregister.nl/ahn2/wms', {
 		layers: 'ahn2_05m_non',
 		format: 'image/png',
 		srs: 'EPSG:3857',
 		opacity: 0.4
 	});
 					
-	var waterlopen = L.tileLayer.wms('http://maps.acaciadata.com/geoserver/HHNK/wms', {
+	var waterlopen = L.tileLayer.wms('https://maps.acaciadata.com/geoserver/HHNK/wms', {
 	layers: 'HHNK:waterlopen_texel',
 	attribution: '&copy; <a href="https://www.hhnk.nl">hhnk.nl</a>',
 	format: 'image/png',
