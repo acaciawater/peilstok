@@ -25,6 +25,8 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
+from acacia.data.models import Series
+import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -205,8 +207,16 @@ def chart_as_json(request,pk):
     data = {'EC1': zip(pts.index,pts['EC1']),        
             'EC2': zip(pts.index,pts['EC2']),
             'NAP': zip(pts.index,pts['Waterpeil']),
-            'H': zip(pts.index,pts['Waterhoogte'])
+            'H': zip(pts.index,pts['Waterhoogte']),
             }
+    try:
+        tide = Series.objects.get(name='Getij')
+        start = pts.index[0]
+        stop = pts.index[-1]
+        getij = tide.to_array(start=start,stop=stop)
+        data['Getij'] = getij
+    except Exception as e:
+        pass
     return HttpResponse(json.dumps(data, ignore_nan = True, default=lambda x: time.mktime(x.timetuple())*1000.0), content_type='application/json')
 
 @gzip_page
@@ -306,10 +316,12 @@ class PeilView(LoginRequiredMixin, NavDetailView):
                       {'title': {'text': 'Peil (m NAP)'},'opposite': 1},
 #                      {'title': {'text': 'Hoogte (cm)'},'opposite': 1},
                       ],
-            'series': [{'name': 'EC ondiep', 'id': 'EC1', 'yAxis': 0, 'data': [], 'tooltip': {'valueSuffix': ' mS/cm'}},
+            'series': [
+                        {'name': 'EC ondiep', 'id': 'EC1', 'yAxis': 0, 'data': [], 'tooltip': {'valueSuffix': ' mS/cm'}},
                         {'name': 'EC diep ', 'id': 'EC2', 'yAxis': 0, 'data': [], 'tooltip': {'valueSuffix': ' mS/cm'}},
                         {'name': 'Waterpeil', 'id': 'NAP', 'yAxis': 1, 'data': [], 'tooltip': {'valueSuffix': ' m NAP'}},
 #                        {'name': 'Waterhoogte', 'id': 'H', 'yAxis': 2, 'data': [], 'tooltip': {'valueSuffix': ' cm'}},
+                        {'name': 'Getij', 'id': 'Getij', 'yAxis': 1, 'data': [], 'tooltip': {'valueSuffix': ' m NAP'}, 'zIndex': -1},
                         ]
                    }
 
@@ -334,6 +346,88 @@ class PeilView(LoginRequiredMixin, NavDetailView):
         context['options2'] = json.dumps(options,default=lambda x: time.mktime(x.timetuple())*1000.0)
         return context
     
+class PeilView2(LoginRequiredMixin, NavDetailView):
+    """ Shows calibrated  sensor values """
+    model = Device
+    template_name = 'peil/chart2.html'
+
+    def get_context_data(self, **kwargs):
+        context = super(PeilView2, self).get_context_data(**kwargs)
+        device = self.get_object()
+                
+        options = {
+            'chart': {'type': 'line', 
+                      'animation': False, 
+                      'zoomType': 'x',
+                      'events': {'load': None},
+                      'marginLeft': 60, 
+                      'marginRight': 80,
+                      'spacingTop': 20,
+                      'spacingBottom': 20
+                      },
+            'title': {'text': 'Geleidbaarheid '+unicode(device)},
+            'xAxis': {'type': 'datetime',
+                      'crosshair': True,
+                      'events': {'setExtremes': None},
+                      },
+            'legend': {'enabled': True},
+            'tooltip': {'shared': True, 'xDateFormat': '%a %d %B %Y %H:%M:%S', 'valueDecimals': 2},
+            'plotOptions': {'line': {'connectNulls': True, 'marker': {'enabled': False}}},            
+            'credits': {'enabled': True, 
+                        'text': 'acaciawater.com', 
+                        'href': 'http://www.acaciawater.com',
+                       },
+            'yAxis': [{'title': {'text': 'EC (mS/cm)'}}],
+            'series': [
+                        {'name': 'EC ondiep', 'id': 'EC1', 'data': [], 'tooltip': {'valueSuffix': ' mS/cm'}},
+                        {'name': 'EC diep ', 'id': 'EC2', 'data': [], 'tooltip': {'valueSuffix': ' mS/cm'}},
+                        ]
+                   }
+
+        context['options1'] = json.dumps(options,default=lambda x: time.mktime(x.timetuple())*1000.0)
+
+        ec1 = device.get_sensor('EC1',position=1).elevation()
+        ec2 = device.get_sensor('EC2',position=2).elevation()
+        
+        options.update({
+            'title': {'text': 'Waterstand '+unicode(device)},
+            'yAxis': [
+                {'title': {'text': 'Peil (m NAP)'},
+                'plotLines': [
+                    {
+                     'value': ec1,
+                     'zIndex': 998,
+                     'color': 'green',
+                     'dashStyle': 'shortdash',
+                     'width': 1,
+                     'label': {
+                         'text': 'ondiepe EC sensor',
+                         'style': {'color': 'green'}
+                     }
+                    },
+                    {
+                     'value': ec2,
+                     'zIndex': 999,
+                     'color': 'red',
+                     'dashStyle': 'shortdash',
+                     'width': 1,
+                     'label': {
+                         'text': 'diepe EC sensor',
+                         'style': {'color': 'red'}
+                     }
+                    }]},
+                                            
+            ],
+            'series': [
+                        {'name': 'Waterpeil', 'id': 'NAP', 'data': [], 'tooltip': {'valueSuffix': ' m NAP'}},
+                        {'name': 'Getij', 'id': 'Getij', 'visible': False, 'data': [], 'lineWidth': 1, 'tooltip': {'valueSuffix': ' m NAP'}, 'zIndex': -1},
+                        {'name': 'ec1', 'showInLegend': False, 'type': 'scatter', 'marker': {'enabled': False}, 'data': [(datetime.datetime.now(),ec1)]},
+                        {'name': 'ec2', 'showInLegend': False, 'type': 'scatter', 'marker': {'enabled': False}, 'data': [(datetime.datetime.now(),ec2)]}
+                        ]
+                   })
+        context['options2'] = json.dumps(options,default=lambda x: time.mktime(x.timetuple())*1000.0)
+        return context
+
 class PostView(StaffRequiredMixin,NavDetailView):
     model = Device
     template_name = 'peil/post.html'

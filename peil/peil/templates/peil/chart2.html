@@ -1,0 +1,212 @@
+{% extends 'peil/base.html' %}
+{% block title%}PHZD - grafiek {{object}} {% endblock %}
+{% block navbar %} 
+<ul class="nav navbar-nav">
+  <li><a href="{% url 'device-map' %}" title="Toon {{object}} op de kaart">Kaart</a></li>
+  {% if request.user.is_staff %}
+  <li><a href="{% url 'device-detail' object.id %}" title="Toon details van {{object}}">Details</a></li>
+  <li><a href="{% url 'device-photos' object.id %}" title="Toon fotos van {{object}}">Fotos</a></li>
+  {% endif %}
+</ul>
+{% endblock navbar %}
+
+{% block navbar-right %}
+{% if nav.prev %}
+<li><a href="{%url 'chart-detail' nav.prev.id %}" title="Toon grafiek van {{nav.prev|title}}">{{nav.prev|title}}</a></li>
+{% endif %}
+{% if nav.next %}
+<li><a href="{%url 'chart-detail' nav.next.id %}" title="Toon grafiek van {{nav.next|title}}">{{nav.next|title}}</a></li>
+{% endif %}
+{% endblock %}
+{% block script %}
+{{ block.super }}
+<script src="//code.highcharts.com/highcharts.js"></script>
+<script src="//code.highcharts.com/modules/exporting.js"></script>
+<script src="//code.highcharts.com/modules/offline-exporting.js"></script>
+<script>
+
+Highcharts.setOptions({
+  lang: {
+  	shortMonths : ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dec"],
+	months: ["Januari", "Februari", "Maart", "April", "Mei", "Juni",  "Juli", "Augustus", "September", "Oktober", "November", "December"],
+	weekdays: ["Zondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag"],
+	printChart: "Afdrukken",
+	downloadJPEG: "Download als JPG",
+	downloadPNG: "Download als PNG",
+	downloadPDF: "Download als PDF",
+	downloadSVG: "Download als SVG",
+  },
+  global: { useUTC: false }
+});
+
+/***
+ * set extremes of chart 2 to chart 1
+ */
+function syncCharts(chart1, chart2) {
+	var e = chart1.getExtremes();
+	chart2.setExtremes(e.min,e.max);
+}
+
+function fetchSeries(divs, url) {
+
+	var charts = [];
+	for(var i=0;i<divs.length;i++) {
+		charts.push($(divs[i]).highcharts());
+	}
+    
+	$.ajax({
+	    url: url,
+	    datatype: "json",
+	    beforeSend: function(hdr) {
+		  	for(var i=0;i<charts.length;i++) { 
+	    		charts[i].showLoading("Gegevens ophalen...");
+		  	}
+	    	return true;
+	    },
+	    success: function(data) {
+		  	$.each(data,function(key,values) {
+			  	for(var i=0;i<charts.length;i++) { 
+			  		var series = charts[i].get(key);
+			  		if (series) {
+						series.setData(values);
+						break;
+			  		}
+			  	}
+		  	});
+	    },
+	    error: function(hdr,status,errorThrown) {
+	    	//alert("Fout tijdens laden van tijdreeks: " + errorThrown);
+	    },
+	    complete: function(hdr, status) {
+		  	for(var i=0;i<charts.length;i++) {
+		    	charts[i].hideLoading();
+	    	}
+	    }
+    });
+}
+
+/**
+ * In order to synchronize tooltips and crosshairs, override the
+ * built-in events with handlers defined on the parent element.
+ */
+function bindCharts() {
+	$('#container').bind('mousemove touchmove touchstart', function (e) {
+	    var chart,
+	        point,
+	        i,
+	        event;
+	
+	    for (i = 0; i < Highcharts.charts.length; i = i + 1) {
+	        chart = Highcharts.charts[i];
+	        event = chart.pointer.normalize(e.originalEvent); // Find coordinates within the chart
+	        point = chart.series[0].searchPoint(event, true); // Get the hovered point
+	
+	        if (point) {
+	            point.highlight(e);
+	        }
+	    }
+	});
+}
+  
+/**
+ * Override the reset function, we don't need to hide the tooltips and crosshairs.
+ */
+Highcharts.Pointer.prototype.reset = function () {
+    return undefined;
+};
+
+/**
+ * Highlight a point by showing tooltip, setting hover state and draw crosshair
+ */
+Highcharts.Point.prototype.highlight = function (event) {
+    this.onMouseOver(); // Show the hover marker
+    this.series.chart.tooltip.refresh(this); // Show the tooltip
+    this.series.chart.xAxis[0].drawCrosshair(event, this); // Show the crosshair
+};
+
+/**
+ * Synchronize zooming through the setExtremes event handler.
+ */
+function syncExtremes(e) {
+    var thisChart = this.chart;
+
+    if (e.trigger !== 'syncExtremes') { // Prevent feedback loop
+        Highcharts.each(Highcharts.charts, function (chart) {
+            if (chart !== thisChart) {
+                if (chart.xAxis[0].setExtremes) { // It is null while updating
+                    chart.xAxis[0].setExtremes(e.min, e.max, undefined, false, { trigger: 'syncExtremes' });
+                }
+            }
+        });
+    }
+}
+
+
+$(function () {
+	  var opt1 = {{options1|safe}};
+	  opt1.chart.events.load = function() {
+		  fetchSeries(['#chart1', '#chart2'], "{% url 'chart-json' object.id %}");
+	  };
+	  opt1.xAxis.events.setExtremes = syncExtremes;
+	  opt1.exporting = {
+	        buttons: {
+	            contextButton: {
+	                menuItems: [{
+	                    text: 'Download figuur',
+	                    onclick: function () {
+	                        this.exportChart();
+	                    }
+	                }, {
+	                    text: 'Download gegevens',
+	                    onclick: function () {
+	            			window.location="{% url 'chart-csv' object.id %}";
+	                    },
+	                    separator: false
+	                }]
+	            }
+	        }
+	  };
+
+	  var opt2 = {{options2|safe}};
+	  opt2.xAxis.events = opt1.xAxis.events;
+	  opt2.exporting = {
+	       buttons: {
+	           contextButton: {
+	               menuItems: [{
+	                   text: 'Download figuur',
+	                   onclick: function () {
+	                       this.exportChart();
+	                   }
+	               }, {
+	                   text: 'Download gegevens',
+	                   onclick: function () {
+	           			window.location="{% url 'chart-csv' object.id %}";
+	                   },
+	                   separator: false
+	               }]
+	           }
+	       }
+	   };
+	   $('<div id=chart2 class=chart>').appendTo('#container').highcharts(opt2);
+	   $('<div id=chart1 class=chart>').appendTo('#container').highcharts(opt1);
+
+	  //setTimeout(bindCharts,500);	  
+});
+
+</script>
+{% endblock %}
+
+{% block style %}
+{{block.super}}
+<style>
+.chart {
+  width: 90%;
+  height: 380 px;
+  margin: 0 auto;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="container" class="container-fluid"></div>
+{% endblock %}
