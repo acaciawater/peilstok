@@ -353,10 +353,8 @@ class ECSensor(Sensor):
         emin,emax = json.loads(self.ec_range)
         min1,max1 = json.loads(self.adc1_limits)
         min2,max2 = json.loads(self.adc2_limits)
-        sign = ''
         if adc1 >= max1:
             # out of range, dry?
-            sign = '<'
             ec = None
         else:
             if adc1 >= min1:
@@ -380,15 +378,18 @@ class ECSensor(Sensor):
                 ec = (ec1*w1 + ec2*w2)/sumw
             else:
                 ec = None
-        return sign, ec * 1e-3 if ec else None# to mS/cm
+        return ec * 1e-3 if ec else None# to mS/cm
 
     def EC25(self,adc1,adc2,temp):
-        sign,ec = self.EC(adc1,adc2)
-        if sign:
-            return ec
-        else:
-            return ec * (1.0 + (25.0 - temp/100.0) * self.tempfactor) if ec else None
-
+        ec = self.EC(adc1,adc2)
+        if ec:
+            emin,emax = json.loads(self.ec_range)
+            ec25 = ec * (1.0 + (25.0 - temp/100.0) * self.tempfactor)
+            ec25 = max(emin/1000,ec25)
+            ec25 = min(emax/1000,ec25)
+            return ec25
+        return None
+    
     def value(self, m):
         ec = self.EC25(m.adc1, m.adc2, m.temperature)
         return rounds(ec,3) if ec else None # 3 significant digits
