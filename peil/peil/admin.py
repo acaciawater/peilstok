@@ -4,7 +4,8 @@ from peil.models import Device, Sensor,\
     BatterySensor, AngleSensor, LoraMessage, ECMessage, PressureMessage,\
     InclinationMessage, StatusMessage, LocationMessage, GNSS_Sensor, Survey,\
     Photo, NavPVT, RTKSolution
-from peil.actions import create_pvts, rtkpost, gpson, postdevice, to_orion
+from peil.actions import create_pvts, rtkpost, gpson, postdevice, to_orion,\
+    create_manuals
 from peil.sensor import create_sensors, load_offsets,\
     load_distance, load_survey
 from polymorphic.admin import PolymorphicChildModelFilter, PolymorphicChildModelAdmin, PolymorphicParentModelAdmin
@@ -30,7 +31,7 @@ def test_ecsensors(modeladmin, request, queryset):
     from .models import rounds
     for s in queryset:
         for raw1,raw2, e in zip(x1,x2,ec):
-            print raw1, raw2, rounds(e/1000.0,3), rounds(s.EC(raw1,raw2)[1],3)
+            print raw1, raw2, rounds(e/1000.0,3), rounds(s.EC(raw1,raw2),3)
 
 
 class PhotoInline(AdminImageMixin, admin.TabularInline):
@@ -43,7 +44,7 @@ class DeviceAdmin(admin.ModelAdmin):
     list_display = ('displayname', 'serial', 'devid', 'last_seen', 'battery_tag')
     list_filter = ('displayname',)
     fields = ('devid', 'serial', 'displayname', 'length')
-    actions=[gpson,postdevice,to_orion]
+    actions=[gpson,postdevice,to_orion,create_manuals]
     inlines = [PhotoInline]
 
 @admin.register(Sensor)

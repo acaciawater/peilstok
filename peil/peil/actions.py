@@ -1,6 +1,45 @@
 from django.conf import settings
 from django.contrib import messages
+from acacia.data.models import ProjectLocatie, ManualSeries
+from django.contrib.gis.geos.point import Point
+from acacia.data.util import WGS84
 
+def create_manuals(modeladmin, request, queryset):
+    ''' create meetlocaties and manual series for peilstokken '''
+    ploc = ProjectLocatie.objects.first()
+    numok =0
+    numerror=0
+    for device in queryset:
+        try:
+            loc = device.current_location()
+            mloc, created = ploc.meetlocatie_set.get_or_create(name = device.displayname, defaults = {
+                'description': 'devid={}, serial={}'. format(device.devid, device.serial),
+                'location': Point(x=loc['lon'], y=loc['lat'],srid=WGS84), 
+                })
+            ec1,created = ManualSeries.objects.get_or_create(mlocatie=mloc,name='ECondiep', defaults = {
+                'unit': 'mS/cm',
+                'type': 'scatter',
+                'timezone': 'Europe/Amsterdam',
+                'user': request.user,
+                })
+            ec2,created = ManualSeries.objects.get_or_create(mlocatie=mloc,name='ECdiep', defaults = {
+                'unit': 'mS/cm',
+                'type': 'scatter',
+                'timezone': 'Europe/Amsterdam',
+                'user': request.user,
+                })
+            level,created = ManualSeries.objects.get_or_create(mlocatie=mloc,name='Waterstand', defaults = {
+                'unit': 'm',
+                'type': 'scatter',
+                'timezone': 'Europe/Amsterdam',
+                'user': request.user,
+                })
+            numok += 1
+        except:
+            numerror += 1
+            pass
+create_manuals.short_description='Handpeilingen aanmaken'
+        
 def create_pvts(modeladmin, request, queryset):
     '''Create pvty messages from ubx file '''
     for u in queryset:
