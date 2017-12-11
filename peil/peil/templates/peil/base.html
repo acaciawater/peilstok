@@ -6,71 +6,70 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-<!--  	<link href="{% static "img/favicon.ico" %}" rel="icon" type="image/x-ico" /> -->
-	<title>{% block title %}{{object.name}}{% endblock %}</title>
+ 	<link href="{% static "logoct.png" %}" rel="icon" type="image/x-ico" />
+	<title>{% block title %}Prins Hendrik Zanddijk{% endblock %}</title>
 	{% block script %}
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
-	<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
 	{% endblock %}
 	{% block style %}
-	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-		.navbar-nav > li > a {padding-top:5px !important; padding-bottom:5px !important;}
-		.navbar {min-height:32px !important;background: rgba(255,255,255,0.7);}		
-		body > .wrapper {padding-top: 52px;}
-		.nav > .breadcrumb {float: left; margin-top: 8px; padding-bottom: 0px;}
-    </style>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+	<style>
+	.navbar-nav > li > a {padding-top:2px !important; padding-bottom:2px !important;}
+	.navbar {	  
+	  padding-top: 0;
+	  padding-bottom: 0;
+	  min-height:32px !important;
+	  background-color: #0091d2;
+	 }		
+	nav > a > img {
+	  height: 48px;
+	}
+	
+	</style>
 	{% endblock %}
   </head>
 {% csrf_token %}
 <body>
-    <div class="wrapper">
-	<nav class="navbar navbar-default navbar-fixed-top" role="navigation">
-	  <div class="container-fluid">
-	    {% block navbar-header %}
-	    <div class="navbar-header">
-	      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
-	        <span class="sr-only">Toggle navigation</span>
-	        <span class="icon-bar"></span>
-	        <span class="icon-bar"></span>
-	        <span class="icon-bar"></span>
-	      </button>
-	      {% block brandname %}{% endblock brandname %}
-	    </div>
-	    {% endblock navbar-header %}
-	    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
-	      {% block navbar %} 
-	      <ul class="nav navbar-nav">
-	        <li><a href="https://www.hhnk.nl/prinshendrikzanddijk">Prins Hendrikzanddijk</a></li>
-	      </ul>
-	      {% endblock navbar %}
-	      {% block navbar-auth %}
-	      <ul class="nav navbar-nav navbar-right">
-	        {% block navbar-right %}{% endblock navbar-right %}
-	        {% if user.is_authenticated %}
-		        {% if user.is_staff %}
-			        <li><a href="{% block admin_url %}/admin/peil{% endblock admin_url %}">Beheer</a></li>
-			    {% endif %}
-		        <li class="dropdown">
-		          <a href="#" class="dropdown-toggle" data-toggle="dropdown">{% filter force_escape %}{% firstof user.first_name user.username %}{% endfilter %}
-		          <b class="caret"></b></a>
-		          <ul class="dropdown-menu">
-		            <li><a href="{% url 'auth_logout' %}">Uitloggen</a></li>
-		            <li><a href="{% url 'auth_password_change' %}">Wachtwoord veranderen</a></li>
-		          </ul>
-		        </li>
-          	{% else %}
-	        <li><a href="{% url 'auth_login' %}">Inloggen</a></li>
-          	{% endif %}
-	      </ul>
-	      {% endblock navbar-auth %}
-	    </div><!-- /.navbar-collapse -->
-	  </div><!-- /.container-fluid -->
-	</nav>
-    {% block content %}
-    {% endblock content %}
-	</div> <!-- wrapper -->
-    {% block footer %}
-    {% endblock footer %}
-  </body>
+<div class="wrapper">
+<nav class="navbar navbar-expand-lg navbar-dark">
+  <a class="navbar-brand" href="https://www.hhnk.nl/prinshendrikzanddijk"><img src="/static/logoct.png"></img></a>
+  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarTogglerDemo02" aria-controls="navbarTogglerDemo02" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <div class="collapse navbar-collapse" id="navbarTogglerDemo02">
+    <ul class="navbar-nav mr-auto mt-2 mt-lg-0">
+	 {% block navitems %}
+	 {% endblock navitems %}
+	</ul>
+    <ul class="nav navbar-nav ml-auto">
+        {% if user.is_authenticated %}
+	      <li class="nav-item dropdown">
+	        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="false" aria-expanded="false">
+		       {% filter force_escape %}{% firstof user.first_name user.username %}{% endfilter %}
+	        </a>
+	        <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+	          <a class="dropdown-item" href="{% url 'auth_logout' %}">Uitloggen</a>
+	          <a class="dropdown-item" href="{% url 'auth_password_change' %}">Wachtwoord veranderen</a>
+	        </div>
+	      </li>
+		{% if user.is_staff %}
+			<li class="nav-item">
+				<a class ="nav-link" href="{% block admin_url %}/admin/peil{% endblock admin_url %}">Beheer</a>
+			</li>
+    	{% endif %}
+		{% else %}
+			<li class="nav-item">
+		   		<a class="nav-link" href="{% url 'auth_login' %}">Inloggen</a> 
+			</li>
+		{% endif %}
+    </ul>
+  </div>
+</nav>
+{% block content %}
+{% endblock %}
+</div>
+</body>
 </html>

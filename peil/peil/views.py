@@ -27,9 +27,13 @@ from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from acacia.data.models import Series, MeetLocatie
 import datetime
+from django.views.generic.base import TemplateView
 
 logger = logging.getLogger(__name__)
 
+class HomePage(TemplateView):
+    template_name = 'peil/home.html'
+    
 class StaffRequiredMixin(object):
     @method_decorator(login_required)
     def dispatch(self, request, *args, **kwargs):
@@ -385,7 +389,8 @@ class PeilView2(LoginRequiredMixin, NavDetailView):
                       },
             'legend': {'enabled': True},
             'tooltip': {'shared': True, 'xDateFormat': '%a %d %B %Y %H:%M:%S', 'valueDecimals': 2},
-            'plotOptions': {'line': {'connectNulls': True, 'marker': {'enabled': False}}},            
+            'plotOptions': {'line': {'connectNulls': True, 'marker': {'enabled': True, 'radius': 2}},
+                            'scatter': {'marker': {'radius': 8}}},            
             'credits': {'enabled': True, 
                         'text': 'acaciawater.com', 
                         'href': 'http://www.acaciawater.com',
@@ -446,7 +451,14 @@ class PeilView2(LoginRequiredMixin, NavDetailView):
                         {'name': 'Handpeiling', 'id': 'NAP', 'data': stand, 'type': 'scatter', 'tooltip': {
                             'valueSuffix': ' m NAP',
                             'pointFormat': 'Tijdstip: {point.x:%a %d %B %Y %H:%M}<br/>Peil: <b>{point.y}</b><br/>'}},
-                        {'name': 'Getij', 'id': 'Getij', 'visible': False, 'data': [], 'lineWidth': 1, 'tooltip': {'valueSuffix': ' m NAP'}, 'zIndex': -1},
+                        {'name': 'Getij', 
+                         'id': 'Getij', 
+                         'visible': False, 
+                         'data': [], 
+                         'lineWidth': 1,
+                         'marker': {'enabled': False}, 
+                         'tooltip': {'valueSuffix': ' m NAP'}, 
+                         'zIndex': -1},
                         {'name': 'sensor1', 'showInLegend': False, 'type': 'scatter', 'marker': {'enabled': False}, 'data': [(datetime.datetime.now(),sensor1)]},
                         {'name': 'sensor2', 'showInLegend': False, 'type': 'scatter', 'marker': {'enabled': False}, 'data': [(datetime.datetime.now(),sensor2)]}
                         ]

@@ -7,6 +7,10 @@
 <link rel="stylesheet" href="//unpkg.com/leaflet.markercluster@1.0.5/dist/MarkerCluster.Default.css"/>
 <link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
 <link rel="stylesheet" href="/static/css/mapstor.css"/>
+<link rel="stylesheet" 
+	href="//maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" 
+	integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" 
+	crossorigin="anonymous">
 {% endblock %}
 {% block script %}
 {{ block.super }}
@@ -24,21 +28,32 @@ $(function() {
  	$("#list").height($("#map").height());
  	$("#list").sortable();
 });
-
 </script>
 {% endblock %}
+
+ {% block navitems %}
+    <li class="nav-item">
+      <a class="nav-link" href="/">Startpagina</a>
+    </li>
+    <li class="nav-item active">
+      <a class="nav-link" href="map">Kaart</a>
+    </li>
+ {% endblock navitems %}
+
 {% block content %}
 <div class="full adjust container-fluid">
-<div id="map" class="full col-lg-9"></div>
+<div class="full row row-fluid">
+<div id="map" class="full col-md-9"></div>
 {% block list %}
-<div id="list" class="list-group scroll col-lg-3">
-<a href="#" class="list-group-item active">Peilstokken<span id="badge" title="Aantal geregistreerde peilstokken" class="badge">{{object_list.count}}</a>
+<div id="list" class="list-group scroll col-md-3">
+<a href="#" class="list-group-item active" style="background-color:#0091d2; ">Peilstokken<span id="badge" title="Aantal geregistreerde peilstokken" class="badge badge-light pull-right">{{object_list.count}}</a>
 {% for device in object_list %}
-<a href="{% url 'chart-detail' device.id %}" class="list-group-item" onmouseover="showHilite({{device.id}});" onmouseleave="hideHilite();" ><span><img class="bullet" src='/static/bullet_ball_{{device.statuscolor}}.png'></img>{{device.displayname}}</span>
+<a href="{% url 'chart-detail' device.id %}" class="list-group-item" style="color:gray;" onmouseover="showHilite({{device.id}});" onmouseleave="hideHilite();" ><span><img class="bullet" src='/static/bullet_ball_{{device.statuscolor}}.png'></img>{{device.displayname}}</span>
 <div class='text-muted laatste' title="Laatst gezien"><small>{{device.last_seen|timesince|default:""}}</small></div>
 </a>
 {% endfor %}
 </div>
 {% endblock list %}
+</div>
 </div>
 {% endblock %}

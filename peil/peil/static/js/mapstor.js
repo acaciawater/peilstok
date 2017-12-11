@@ -109,6 +109,64 @@ function hideHilite() {
 	}
 }
 
+L.Control.LabelControl = L.Control.extend({
+    onAdd: function(map) {
+    	var container = L.DomUtil.create('div','leaflet-bar leaflet-control leaflet-control-custom');
+        var img = L.DomUtil.create('a','fa fa-lg fa-tags',container);
+    	img.title = 'Toggle labels';
+        img.setAttribute('role','button');
+        img.setAttribute('aria-label','Toggle Labels');
+
+    	L.DomEvent.on(container, 'click', function(e) {
+        	toggleLabels();
+        });
+        
+        return container;
+    },
+
+    onRemove: function(map) {
+        // Nothing to do here
+    },
+    
+});
+
+L.control.labelcontrol = function(opts) {
+    return new L.Control.LabelControl(opts);
+}
+
+var labelsShown = true;
+
+function showLabels() {
+	if (!labelsShown) {
+		if (markers) {
+			markers.forEach(function(marker){
+				marker.openTooltip();
+			});
+		} 
+		labelsShown = true;
+	}
+}
+
+function hideLabels() {
+	if (labelsShown) {
+		if (markers) {
+			markers.forEach(function(marker){
+				marker.closeTooltip();
+			}); 
+		} 
+		labelsShown = false;
+	}
+}
+
+function toggleLabels() {
+	if (labelsShown) {
+		hideLabels();
+	}
+	else {
+		showLabels();
+	}
+}
+
 function addMarkers(map,zoom) {
 	$.getJSON('/locs', function(data) {
 		bounds = new L.LatLngBounds();
@@ -116,7 +174,7 @@ function addMarkers(map,zoom) {
 			marker = L.marker([val.lat, val.lon],{title:val.name, icon: pinkIcon});
 			markers[val.id] = marker;
 			marker.bindPopup("Loading...",{maxWidth: 500});
-			marker.bindTooltip(val.name,{permanent:true,className:"label",opacity:0.7});
+			marker.bindTooltip(val.name,{permanent:true,className:"leaflet-label",opacity:0.7});
 			marker.on("click", function(e) {
 				var popup = e.target.getPopup();
 			    $.get("/pop/"+val.id).done(function(data) {
@@ -220,6 +278,8 @@ function initMap(div) {
 		addMarkers(map,true);
 	}
 	
+	var control = L.control.labelcontrol({ position: 'topleft' }).addTo(map);
+
 	map.on('baselayerchange',function(e){changeBaseLayer(e);});
  	map.on('overlayadd',function(e){addOverlay(e);});
  	map.on('overlayremove',function(e){removeOverlay(e);});

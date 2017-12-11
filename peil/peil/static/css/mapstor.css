@@ -11,7 +11,7 @@ html, body, .wrapper, .full {
 }
 
 .adjust {
-	margin: -10px 10px;
+	margin: 8px 8px;
 }
 
 .laatste {
@@ -23,8 +23,9 @@ html, body, .wrapper, .full {
  	margin-left: -12px;
  	margin-right: 4px;
 }
-.label {
-	padding: 2px;
+.leaflet-label {
+	line-height: 1em;
+	padding: 2px 4px 2px 4px;
 	background: #ffff99;
 }
 
