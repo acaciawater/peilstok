@@ -173,7 +173,7 @@ class NavMixin(object):
         nxt = nxt.first() if nxt else None
         prv = Device.objects.filter(displayname__lt=device.displayname)
         prv = prv.last() if prv else None
-        return {'next': nxt, 'prev': prv}
+        return {'next': nxt, 'prev': prv, 'all': Device.objects.order_by('displayname')}
 
 class NavDetailView(NavMixin, DetailView):
     """ Detailview with browsing through devices sorted by name """

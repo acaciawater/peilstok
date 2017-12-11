@@ -86,9 +86,9 @@ function showHilite(id) {
 	var radii = [16*scale,8*scale];
 	if (!hilite) {
 		hilite = new L.ellipse(marker.getLatLng(),radii,0,{
-			fillColor: '#ff3399',
-			fillOpacity: 0.3,
-			color: '#ff3399',
+			fillColor: '#0091d2',//'#ff3399',
+			fillOpacity: 0.4,
+			color: '#0091d2',//'#ff3399',
 			weight: 2,
 			}).addTo(theMap);
 	}

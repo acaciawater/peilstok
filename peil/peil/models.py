@@ -473,11 +473,6 @@ class PressureMessage(LoraMessage):
     """ raw ADC pressure value """
     adc = models.IntegerField()
 
-    def pressure(self):
-        """ returns pressure in hPa """
-        sensor = self.sensor.get_real_instance()
-        return sensor.pressure(self.adc)
-    
     def to_dict(self):
         d = LoraMessage.to_dict(self)
         d.update({'adc': self.adc})

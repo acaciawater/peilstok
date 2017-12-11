@@ -1,4 +1,13 @@
 {% extends 'peil/base.html' %}
+{% block style %}
+{{ block.super }}
+<style>
+html, body, .wrapper, .container, iframe {
+  height: 100%;
+  width: 100%;
+}
+</style>
+{% endblock style %}
 {% block navitems %}
   <ul class="navbar-nav mr-auto mt-2 mt-lg-0">
     <li class="nav-item active">
@@ -9,3 +18,8 @@
     </li>
   </ul>
 {% endblock navitems %}
+{% block content %}
+<div class="container">
+<!-- <iframe seamless src="https://www.hhnk.nl/prinshendrikzanddijk/project_42608/"></iframe> -->
+</div>
+{% endblock %}

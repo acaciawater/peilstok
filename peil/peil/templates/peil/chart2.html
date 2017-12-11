@@ -1,23 +1,36 @@
 {% extends 'peil/base.html' %}
 {% block title%}PHZD - grafiek {{object}} {% endblock %}
-{% block navbar %} 
-<ul class="nav navbar-nav">
-  <li><a href="{% url 'device-map' %}" title="Toon {{object}} op de kaart">Kaart</a></li>
-  {% if request.user.is_staff %}
-  <li><a href="{% url 'device-detail' object.id %}" title="Toon details van {{object}}">Details</a></li>
-  <li><a href="{% url 'device-photos' object.id %}" title="Toon fotos van {{object}}">Fotos</a></li>
-  {% endif %}
-</ul>
+{% block navitems %}
+    <li class="nav-item">
+      <a class="nav-link" href="/">Startpagina</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="{% url 'device-map'%}">Kaart</a>
+    </li>
+  	<li class="nav-item active">
+  		<a class="nav-link" href="#" >Grafiek</a>
+  	</li>
+{% if request.user.is_staff %}
+  	<li class="nav-item">
+  		<a class="nav-link" href="{% url 'device-detail' object.id %}" title="Toon details van {{object}}">Details</a>
+  	</li>
+  	<li class="nav-item">
+  		<a class="nav-link" href="{% url 'device-photos' object.id %}" title="Toon fotos van {{object}}">Fotos</a>
+  	</li>
+{% endif %}
+	<li class="nav-item dropdown">
+	  <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="false" aria-expanded="false">
+	  {{object}}
+	  </a>
+	  <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+	    {% for device in nav.all %}
+		<a class="dropdown-item" href="{%url 'chart-detail' device.id %}">{{device}}</a>
+		{% endfor %}
+	  </div>
+	</li>
+{% endblock navitems %}
+{% block navbar %}
 {% endblock navbar %}
-
-{% block navbar-right %}
-{% if nav.prev %}
-<li><a href="{%url 'chart-detail' nav.prev.id %}" title="Toon grafiek van {{nav.prev|title}}">{{nav.prev|title}}</a></li>
-{% endif %}
-{% if nav.next %}
-<li><a href="{%url 'chart-detail' nav.next.id %}" title="Toon grafiek van {{nav.next|title}}">{{nav.next|title}}</a></li>
-{% endif %}
-{% endblock %}
 {% block script %}
 {{ block.super }}
 <script src="//code.highcharts.com/highcharts.js"></script>
@@ -30,11 +43,6 @@ Highcharts.setOptions({
   	shortMonths : ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dec"],
 	months: ["Januari", "Februari", "Maart", "April", "Mei", "Juni",  "Juli", "Augustus", "September", "Oktober", "November", "December"],
 	weekdays: ["Zondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag"],
-	printChart: "Afdrukken",
-	downloadJPEG: "Download als JPG",
-	downloadPNG: "Download als PNG",
-	downloadPDF: "Download als PDF",
-	downloadSVG: "Download als SVG",
   },
   global: { useUTC: false }
 });

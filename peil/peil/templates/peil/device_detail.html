@@ -3,6 +3,10 @@
 {% block style %}
 {{block.super}}
 <style>
+
+.frame {
+	padding: 2% 5% 2% 5%;
+}
 .battery {
 	height: 32px;
 	float: right;
@@ -17,23 +21,43 @@
 
 </style>
 {% endblock %}
-{% block navbar %} 
-<ul class="nav navbar-nav">
-  <li><a href="{% url 'device-map' %}" title="Toon {{object}} op de kaart">Kaart</a></li>
-  <li><a href="{% url 'chart-detail' object.id %}" title="Toon grafiek van {{object}}">Grafiek</a></li>
-  <li><a href="{% url 'device-photos' object.id %}" title="Toon fotos van {{object}}">Fotos</a></li>
-</ul>
+
+{% block navitems %}
+    <li class="nav-item">
+      <a class="nav-link" href="/">Startpagina</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="{% url 'device-map'%}">Kaart</a>
+    </li>
+  	<li class="nav-item">
+  		<a class="nav-link" href="{% url 'chart-detail' object.id %}" title="Toon grafiek van {{object}}">Grafiek</a>
+  	</li>
+{% if request.user.is_staff %}
+  	<li class="nav-item active">
+  		<a class="nav-link" href="{% url 'device-detail' object.id %}" title="Toon details van {{object}}">Details</a>
+  	</li>
+  	<li class="nav-item">
+  		<a class="nav-link" href="{% url 'device-photos' object.id %}" title="Toon fotos van {{object}}">Fotos</a>
+  	</li>
+{% endif %}
+	<li class="nav-item dropdown">
+	  <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="false" aria-expanded="false">
+	  {{object}}
+	  </a>
+	  <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+	    {% for device in nav.all %}
+		<a class="dropdown-item" href="{%url 'device-detail' device.id %}">{{device}}</a>
+		{% endfor %}
+	  </div>
+	</li>
+{% endblock navitems %}
+
+{% block navbar %}
 {% endblock navbar %}
-{% block navbar-right %}
-{% if nav.prev %}
-<li><a href="{%url 'device-detail' nav.prev.id %}" title="Toon details van {{nav.prev|title}}">{{nav.prev|title}}</a></li>
-{% endif %}
-{% if nav.next %}
-<li><a href="{%url 'device-detail' nav.next.id %}" title="Toon details van {{nav.next|title}}">{{nav.next|title}}</a></li>
-{% endif %}
-{% endblock %}
+
 {% block content %}
-<div class="container">
+<div class="frame">
+<div class="container-fluid">
 <h3>{{object|title}}{%if battery %}<img class="battery" src={{battery.icon}} title="batterij {{battery.level}}%"></img>{%endif%}</h3>
 <div class="row">
 <div class="col col-md-6">
@@ -150,6 +174,7 @@
 </tr>
 </tbody>
 </table>
+</div>
 </div>
 </div>
 </div>

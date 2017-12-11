@@ -45,6 +45,8 @@
 	 {% endblock navitems %}
 	</ul>
     <ul class="nav navbar-nav ml-auto">
+        {% block navbar %}
+        {% endblock %}
         {% if user.is_authenticated %}
 	      <li class="nav-item dropdown">
 	        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="false" aria-expanded="false">
