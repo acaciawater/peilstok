@@ -16,7 +16,11 @@ class Tide(Generator):
         loc = kwargs.get('location','OUDSD')
         interval = kwargs.get('interval',30)
         start = kwargs.get('start','01-06-2017')
-        stop = kwargs.get('stop',datetime.date.today().strftime('%d-%m-%Y'))
+        if isinstance(start,(datetime.datetime, datetime.date)):
+            start = start.strftime('%d-%m-%Y')
+        stop = kwargs.get('stop',datetime.date.today())
+        if isinstance(stop,(datetime.datetime, datetime.date)):
+            stop = stop.strftime('%d-%m-%Y')
         url = url.format(loc=loc,start=start,stop=stop,interval=interval)
         kwargs['url'] = url
         if not 'filename' in kwargs:
