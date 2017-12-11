@@ -25,7 +25,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
-from acacia.data.models import Series
+from acacia.data.models import Series, MeetLocatie
 import datetime
 
 logger = logging.getLogger(__name__)
@@ -210,13 +210,15 @@ def chart_as_json(request,pk):
             'H': zip(pts.index,pts['Waterhoogte']),
             }
     try:
-        tide = Series.objects.get(name='Getij')
+        # Getijde metingen toevoegen
+        tide = Series.objects.get(name='Getij Oudeschild')
         start = pts.index[0]
         stop = pts.index[-1]
         getij = tide.to_array(start=start,stop=stop)
         data['Getij'] = getij
     except Exception as e:
         pass
+
     return HttpResponse(json.dumps(data, ignore_nan = True, default=lambda x: time.mktime(x.timetuple())*1000.0), content_type='application/json')
 
 @gzip_page
@@ -354,7 +356,18 @@ class PeilView2(LoginRequiredMixin, NavDetailView):
     def get_context_data(self, **kwargs):
         context = super(PeilView2, self).get_context_data(**kwargs)
         device = self.get_object()
-                
+
+        ec1 = ec2 = stand = None
+        if self.request.user.is_staff:                
+            try:
+                # Handmetingen voorlopig alleen voor staff
+                mloc = MeetLocatie.objects.get(name=device.displayname)
+                ec1 = mloc.series_set.get(name='ECondiep').to_array()
+                ec2 = mloc.series_set.get(name='ECdiep').to_array()
+                stand = mloc.series_set.get(name='Waterstand').to_array()
+            except Exception as e:
+                pass
+    
         options = {
             'chart': {'type': 'line', 
                       'animation': False, 
@@ -379,15 +392,25 @@ class PeilView2(LoginRequiredMixin, NavDetailView):
                        },
             'yAxis': [{'title': {'text': 'EC (mS/cm)'}}],
             'series': [
-                        {'name': 'EC ondiep', 'id': 'EC1', 'data': [], 'tooltip': {'valueSuffix': ' mS/cm'}},
-                        {'name': 'EC diep ', 'id': 'EC2', 'data': [], 'tooltip': {'valueSuffix': ' mS/cm'}},
+                        {'name': 'Ondiepe sensor', 'id': 'EC1', 'data': [], 'tooltip': {'valueSuffix': ' mS/cm'}},
+                        {'name': 'Ondiepe meting', 'id': 'EC1H', 'data': ec1, 'type': 'scatter', 'tooltip': {
+                            'shared': True, 
+                            'pointFormat': 'Tijdstip: {point.x:%a %d %B %Y %H:%M}<br/>EC: <b>{point.y}</b><br/>',
+                            'valueDecimals': 2, 
+                            'valueSuffix': ' mS/cm'}},
+                        {'name': 'Diepe sensor', 'id': 'EC2', 'data': [], 'tooltip': {'valueSuffix': ' mS/cm'}},
+                        {'name': 'Diepe meting', 'id': 'EC1H', 'data': ec2, 'type': 'scatter', 'tooltip': {
+                            'shared': True, 
+                            'pointFormat': 'Tijdstip: {point.x:%a %d %B %Y %H:%M}<br/>EC: <b>{point.y}</b><br/>',
+                            'valueDecimals': 2, 
+                            'valueSuffix': ' mS/cm'}},
                         ]
                    }
 
         context['options1'] = json.dumps(options,default=lambda x: time.mktime(x.timetuple())*1000.0)
 
-        ec1 = device.get_sensor('EC1',position=1).elevation()
-        ec2 = device.get_sensor('EC2',position=2).elevation()
+        sensor1 = device.get_sensor('EC1',position=1).elevation()
+        sensor2 = device.get_sensor('EC2',position=2).elevation()
         
         options.update({
             'title': {'text': 'Waterstand '+unicode(device)},
@@ -395,7 +418,7 @@ class PeilView2(LoginRequiredMixin, NavDetailView):
                 {'title': {'text': 'Peil (m NAP)'},
                 'plotLines': [
                     {
-                     'value': ec1,
+                     'value': sensor1,
                      'zIndex': 998,
                      'color': 'green',
                      'dashStyle': 'shortdash',
@@ -406,7 +429,7 @@ class PeilView2(LoginRequiredMixin, NavDetailView):
                      }
                     },
                     {
-                     'value': ec2,
+                     'value': sensor2,
                      'zIndex': 999,
                      'color': 'red',
                      'dashStyle': 'shortdash',
@@ -420,9 +443,12 @@ class PeilView2(LoginRequiredMixin, NavDetailView):
             ],
             'series': [
                         {'name': 'Waterpeil', 'id': 'NAP', 'data': [], 'tooltip': {'valueSuffix': ' m NAP'}},
+                        {'name': 'Handpeiling', 'id': 'NAP', 'data': stand, 'type': 'scatter', 'tooltip': {
+                            'valueSuffix': ' m NAP',
+                            'pointFormat': 'Tijdstip: {point.x:%a %d %B %Y %H:%M}<br/>Peil: <b>{point.y}</b><br/>'}},
                         {'name': 'Getij', 'id': 'Getij', 'visible': False, 'data': [], 'lineWidth': 1, 'tooltip': {'valueSuffix': ' m NAP'}, 'zIndex': -1},
-                        {'name': 'ec1', 'showInLegend': False, 'type': 'scatter', 'marker': {'enabled': False}, 'data': [(datetime.datetime.now(),ec1)]},
-                        {'name': 'ec2', 'showInLegend': False, 'type': 'scatter', 'marker': {'enabled': False}, 'data': [(datetime.datetime.now(),ec2)]}
+                        {'name': 'sensor1', 'showInLegend': False, 'type': 'scatter', 'marker': {'enabled': False}, 'data': [(datetime.datetime.now(),sensor1)]},
+                        {'name': 'sensor2', 'showInLegend': False, 'type': 'scatter', 'marker': {'enabled': False}, 'data': [(datetime.datetime.now(),sensor2)]}
                         ]
                    })
         context['options2'] = json.dumps(options,default=lambda x: time.mktime(x.timetuple())*1000.0)
