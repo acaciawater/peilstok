@@ -17,11 +17,17 @@ class DeviceResource(ModelResource):
     def dehydrate(self, bundle):
         if bundle.obj:
             device = bundle.obj
-            bundle.data['battery'] = '{}%'.format(device.battery_level())
-            loc = device.current_location()
-            if 'lon' in loc:
-                bundle.data['longitude'] = loc['lon'] 
-                bundle.data['latitude'] = loc['lat'] 
+            try:
+                bundle.data['battery'] = '{}%'.format(device.battery_level())
+                loc = device.current_location()
+                if 'lon' in loc:
+                    bundle.data['longitude'] = loc['lon'] 
+                    bundle.data['latitude'] = loc['lat']
+                    nap = device.get_nap() 
+                    if nap:
+                        bundle.data['elevation'] = nap
+            except:
+                pass 
         return bundle
 
     class Meta:
