@@ -49,7 +49,7 @@ def json_locations(request):
         optionally filter messages on hacc (in mm)
     """
     result = []
-    hacc = request.GET.get('hacc',10000)
+    hacc = request.GET.get('hacc',1000)
     for p in Device.objects.all():
         try:
             loc = p.current_location(hacc)
