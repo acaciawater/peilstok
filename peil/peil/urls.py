@@ -32,13 +32,14 @@ v1.register(MessageResource())
 v1.register(BatteryResource())
 
 urlpatterns = [
-    url(r'^$', HomePage.as_view(), name='home'),
+    url(r'^$', MapView.as_view()),
+    url(r'^home$', HomePage.as_view(), name='home'),
+    url(r'^map/', MapView.as_view(), name='device-map'),
     url(r'^admin/', admin.site.urls),
     url(r'^ttn/', ttn),
     url(r'^kpn', kpn),
     url(r'^ubx/', ubx),
     url(r'^data/', include('acacia.data.urls',namespace='acacia')),
-    url(r'^map/', MapView.as_view(), name='device-map'),
     url(r'^chart/(?P<pk>\d+)/data/csv', chart_as_csv, name='chart-csv'),
     url(r'^csv', to_csv, name='to-csv'),
     url(r'^chart/(?P<pk>\d+)/data', chart_as_json, name='chart-json'),

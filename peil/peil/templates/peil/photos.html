@@ -20,12 +20,11 @@ div > a > img {
 	text-align: center;
 }
 .check {
-	font-size: medium;
 	clear: both;
 	float: right;
-	padding-top: 2px;
+	padding-top: 4px;
+	padding-right: 4px;
 }
-
 h3 {
 	padding-left:16px;
 }
@@ -33,7 +32,7 @@ h3 {
 {% endblock %}
 {% block navitems %}
     <li class="nav-item">
-      <a class="nav-link" href="/">Startpagina</a>
+      <a class="nav-link" href="{% url 'home' %}">Startpagina</a>
     </li>
     <li class="nav-item">
       <a class="nav-link" href="{% url 'device-map'%}">Kaart</a>
@@ -78,10 +77,10 @@ h3 {
 {% endthumbnail %}
 <div class="caption">
 {{photo}}
-<a 
-href="{%url 'select-photo' photo.id %}" 
-title="Selecteer als standaard foto in popup op kaart" 
-class="check glyphicon {%if photo.ispopup%} glyphicon-check {%else%} glyphicon-unchecked {%endif%}">
+<a href="{%url 'select-photo' photo.id %}" 
+title="Selecteer als standaard foto in popup op kaart"
+class="check fa {%if photo.ispopup%} fa-check-circle {%else%} fa-circle-o {%endif%} fa-lg">
+<!-- class="check glyphicon {%if photo.ispopup%} glyphicon-check {%else%} glyphicon-unchecked {%endif%}"> -->
 </a>
 </div>
 </div>

@@ -11,7 +11,7 @@ html, body, .wrapper, .container, iframe {
 {% block navitems %}
   <ul class="navbar-nav mr-auto mt-2 mt-lg-0">
     <li class="nav-item active">
-      <a class="nav-link" href="/">Startpagina <span class="sr-only">(current)</span></a>
+      <a class="nav-link" href="{% url 'home' %}">Startpagina <span class="sr-only">(current)</span></a>
     </li>
     <li class="nav-item">
       <a class="nav-link" href="map">Kaart</a>
