@@ -7,6 +7,7 @@ import logging
 import os, re
 import numpy as np
 import pandas as pd
+import math
 
 from .models import Device, GNSS_MESSAGE, EC_MESSAGE, STATUS_MESSAGE, PRESSURE_MESSAGE, ANGLE_MESSAGE
 from peil.models import PressureSensor,PressureMessage, GNSS_Sensor, BatterySensor, StatusMessage, \
@@ -16,6 +17,20 @@ from peil.sensor import create_sensors
 from peil.decoder import decode
 
 logger = logging.getLogger(__name__)
+
+def haversine(origin,destination):
+    ''' return distance between two points in meters using Haversine formula '''
+    lat1, lon1 = origin
+    lat2, lon2 = destination
+    radius = 6371000 # meter
+
+    dlat = math.radians(lat2-lat1)
+    dlon = math.radians(lon2-lon1)
+    a = math.sin(dlat/2) * math.sin(dlat/2) + math.cos(math.radians(lat1)) \
+        * math.cos(math.radians(lat2)) * math.sin(dlon/2) * math.sin(dlon/2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    d = radius * c
+    return d    
 
 def get_raw_sensor_data(device, sensor_name, **kwargs):
     """ 
@@ -217,7 +232,7 @@ def parse_payload(device,server_time,payload,orion=None):
         msg, created = ECMessage.objects.update_or_create(sensor=sensor, time=server_time, defaults = {
             'adc1': payload['ec1'],
             'adc2': payload['ec2'],
-            'temperature': payload['temperature']})
+            'temperature': np.short(payload['temperature'])})
         logmsg(msg,created)
 
     elif message_type == PRESSURE_MESSAGE:
