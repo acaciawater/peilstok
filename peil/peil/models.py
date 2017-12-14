@@ -14,6 +14,7 @@ import calib
 import json
 from django.utils import timezone
 from django.urls.base import reverse
+from acacia.data.util import toWGS84
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ class Device(models.Model):
         return reverse('device-detail',args=[self.pk])
     
     def statuscolor(self):
-        """ returns color for dots on home page.
+        """ returns color for dots on map.
         Green is less than 6 hours old, yellow is 6 to 24 hrs, red is 1 - 7 days and gray is more than one week old 
          """
         try:
@@ -150,35 +151,38 @@ class Device(models.Model):
 
     def current_location(self, hacc=10000):
         ''' returns current location '''
-        from django.contrib.gis.gdal.srs import CoordTransform, SpatialReference
 
-        s = self.survey_set.last()
-        if s:
-            pnt = s.location
-            wgs84 = SpatialReference(4326)
-            rdnew = SpatialReference(28992)
-            trans = CoordTransform(rdnew,wgs84)
-            pnt.transform(trans)
-            return {'id': self.id, 'name': self.displayname, 'lon': pnt.x, 'lat': pnt.y}
-        else:
-            # get location from on-board GPS
-            # select only valid fixes (with hacc > 0)
-            g = self.get_sensor('GPS').loramessage_set.filter(locationmessage__hacc__gt=0).order_by('time')
-            if g:
-                if hacc:
-                    # filter messages on maximum hacc
-                    g = g.filter(hacc__lt=hacc)
-                    
-                # use last valid gps message
-                g = g.last()
-    
+        # get latest valid location from on-board GPS (hAcc>0)
+        g = self.get_sensor('GPS').loramessage_set.filter(locationmessage__hacc__gt=0)
+        if g:
+            if hacc:
+                # filter messages on maximum allowed hacc
+                g = g.filter(locationmessage__hacc__lt=hacc)
+                
+            # use latest valid gps message
+            try:
+                g = g.latest('time')
+
                 if g.lon > 40*1e7 and g.lat < 10*1e7:
                     # verwisseling lon/lat?
                     t = g.lon
                     g.lon = g.lat
                     g.lat = t
-                    return {'id': self.id, 'name': self.displayname, 'lon': g.lon*1e-7, 'lat': g.lat*1e-7, 'msl': g.msl*1e-3, 'hacc': g.hacc*1e-3, 'vacc': g.vacc*1e-3, 'time': g.time}
-        return {}
+    
+                return {'id': self.id, 'name': self.displayname, 'lon': g.lon*1e-7, 'lat': g.lat*1e-7, 'msl': g.msl*1e-3, 'hacc': g.hacc*1e-3, 'vacc': g.vacc*1e-3, 'time': g.time}
+            except:
+                pass
+
+        # no valid GPS fix available, try survey
+        try:
+            # get latest surveyed position in lonlat (WGS84)
+            s = self.survey_set.latest('time')
+            if s:
+                pos = s.lonlat
+                return {'id': self.id, 'name': self.displayname, 'lon': pos.x, 'lat': pos.y, 'time': s.time}
+        except:
+            # no survey
+            return {}
     
     def __unicode__(self):
         return self.displayname
@@ -189,6 +193,7 @@ import re
 
 @receiver(pre_save, sender=Device)
 def device_presave(sender, instance, **kwargs):
+    ''' before saving, check displayname '''
     if not instance.displayname or instance.displayname == 'default':
         match = re.match(r'(?P<name>\D+)(?P<num>\d+$)',instance.devid)
         if match:
@@ -199,6 +204,7 @@ def device_presave(sender, instance, **kwargs):
             instance.displayname = instance.devid
         
 class Photo(models.Model):
+    ''' Photo of a peilstok '''
     device = models.ForeignKey(Device)
     photo = ImageField(upload_to='photos')
     order = models.PositiveIntegerField(default=1)
@@ -229,7 +235,11 @@ class Survey(geo.Model):
     altitude = models.DecimalField(null=True,blank=True,max_digits=10,decimal_places=3,verbose_name='hoogte',help_text='hoogte van de deksel in m tov NAP')
     vacc = models.PositiveIntegerField(null=True,blank=True,verbose_name='vertikale nauwkeurigheid',help_text='vertikale nauwkeurigheid in mm')
     hacc = models.PositiveIntegerField(null=True,blank=True,verbose_name='horizontale naukeurigheid',help_text='horizontale naukeurigheid in mm')
-
+    
+    @property
+    def lonlat(self):
+        return toWGS84(self.location)
+    
 from math import log10, floor
 def rounds(x, sig=2):
     """
@@ -281,15 +291,19 @@ class Sensor(PolymorphicModel):
     first_message.short_description = 'Eerste bericht'
     
     def value(self, message):
+        ''' returns (calibrated) sensor value in physical units '''
         raise ValueError('Not implemented')
 
     def times(self):
+        ''' returns list of measurement times '''
         return [m.time for m in self.loramessage_set.all()]
 
     def values(self):
+        ''' returns list of all measured values '''
         return [self.value(message) for message in self.loramessage_set.all()]
 
     def data(self,**kwargs):
+        ''' returns list of tuples (time,value) of measurements '''
         q = self.loramessage_set.order_by('time')
         if kwargs:
             queryset = q.filter(**kwargs)
@@ -299,6 +313,7 @@ class Sensor(PolymorphicModel):
             yield (m.time,self.value(m))
 
     def raw_data(self,**kwargs):
+        ''' returns list of raw data ordered by time '''
         q = self.loramessage_set.order_by('time')
         if kwargs:
             queryset = q.filter(**kwargs)
@@ -317,7 +332,7 @@ class Sensor(PolymorphicModel):
         ordering = ('position', 'ident')
         
 class PressureSensor(Sensor):
-
+    ''' Pressure sensor can be air pressure (position 0) or water pressure (position 3)'''
     offset = models.FloatField(default = 0.0)
     scale = models.FloatField(default = 1.0)
 
@@ -449,7 +464,7 @@ class LoraMessage(PolymorphicModel):
         ordering = ['-time']
         
 class ECMessage(LoraMessage):
-    """ Contains data from an EC sensor """
+    """ Contains data sent by an EC sensor """
 
     # temperature in 0.01 degrees C
     temperature = models.IntegerField(help_text='temperatuur in 0.01 graden Celcius')
