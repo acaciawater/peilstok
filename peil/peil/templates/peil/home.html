@@ -20,6 +20,6 @@ html, body, .wrapper, .container, iframe {
 {% endblock navitems %}
 {% block content %}
 <div class="container">
-<!-- <iframe seamless src="https://www.hhnk.nl/prinshendrikzanddijk/project_42608/"></iframe> -->
+{{project.description|safe}}
 </div>
 {% endblock %}
