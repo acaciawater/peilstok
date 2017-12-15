@@ -32,7 +32,7 @@ v1.register(MessageResource())
 v1.register(BatteryResource())
 
 urlpatterns = [
-    url(r'^$', MapView.as_view()),
+    url(r'^$', HomePage.as_view()),
     url(r'^home$', HomePage.as_view(), name='home'),
     url(r'^map/', MapView.as_view(), name='device-map'),
     url(r'^admin/', admin.site.urls),
