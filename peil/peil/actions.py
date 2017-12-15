@@ -39,6 +39,11 @@ def create_manuals(modeladmin, request, queryset):
             numerror += 1
             pass
 create_manuals.short_description='Handpeilingen aanmaken'
+
+def update_statistics(modeladmin, request, queryset):
+    for s in queryset:
+        s.update()
+update_statistics.short_description='Statistiek actualiseren'
         
 def create_pvts(modeladmin, request, queryset):
     '''Create pvty messages from ubx file '''

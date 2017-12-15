@@ -12,6 +12,7 @@ import logging
 from peil.models import Device, MESSAGES
 from peil.util import parse_payload
 from peil.fiware import Orion
+from django.shortcuts import get_object_or_404
 logger = logging.getLogger(__name__)
 
 def download_ttn(devid,since):
@@ -76,22 +77,31 @@ class Command(BaseCommand):
             devices = [devid]
         since = options.get('since','1h')
         for dev in devices:
-            print dev
+            logger.info(dev)
             response = download_ttn(dev, since)
             if not response.ok:
                 logger.error('TTN server responds with code={}: {}'.format(response.status_code, response.reason))
                 continue
-            logger.debug('received {} bytes'.format(len(response.content)))
-            try:
-                ttns = response.json()
-            except Exception as e:
-                logger.error('Error parsing response\n{}'.format(response.text))
-                continue
-            row = 0
-            for ttn in ttns:
-                row += 1
+            nbytes = len(response.content)
+            logger.debug('received {} bytes'.format(nbytes))
+            if nbytes:
                 try:
-                    parse_ttn(ttn)
+                    ttns = response.json()
                 except Exception as e:
-                    print row, e
+                    logger.error('Error parsing response\n{}'.format(response.text))
                     continue
+                row = 0
+                for ttn in ttns:
+                    row += 1
+                    try:
+                        parse_ttn(ttn)
+                    except Exception as e:
+                        print row, e
+                        continue
+
+        logger.info('Updating statistics')
+        for devid in devices:
+            dev = Device.objects.get(devid=devid)
+            for sensor in dev.sensor_set.all():
+                logger.debug('{} {}'.format(dev,sensor))
+                sensor.update_statistics()

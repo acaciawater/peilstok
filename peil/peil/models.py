@@ -15,6 +15,7 @@ import json
 from django.utils import timezone
 from django.urls.base import reverse
 from acacia.data.util import toWGS84
+from six import _meth_self
 
 logger = logging.getLogger(__name__)
 
@@ -93,11 +94,21 @@ class Device(models.Model):
         kwargs['ident__iexact'] = ident
         return self.sensor_set.get(**kwargs)
     
+    def last_message(self,ident,**kwargs):
+        ''' returns last known sensor message '''
+        sensor = self.get_sensor(ident,**kwargs)
+        return sensor.last_message()
+
+    def last_value(self,ident,**kwargs):
+        ''' returns last known value as dict '''
+        msg = self.last_message(ident,**kwargs)
+        return {'device': msg.sensor.device.displayname, 'sensor': msg.sensor.ident, 'time': msg.time, 'value': msg.value()}
+
     def delete(self):
         """ cascading delete does not work with polymorphic models """
         self.sensor_set.all().delete()
         super(Device,self).delete()
-        
+
     def battery_status(self):
         from peil import util
         sensor = self.get_sensor('Batterij',position=0)
@@ -149,9 +160,11 @@ class Device(models.Model):
         foto = self.photo_set.filter(ispopup=True)
         return foto.first() if foto else self.photo_set.last()
 
-    def current_location(self, hacc=10000):
+    def current_location(self, hacc=1000):
         ''' returns current location '''
 
+        # TODO: get last valid RTK fix
+        
         # get latest valid location from on-board GPS (hAcc>0)
         g = self.get_sensor('GPS').loramessage_set.filter(locationmessage__hacc__gt=0)
         if g:
@@ -162,14 +175,11 @@ class Device(models.Model):
             # use latest valid gps message
             try:
                 g = g.latest('time')
-
-                if g.lon > 40*1e7 and g.lat < 10*1e7:
-                    # verwisseling lon/lat?
-                    t = g.lon
-                    g.lon = g.lat
-                    g.lat = t
-    
-                return {'id': self.id, 'name': self.displayname, 'lon': g.lon*1e-7, 'lat': g.lat*1e-7, 'msl': g.msl*1e-3, 'hacc': g.hacc*1e-3, 'vacc': g.vacc*1e-3, 'time': g.time}
+                lon,lat = g.lonlat
+                x,y,z = g.NAPvalue()
+                return {'id': self.id, 'name': self.displayname, 'lon': lon, 'lat': lat, 'msl': g.msl*1e-3, 
+                        'hacc': g.hacc*1e-3, 'vacc': g.vacc*1e-3, 'time': g.time,
+                        'x': x, 'y': y, 'z': z}
             except:
                 pass
 
@@ -179,7 +189,8 @@ class Device(models.Model):
             s = self.survey_set.latest('time')
             if s:
                 pos = s.lonlat
-                return {'id': self.id, 'name': self.displayname, 'lon': pos.x, 'lat': pos.y, 'time': s.time}
+                return {'id': self.id, 'name': self.displayname, 'lon': pos.x, 'lat': pos.y, 'time': s.time,
+                        'x': s.location.x, 'y': s.location.y, 'z': s.altitude}
         except:
             # no survey
             return {}
@@ -321,7 +332,24 @@ class Sensor(PolymorphicModel):
             queryset = q.all() 
         for m in queryset:
             yield m.to_dict()
-            
+
+    @property            
+    def statistics(self):
+        try:
+            stat = self.sensorstatistics
+        except SensorStatistics.DoesNotExist:
+            stat = SensorStatistics.objects.create(sensor=self)
+            stat.update()
+        return stat
+    
+    def update_statistics(self):
+        try:
+            stat = self.sensorstatistics
+        except SensorStatistics.DoesNotExist:
+            stat = SensorStatistics.objects.create(sensor=self)
+        stat.update()
+        return stat
+
     def __unicode__(self):
         return self.ident
         #return self.get_real_instance_class()._meta.verbose_name
@@ -330,6 +358,35 @@ class Sensor(PolymorphicModel):
         verbose_name = 'Sensor'
         verbose_name_plural = 'sensoren'
         ordering = ('position', 'ident')
+
+class SensorStatistics(models.Model):
+    sensor = models.OneToOneField(Sensor)
+    min = models.FloatField(null=True,blank=True,default=None)
+    max = models.FloatField(null=True,blank=True,default=None)
+    mean = models.FloatField(null=True,blank=True,default=None)
+    nobs = models.IntegerField(null=True,blank=True,default=None)
+    variance = models.FloatField(null=True,blank=True,default=None)
+    skewness = models.FloatField(null=True,blank=True,default=None)
+    kurtosis = models.FloatField(null=True,blank=True,default=None)
+
+    def update(self):
+        from scipy.stats.stats import describe
+        try:
+            sensor = self.sensor.get_real_instance()
+            values = np.array(sensor.values(),dtype=np.float) # replaces None with np.nan
+            stats = describe(values,nan_policy='omit')
+            self.nobs = stats.nobs
+            if self.nobs == 0:
+                self.min = self.max = self.mean = self.variance = self.skewness = self.kurtosis = None
+            else:
+                self.min, self.max = stats.minmax
+                self.mean = stats.mean
+                self.variance = stats.variance
+                self.skewness = stats.skewness
+                self.kurtosis = stats.kurtosis
+                self.save()
+        except Exception as e:
+            pass
         
 class PressureSensor(Sensor):
     ''' Pressure sensor can be air pressure (position 0) or water pressure (position 3)'''
@@ -518,6 +575,15 @@ class LocationMessage(LoraMessage):
     # Height above mean sea level in mm
     msl = models.IntegerField(verbose_name='zeeniveau',help_text='hoogte ten opzichte van zeeniveau in mm')
 
+    @property
+    def lonlat(self):
+        if self.lon > self.lat:
+            # omwisseling lon/lat in firmware
+            t=self.lon
+            self.lon=self.lat
+            self.lat=t
+        return (self.lon*1e-7,self.lat*1e-7)
+     
     def to_dict(self):
         d = LoraMessage.to_dict(self)
         d.update({'lon': self.lon, 'lat': self.lat, 'alt': self.alt, 'vacc': self.vacc, 'hacc': self.hacc, 'msl': self.msl})
@@ -526,7 +592,8 @@ class LocationMessage(LoraMessage):
     def NAPvalue(self):
         from peil.util import rdnap
         try:
-            x,y,z = rdnap.to_rdnap(self.lat*1e-7, self.lon*1e-7, self.alt*1e-3)
+            lon,lat=self.lonlat
+            x,y,z = rdnap.to_rdnap(lon, lat, self.alt*1e-3)
             return (round(x,2), round(y,2), round(z,2))
         except:
             return None
@@ -562,22 +629,6 @@ class StatusMessage(LoraMessage):
         verbose_name = 'Batterijmeting'
         verbose_name_plural = 'Batterijmetingen'
 
-# class Latest(models.Model):
-#     ''' Latest valid measurements for a device '''
-#     device = models.ForeignKey(Device,verbose_name='peilstok')
-#     time = models.DateTimeField(verbose_name='tijdstip')
-#     measurement = models.CharField(max_length = 20,verbose_name='meting')
-#     value = models.CharField(max_length = 20,verbose_name='waarde')
-#     unit = models.CharField(max_length = 20,verbose_name='eenheid')
-# 
-#     class Meta:
-#         verbose_name = 'Laatste waarde'
-#         verbose_name_plural = 'Laatste waardes'
-#         unique_together = ('device', 'measurement')
-#     
-#     def __unicode__(self):
-#         return '{} {}'.format(self.device, self.measurement)
-            
 # --------------------------------------------------------------------------------------------------------------
 # GPS and RTK stuff
 # --------------------------------------------------------------------------------------------------------------

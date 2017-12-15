@@ -66,7 +66,7 @@ def get_sensor_series(device, sensor_name, **kwargs):
     except Exception as e:
         logger.error('ERROR loading sensor data for {}: {}'.format(sensor_name,e))
         return pd.Series()
-
+        
 def get_ec_series(device):
     """ 
     @return: Pandas dataframe with timeseries of EC
@@ -191,7 +191,7 @@ def parse_payload(device,server_time,payload,orion=None):
         logger.debug('{}: {} {}. time={}'.format(msg.sensor.device, unicode(msg), 'added' if created else 'updated', msg.time ))
         if orion:
             orion.update_message(msg)
-        
+
     if message_type == STATUS_MESSAGE:
 
         sensor, created = PressureSensor.objects.get_or_create(device=device,position=0,defaults={'ident':'Luchtdruk'})
@@ -278,17 +278,16 @@ def parse_ttn(ttn):
             if orion:
                 orion.create_device(device)
 
-        mod, created, updated = parse_payload(device, server_time, pf, orion)
+        return parse_payload(device, server_time, pf, orion)
 
-        return mod, created, updated
     except Exception as e:
         logger.exception('Error parsing payload: {}'.format(ttn))
         raise e
     
 def handle_post_data(json):
     try:
-        mod, created, updated = parse_ttn(json)
-        return HttpResponse(unicode(mod),status=201)
+        msg, created, updated = parse_ttn(json)
+        return HttpResponse(unicode(msg),status=201)
     except Exception as e:
         return HttpResponseServerError(e)
 
@@ -328,17 +327,16 @@ def parse_kpn(xml):
             if orion:
                 orion.create_device(device)
 
-        mod, created, updated = parse_payload(device, time, payload, orion)
+        return parse_payload(device, time, payload, orion)
 
-        return payload, True, False
     except Exception as e:
         logger.exception('Error parsing payload: {}'.format(payload))
         raise e
     
-def handle_kpn_post_data(json):
+def handle_kpn_post_data(xml):
     try:
-        mod, created, updated = parse_kpn(json)
-        return HttpResponse(unicode(mod),status=201)
+        msg, created, updated = parse_kpn(xml)
+        return HttpResponse(unicode(msg),status=201)
     except Exception as e:
         return HttpResponseServerError(e)
 

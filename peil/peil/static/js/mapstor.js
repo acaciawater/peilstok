@@ -167,14 +167,16 @@ function toggleLabels() {
 	}
 }
 
-function addMarkers(map,zoom) {
-	$.getJSON('/locs', function(data) {
+function addMarkers(map,url,zoom) {
+	$.getJSON(url, function(data) {
 		bounds = new L.LatLngBounds();
 		$.each(data, function(key,val) {
 			marker = L.marker([val.lat, val.lon],{title:val.name, icon: pinkIcon});
 			markers[val.id] = marker;
 			marker.bindPopup("Loading...",{maxWidth: 500});
-			marker.bindTooltip(val.name,{permanent:true,className:"leaflet-label",opacity:0.7});
+			var value = val[val.label];
+			if (value)
+				marker.bindTooltip(value.toString(),{permanent:true,className:"leaflet-label",opacity:0.7});
 			marker.on("click", function(e) {
 				var popup = e.target.getPopup();
 			    $.get("/pop/"+val.id).done(function(data) {
@@ -191,101 +193,12 @@ function addMarkers(map,zoom) {
 	});
 }
 
-function addMarkerGroup(map) {
-	$.getJSON('/locs', function(data) {
+function addMarkerGroup(map,url) {
+	$.getJSON(url, function(data) {
 		var markers = L.markerClusterGroup(); 
 		$.each(data, function(key,val) {
 			markers.addLayer(L.marker([val.lat, val.lon]));
 		});
 		map.addLayer(markers);
 	});
-}
-
-/**
- * Initializes leaflet map
- * @param div where map will be placed
- * @returns the map
- */
-function initMap(div) {
-	var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-		maxZoom: 19,
- 		attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-	});
-	
-	var roads = L.gridLayer.googleMutant({
-	    type: 'roadmap' // valid values are 'roadmap', 'satellite', 'terrain' and 'hybrid'
-	});
-
-	var satellite = L.gridLayer.googleMutant({
-	    type: 'satellite' // valid values are 'roadmap', 'satellite', 'terrain' and 'hybrid'
-	});
-	
-	var topo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-		attribution: 'Tiles &copy; Esri'
-	});
-	
-	var imagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-		attribution: 'Tiles &copy; Esri'
-	});
-	
-	var bodemkaart = L.tileLayer.wms('https://geodata.nationaalgeoregister.nl/bodemkaart50000/wms', {
-		layers: 'bodemkaart50000',
-		format: 'image/png',
-		srs: 'EPSG:3857',
-		opacity: 0.4
-	});
-
-	var ahn25 = L.tileLayer.wms('https://geodata.nationaalgeoregister.nl/ahn2/wms', {
-		layers: 'ahn2_5m',
-		format: 'image/png',
-		srs: 'EPSG:3857',
-		opacity: 0.4
-	});
-
-	var ahn205 = L.tileLayer.wms('https://geodata.nationaalgeoregister.nl/ahn2/wms', {
-		layers: 'ahn2_05m_non',
-		format: 'image/png',
-		srs: 'EPSG:3857',
-		opacity: 0.4
-	});
-					
-	var waterlopen = L.tileLayer.wms('https://maps.acaciadata.com/geoserver/HHNK/wms', {
-	layers: 'HHNK:waterlopen_texel',
-	attribution: '&copy; <a href="https://www.hhnk.nl">hhnk.nl</a>',
-	format: 'image/png',
-	transparent: true});
-	
-	var map = L.map(div,{
-		center:[53.08440, 4.80824],
-		zoom: 11
-		});
-
- 	baseMaps = {'Openstreetmap': osm, 'Google roads': roads, 'Google satellite': satellite, 'ESRI topo': topo, 'ESRI imagery': imagery};
-	overlayMaps = {'Waterlopen': waterlopen};//, 'Bodemkaart': bodemkaart, 'AHN2 (5m)': ahn25};
-	L.control.layers(baseMaps, overlayMaps).addTo(map);
-	
-	if (!restoreMap(map)) {
-		// use default map
-		osm.addTo(map);
-	}
-	
-	if(restoreBounds(map)) {
-		// add markers, but don't change extent
-		addMarkers(map,false);
-	}
-	else {
-		// add markers and zoom to extent
-		addMarkers(map,true);
-	}
-	
-	var control = L.control.labelcontrol({ position: 'topleft' }).addTo(map);
-
-	map.on('baselayerchange',function(e){changeBaseLayer(e);});
- 	map.on('overlayadd',function(e){addOverlay(e);});
- 	map.on('overlayremove',function(e){removeOverlay(e);});
- 	map.on('zoomend',function(){saveBounds(map);});
- 	map.on('moveend',function(){saveBounds(map);});
- 	
- 	return theMap = map;
-
 }

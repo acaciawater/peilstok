@@ -23,6 +23,96 @@
 <script src="/static/js/mapstor.js"></script>
 <script>
 
+/**
+ * Initializes the leaflet map
+ * @param div where map will be placed
+ * @returns the map
+ */
+function initMap(div) {
+	var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+		maxZoom: 19,
+ 		attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+	});
+	
+	var roads = L.gridLayer.googleMutant({
+	    type: 'roadmap' // valid values are 'roadmap', 'satellite', 'terrain' and 'hybrid'
+	});
+
+	var satellite = L.gridLayer.googleMutant({
+	    type: 'satellite' // valid values are 'roadmap', 'satellite', 'terrain' and 'hybrid'
+	});
+	
+	var topo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+		attribution: 'Tiles &copy; Esri'
+	});
+	
+	var imagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+		attribution: 'Tiles &copy; Esri'
+	});
+	
+	var bodemkaart = L.tileLayer.wms('https://geodata.nationaalgeoregister.nl/bodemkaart50000/wms', {
+		layers: 'bodemkaart50000',
+		format: 'image/png',
+		srs: 'EPSG:3857',
+		opacity: 0.4
+	});
+
+	var ahn25 = L.tileLayer.wms('https://geodata.nationaalgeoregister.nl/ahn2/wms', {
+		layers: 'ahn2_5m',
+		format: 'image/png',
+		srs: 'EPSG:3857',
+		opacity: 0.4
+	});
+
+	var ahn205 = L.tileLayer.wms('https://geodata.nationaalgeoregister.nl/ahn2/wms', {
+		layers: 'ahn2_05m_non',
+		format: 'image/png',
+		srs: 'EPSG:3857',
+		opacity: 0.4
+	});
+					
+	var waterlopen = L.tileLayer.wms('https://maps.acaciadata.com/geoserver/HHNK/wms', {
+	layers: 'HHNK:waterlopen_texel',
+	attribution: '&copy; <a href="https://www.hhnk.nl">hhnk.nl</a>',
+	format: 'image/png',
+	transparent: true});
+	
+	var locs = '/locs?{{request.GET.urlencode}}';
+	var map = L.map(div,{
+		center:[53.08440, 4.80824],
+		zoom: 11
+		});
+
+ 	baseMaps = {'Openstreetmap': osm, 'Google roads': roads, 'Google satellite': satellite, 'ESRI topo': topo, 'ESRI imagery': imagery};
+	overlayMaps = {'Waterlopen': waterlopen};//, 'Bodemkaart': bodemkaart, 'AHN2 (5m)': ahn25};
+	L.control.layers(baseMaps, overlayMaps).addTo(map);
+	
+	if (!restoreMap(map)) {
+		// use default map
+		osm.addTo(map);
+	}
+	
+	if(restoreBounds(map)) {
+		// add markers, but don't change extent
+		addMarkers(map,locs,false);
+	}
+	else {
+		// add markers and zoom to extent
+		addMarkers(map,locs,true);
+	}
+	
+	var control = L.control.labelcontrol({ position: 'topleft' }).addTo(map);
+
+	map.on('baselayerchange',function(e){changeBaseLayer(e);});
+ 	map.on('overlayadd',function(e){addOverlay(e);});
+ 	map.on('overlayremove',function(e){removeOverlay(e);});
+ 	map.on('zoomend',function(){saveBounds(map);});
+ 	map.on('moveend',function(){saveBounds(map);});
+ 	
+ 	return theMap = map;
+
+}
+
 $(function() {
 	initMap('map');
  	$("#list").height($("#map").height());
@@ -38,6 +128,17 @@ $(function() {
     <li class="nav-item active">
       <a class="nav-link" href="map">Kaart</a>
     </li>
+    
+	<li class="nav-item dropdown">
+	  <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="false" aria-expanded="false">
+		{{menu_title}}
+	  </a>
+	  <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+	  {% for key,value in menu.items %}
+		<a class="dropdown-item" href="{%url 'device-map' %}?props={{key}}">{{value}}</a>
+	  {% endfor %}
+	  </div>
+	</li>
  {% endblock navitems %}
 
 {% block content %}

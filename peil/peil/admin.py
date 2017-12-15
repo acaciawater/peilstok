@@ -3,9 +3,9 @@ from peil.models import Device, Sensor,\
     UBXFile, ECSensor, PressureSensor,\
     BatterySensor, AngleSensor, LoraMessage, ECMessage, PressureMessage,\
     InclinationMessage, StatusMessage, LocationMessage, GNSS_Sensor, Survey,\
-    Photo, NavPVT, RTKSolution
+    Photo, NavPVT, RTKSolution, SensorStatistics
 from peil.actions import create_pvts, rtkpost, gpson, postdevice, to_orion,\
-    create_manuals
+    create_manuals, update_statistics
 from peil.sensor import create_sensors, load_offsets,\
     load_distance, load_survey
 from polymorphic.admin import PolymorphicChildModelFilter, PolymorphicChildModelAdmin, PolymorphicParentModelAdmin
@@ -53,6 +53,13 @@ class SensorAdmin(PolymorphicParentModelAdmin):
     child_models = (ECSensor, PressureSensor, BatterySensor, AngleSensor, GNSS_Sensor)
     list_filter = (PolymorphicChildModelFilter, 'position', 'device')
     list_display = ('ident', 'device', 'position', 'distance', 'message_count')
+
+@admin.register(SensorStatistics)
+class SensorStatisticsAdmin(admin.ModelAdmin):
+    model = SensorStatistics
+    list_display = ('sensor','nobs','min','max','mean')
+    list_filter = ('sensor__device','sensor')
+    actions = [update_statistics]
     
 @admin.register(ECSensor)
 class ECSensorAdmin(PolymorphicChildModelAdmin):

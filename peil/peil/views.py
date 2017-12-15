@@ -25,14 +25,21 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
-from acacia.data.models import Series, MeetLocatie
+from acacia.data.models import Series, MeetLocatie, Project
 import datetime
 from django.views.generic.base import TemplateView
+from peil.util import last_waterlevel
+from collections import OrderedDict
 
 logger = logging.getLogger(__name__)
 
 class HomePage(TemplateView):
     template_name = 'peil/home.html'
+    
+    def get_context_data(self, **kwargs):
+        context = TemplateView.get_context_data(self, **kwargs)
+        context['project'] = get_object_or_404(Project,name='Peilstok')
+        return context
     
 class StaffRequiredMixin(object):
     @method_decorator(login_required)
@@ -43,17 +50,59 @@ class StaffRequiredMixin(object):
                 'Je het niet de vereiste rechten om de gevraagde bewerking uit te voeren.')
             return redirect(settings.LOGIN_URL)
         return super(StaffRequiredMixin, self).dispatch(request, *args, **kwargs)
-        
+
+def device_props(device, props):
+    ''' returns dict with requested device property '''
+    
+    if not props or props == 'loc':
+        values = {'label': 'name'}
+        return values
+
+    if props == 'bat':
+        values = device.last_value('Batterij')
+    
+    elif props == 'air':
+        values = device.last_value('Luchtdruk')
+    
+    elif props == 'wat':
+        values = device.last_value('Waterdruk')
+
+    elif props == 'wdp': # water depth
+        values = last_waterlevel(device)
+        values['value'] = '%.2f' % float(values['cm']) 
+    
+    elif props == 'wst': # water level
+        values = last_waterlevel(device)
+        values['value'] = '%.2f' % float(values['nap'])
+    
+    elif props == 'inc':
+        values = device.last_value('Inclinometer')
+    
+    elif props == 'ec1':
+        values = device.last_value('EC1')
+    
+    elif props == 'ec2':
+        values = device.last_value('EC2')
+
+    else:
+        return {}
+
+    values['label'] ='value'
+    return values
+    
 def json_locations(request):
     """ return json response with last known peilstok locations
         optionally filter messages on hacc (in mm)
     """
     result = []
+    props = request.GET.get('props',None)
     hacc = request.GET.get('hacc',1000)
     for p in Device.objects.all():
         try:
             loc = p.current_location(hacc)
             if loc:
+                # dictionary with id, name, lon, lat, fixtime
+                loc.update(device_props(p, props))
                 result.append(loc)
         except Exception as e:
             print e
@@ -163,6 +212,24 @@ class MapView(ListView):
         context = super(MapView, self).get_context_data(**kwargs)
         context['api_key'] = settings.GOOGLE_MAPS_API_KEY
         context['maptype'] = "ROADMAP"
+        
+        # Keep items in order for menu
+        # Build ordered dict from iterable to maintain order in python 2.7
+        menu = OrderedDict([
+            ('loc', 'Locaties'),
+            ('bat', 'Batterij'),
+            ('air', 'Luchtdruk'),
+            ('wat', 'Waterdruk'),
+            ('wdp', 'Waterhoogte'),
+            ('wst', 'Waterstand'),
+            ('inc', 'Inclinatie'),
+            ('ec2', 'EC diep'),
+            ('ec1', 'EC ondiep'),
+            ])
+        current = self.request.GET.get('props','loc')
+        context['menu_title'] = menu[current]
+        del menu[current] 
+        context['menu'] = menu
         return context
 
 class NavMixin(object):
