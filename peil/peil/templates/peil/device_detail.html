@@ -71,24 +71,22 @@
 <tbody>
 <tr>
 <td>Identificatie</td>
-<td>{{object.devid}}</td>
-</tr>
-<tr>
-<td>Serienummer</td>
-<td>{{object.serial}}</td>
+<td>{{object.devid}} (MAC: {{object.serial}})</td>
 </tr>
 <tr>
 <td>Lengte</td>
 <td>{%if object.length %}{{object.length}} mm {% else %}onbekend{% endif %}</td>
 </tr>
+<!-- <tr> -->
+<!-- <td>Sensoren</td> -->
+<!-- <td>{{object.sensor_names}}</td> -->
+<!-- </tr> -->
+{% with object.current_location as pos %} 
 <tr>
-<td>Sensoren</td>
-<td>{{object.sensor_names}}</td>
+<td>Positie (RDNAP)</td>
+<td>X={{pos.x}}, Y={{pos.y}}, Z={{pos.z}}</td>
 </tr>
-<tr>
-<td>Aantal sensoren</td>
-<td>{{object.sensor_set.count}}</td>
-</tr>
+{% endwith %}
 <tr>
 <td>Laatste contact</td>
 <td>{{object.last_seen}}</td>
@@ -116,12 +114,8 @@
 <td>{{survey.time}}</td>
 </tr>
 <tr>
-<td>Positie (RD)</td>
-<td>X={{survey.location.x}}, Y={{survey.location.y}}</td>
-</tr>
-<tr>
-<td>Hoogte (NAP)</td>
-<td>{{survey.altitude|floatformat:2}}</td>
+<td>Positie (RDNAP)</td>
+<td>X={{survey.location.x}}, Y={{survey.location.y}}, Z={{survey.altitude|floatformat:2}}</td>
 </tr>
 
 {% endwith %}
