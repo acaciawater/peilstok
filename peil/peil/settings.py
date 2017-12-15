@@ -151,6 +151,9 @@ ORION_URL = 'http://fiware.acaciadata.com:1026/v2/'
 UPLOAD_DATAFILES = 'datafiles'
 UPLOAD_THUMBNAILS = 'thumbnails'
 
+# Grapelli admin
+GRAPPELLI_ADMIN_TITLE='Prins Hendrikzanddijk Beheerpagina'
+
 # Logging
 LOGGING_ROOT = os.path.join(BASE_DIR, 'logs')
 LOGGING = {
