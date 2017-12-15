@@ -21,9 +21,9 @@ from peil.views import DeviceListView, MapView, json_locations,\
     PopupView, PeilView2, chart_as_json, data_as_json, DeviceDetailView,\
     chart_as_csv, data_as_csv, PhotoView, PostView, select_photo, to_csv, kpn,\
     HomePage
-from django.views.decorators.cache import cache_page
 from peil.api import DeviceResource, SensorResource, MessageResource,\
     BatteryResource
+from filebrowser.sites import site
 
 v1 = Api(api_name='v1')
 v1.register(DeviceResource())
@@ -36,6 +36,8 @@ urlpatterns = [
     url(r'^home$', HomePage.as_view(), name='home'),
     url(r'^map/', MapView.as_view(), name='device-map'),
     url(r'^admin/', admin.site.urls),
+    url(r'^admin/filebrowser/', include(site.urls)),
+    url(r'^grappelli/', include('grappelli.urls')),
     url(r'^ttn/', ttn),
     url(r'^kpn', kpn),
     url(r'^ubx/', ubx),

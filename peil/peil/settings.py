@@ -28,6 +28,8 @@ ALLOWED_HOSTS = ['.phzdmeet.nl','.acaciadata.com','localhost']
 # Application definition
 
 INSTALLED_APPS = [
+    'grappelli',
+    'filebrowser',
     'polymorphic',
     'django.contrib.contenttypes',
     'django.contrib.admin',
