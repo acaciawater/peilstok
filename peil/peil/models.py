@@ -476,7 +476,8 @@ class GNSS_Sensor(Sensor):
         verbose_name_plural = 'GPS'
 
     def value(self,m):
-        return (m.lon*1e-7, m.lat*1e-7, round(m.alt*1e-3,3))
+        lon,lat = m.lonlat
+        return (lon, lat, round(m.alt*1e-3,3))
         
 class AngleSensor(Sensor):
     class Meta:
