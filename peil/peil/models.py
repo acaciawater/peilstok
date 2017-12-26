@@ -395,6 +395,9 @@ class PressureSensor(Sensor):
 
     def value(self, m):
         """ calculates pressure in hPa from raw ADC value in message """
+        if m.adc < 1000:
+            # Firmware error
+            m.adc = m.adc / 1.2 * 3.3
         if m.adc < 4096:
             return round(self.offset + m.adc * self.scale,2)
         else:
@@ -413,6 +416,22 @@ class ECSensor(Sensor):
     adc2_limits = models.CharField(max_length=50,verbose_name='bereik ring2',default=calib.ADC2EC_LIMITS)
     ec_range = models.CharField(max_length=50,verbose_name = 'bereik', default=calib.EC_RANGE)
 
+    def EC1(self,adc1):
+        ''' test EC1 '''
+        def rat1(x, p, q):
+            return np.polyval(p, x) / np.polyval([1] + q, x)
+        def rat2(x, p0, p1, p2, q1):
+            return rat1(x, [p0, p1, p2], [q1])
+        return rat2(adc1, *json.loads(self.adc1_coef))
+
+    def EC2(self,adc2):
+        ''' test EC2 '''
+        def rat1(x, p, q):
+            return np.polyval(p, x) / np.polyval([1] + q, x)
+        def rat2(x, p0, p1, p2, q1):
+            return rat1(x, [p0, p1, p2], [q1])
+        return rat2(adc2, *json.loads(self.adc2_coef))
+        
     def EC(self,adc1,adc2):
         """ Calculates EC from raw ADC values """
 
@@ -476,8 +495,11 @@ class GNSS_Sensor(Sensor):
         verbose_name_plural = 'GPS'
 
     def value(self,m):
-        lon,lat = m.lonlat
-        return (lon, lat, round(m.alt*1e-3,3))
+        return round(m.alt*1e-3,3)
+    
+#     def value(self,m):
+#         lon,lat = m.lonlat
+#         return (lon, lat, round(m.alt*1e-3,3))
         
 class AngleSensor(Sensor):
     class Meta:
@@ -493,7 +515,11 @@ class BatterySensor(Sensor):
         verbose_name_plural =  'Batterijspanning'
 
     def value(self, m):
-        return m.battery
+        if m.battery < 1500:
+            # Firmware error
+            return m.battery / 1.2 * 3.3
+        else:
+            return m.battery
 
 class LoraMessage(PolymorphicModel):
     """ Base class for all LoRa messages sent by a sensor """
