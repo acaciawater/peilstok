@@ -15,8 +15,8 @@ from peil.models import Sensor, LoraMessage, StatusMessage
 class DeviceResource(ModelResource): 
 
     def dehydrate(self, bundle):
-        if bundle.obj:
-            device = bundle.obj
+        device = bundle.obj
+        if device:
             try:
                 bundle.data['battery'] = '{}%'.format(device.battery_level())
                 loc = device.current_location()
@@ -46,8 +46,11 @@ class SensorResource(ModelResource):
     device = fields.ForeignKey(DeviceResource,'device')
     
     def dehydrate(self, bundle):
-        if bundle.obj:
-            last = bundle.obj.last_message()
+        sensor = bundle.obj
+        if sensor:
+            bundle.data['device_devid'] = sensor.device.devid
+            bundle.data['device_displayname'] = sensor.device.displayname
+            last = sensor.last_message()
             if last:
                 bundle.data['last_message'] = last.time 
                 bundle.data['last_value'] = last.value()
@@ -70,6 +73,9 @@ class MessageResource(ModelResource):
         msg = bundle.obj
         if msg:
             bundle.data.update(msg.to_dict())
+            bundle.data['device_devid'] = msg.sensor.device.devid
+            bundle.data['device_displayname'] = msg.sensor.device.displayname
+            bundle.data['sensor_ident'] = msg.sensor.ident
             bundle.data['value'] = msg.value()
             bundle.data['unit'] = msg.sensor.unit
         return bundle
