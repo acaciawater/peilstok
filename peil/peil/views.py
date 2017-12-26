@@ -25,7 +25,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
-from acacia.data.models import Series, MeetLocatie, Project
+from acacia.data.models import Series, MeetLocatie, Project, Datasource
 import datetime
 from django.views.generic.base import TemplateView
 from peil.util import last_waterlevel
@@ -269,6 +269,13 @@ class DeviceDetailView(StaffRequiredMixin,NavDetailView):
         except:
             pass
         return context
+
+@gzip_page
+def series_as_json(request, pk):
+    s = get_object_or_404(Series,pk=pk)
+    pts = s.to_array()        
+    data = {'series'+pk:pts}
+    return HttpResponse(json.dumps(data, default=lambda x: time.mktime(x.timetuple())*1000.0), content_type='application/json')
     
 @gzip_page
 def chart_as_json(request,pk):
@@ -280,15 +287,26 @@ def chart_as_json(request,pk):
             'NAP': zip(pts.index,pts['Waterpeil']),
             'H': zip(pts.index,pts['Waterhoogte']),
             }
-    try:
-        # Getijde metingen toevoegen
-        tide = Series.objects.get(name='Getij Oudeschild')
-        start = pts.index[0]
-        stop = pts.index[-1]
-        getij = tide.to_array(start=start,stop=stop)
-        data['Getij'] = getij
-    except Exception as e:
-        pass
+
+#     try:
+#         # Getijde metingen toevoegen
+#         tide = Series.objects.get(name__iexact='Getij Oudeschild')
+#         start = pts.index[0]
+#         stop = pts.index[-1]
+#         data['Getij'] = tide.to_array(start=start,stop=stop)
+#     except Exception as e:
+#         pass
+# 
+#     try:
+#         # Neerslag de Kooy toevoegen
+#         dekooy = Datasource.objects.get(name__iexact='Meteostation de Kooy')
+#         rh = dekooy.parameter_set.get(name='RH')
+#         neerslag = rh.series_set.get(name='RH')
+#         start = pts.index[0]
+#         stop = pts.index[-1]
+#         data['Neerslag'] = neerslag.to_array(start=start,stop=stop)
+#     except Exception as e:
+#         pass
 
     return HttpResponse(json.dumps(data, ignore_nan = True, default=lambda x: time.mktime(x.timetuple())*1000.0), content_type='application/json')
 
@@ -518,19 +536,77 @@ class PeilView2(LoginRequiredMixin, NavDetailView):
                         {'name': 'Handpeiling', 'id': 'NAP', 'data': stand, 'type': 'scatter', 'tooltip': {
                             'valueSuffix': ' m NAP',
                             'pointFormat': 'Tijdstip: {point.x:%a %d %B %Y %H:%M}<br/>Peil: <b>{point.y}</b><br/>'}},
-                        {'name': 'Getij', 
-                         'id': 'Getij', 
-                         'visible': False, 
-                         'data': [], 
-                         'lineWidth': 1,
-                         'marker': {'enabled': False}, 
-                         'tooltip': {'valueSuffix': ' m NAP'}, 
-                         'zIndex': -1},
                         {'name': 'sensor1', 'showInLegend': False, 'type': 'scatter', 'marker': {'enabled': False}, 'data': [(datetime.datetime.now(),sensor1)]},
                         {'name': 'sensor2', 'showInLegend': False, 'type': 'scatter', 'marker': {'enabled': False}, 'data': [(datetime.datetime.now(),sensor2)]}
                         ]
                    })
         context['options2'] = json.dumps(options,default=lambda x: time.mktime(x.timetuple())*1000.0)
+
+        try:
+            getij = Series.objects.get(name__iexact='Getij Oudeschild')
+            context['getij'] = getij
+
+            # getij toevoegen
+            options.update({
+                'exporting': {'enabled':False},
+                'title': {'text': None},
+                'yAxis': [
+                    {'title': {'text': 'Waterstand (m tov NAP)'}}
+                ],
+                'series': [
+                            {'name': 'Getij Oudeschild', 
+                             'id': 'series'+str(getij.pk), 
+                             'data': [], 
+                             'lineWidth': 1,
+                             'marker': {'enabled': False}, 
+                             'tooltip': {'valueSuffix': ' m NAP'}},
+                        ]
+                       })
+            context['options4'] = json.dumps(options,default=lambda x: time.mktime(x.timetuple())*1000.0)
+        except:
+            pass
+
+        try:
+            neerslag = Series.objects.get(name='RH',parameter__datasource__name__iexact='Meteostation de Kooy')
+            context['neerslag'] = neerslag
+            
+            # neerslag toevoegen
+            options.update({
+                'exporting': {'enabled':False},
+                'chart': {'type': 'column', 
+                          'animation': False, 
+                          'zoomType': 'x',
+                          'events': {'load': None},
+                          'marginLeft': 60, 
+                          'marginRight': 80,
+                          'spacingTop': 20,
+                          'spacingBottom': 20
+                          },
+                'title': {'text': None},
+                'yAxis': {
+                     'min': 0,
+                     'title': {'text': 'Neerslag (mm/d)'}
+                },
+                'series': [
+                        {'name': 'Neerslag de Kooy',
+                        'id': 'series'+str(neerslag.pk),
+                        'data': [],
+                        'pointRange': 24 * 3600 * 1000, 
+                        'pointPadding': 0,
+                        'groupPadding': 0,
+                        'pointPlacement': 0.5,
+                        'color': 'orange', 
+                        'borderColor': '#cc6600', 
+                        'tooltip': {'valueSuffix': ' mm/d',
+                                    'valueDecimals': 2,
+                                    'shared': True,
+                                   }, 
+                        }
+                ]})
+            context['options3'] = json.dumps(options,default=lambda x: time.mktime(x.timetuple())*1000.0)
+        except:
+            pass
+        
         return context
 
 class PostView(StaffRequiredMixin,NavDetailView):
