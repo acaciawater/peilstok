@@ -35,10 +35,12 @@ class Command(BaseCommand):
                     f.write(','.join(map(str,[dev.displayname, sensor.ident, m.time, m.adc, sensor.value(m)])))
                     f.write('\n')
             with open('EC_{}.csv'.format(stok),'w') as f:
-                f.write('device,sensor,time,adc1,adc2,temperature,EC,EC25\n')
+                f.write('device,sensor,time,adc1,adc2,temperature,EC1,EC2,EC,EC25\n')
                 for m in ECMessage.objects.filter(sensor__device__id=dev.id):
                     sensor = m.sensor
                     ec_ambient = sensor.EC(m.adc1,m.adc2)
-                    f.write(','.join(map(str,[dev.displayname, sensor.ident, m.time, m.adc1, m.adc2, m.temperature, ec_ambient, sensor.value(m)])))
+                    ec1 = sensor.EC1(m.adc1)
+                    ec2 = sensor.EC2(m.adc2)
+                    f.write(','.join(map(str,[dev.displayname, sensor.ident, m.time, m.adc1, m.adc2, m.temperature, ec1, ec2, ec_ambient, sensor.value(m)])))
                     f.write('\n')
             
