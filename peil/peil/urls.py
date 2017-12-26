@@ -20,7 +20,7 @@ from .views import ttn, ubx
 from peil.views import DeviceListView, MapView, json_locations,\
     PopupView, PeilView2, chart_as_json, data_as_json, DeviceDetailView,\
     chart_as_csv, data_as_csv, PhotoView, PostView, select_photo, to_csv, kpn,\
-    HomePage
+    HomePage, series_as_json
 from peil.api import DeviceResource, SensorResource, MessageResource,\
     BatteryResource
 from filebrowser.sites import site
@@ -45,6 +45,7 @@ urlpatterns = [
     url(r'^chart/(?P<pk>\d+)/data/csv', chart_as_csv, name='chart-csv'),
     url(r'^csv', to_csv, name='to-csv'),
     url(r'^chart/(?P<pk>\d+)/data', chart_as_json, name='chart-json'),
+    url(r'^series/(?P<pk>\d+)', series_as_json, name='series-json'),
     url(r'^chart/(?P<pk>\d+)/raw/csv', data_as_csv, name='data-csv'),
     url(r'^chart/(?P<pk>\d+)/raw', data_as_json, name='data-json'),
     url(r'^chart/(?P<pk>\d+)', PeilView2.as_view(), name='chart-detail'),
