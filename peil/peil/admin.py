@@ -101,7 +101,9 @@ class ECMessageAdmin(PolymorphicChildModelAdmin):
 @admin.register(PressureMessage)
 class PressureMessageAdmin(PolymorphicChildModelAdmin):
     base_model = PressureMessage
-    list_display = ('adc',)
+    list_display = ('device', 'sensor', 'time', 'adc',)
+    list_filter = ('sensor__device','time',)
+    show_in_index = True
     
 @admin.register(InclinationMessage)
 class InclinationMessageAdmin(PolymorphicChildModelAdmin):
