@@ -55,25 +55,19 @@ function syncCharts(chart1, chart2) {
 	chart2.setExtremes(e.min,e.max);
 }
 
-function fetchSeries(divs, url) {
-
-	var charts = [];
-	for(var i=0;i<divs.length;i++) {
-		charts.push($(divs[i]).highcharts());
-	}
-    
+function fetchSeries(url,charts,others) {
 	$.ajax({
 	    url: url,
 	    datatype: "json",
 	    beforeSend: function(hdr) {
-		  	for(var i=0;i<charts.length;i++) { 
-	    		charts[i].showLoading("Gegevens ophalen...");
+	        for (var i=0; i < charts.length; i++) {
+	            charts[i].showLoading("Gegevens ophalen...");
 		  	}
 	    	return true;
 	    },
 	    success: function(data) {
 		  	$.each(data,function(key,values) {
-			  	for(var i=0;i<charts.length;i++) { 
+		        for (var i=0; i < charts.length; i++) {
 			  		var series = charts[i].get(key);
 			  		if (series) {
 						series.setData(values);
@@ -83,11 +77,17 @@ function fetchSeries(divs, url) {
 		  	});
 	    },
 	    error: function(hdr,status,errorThrown) {
-	    	//alert("Fout tijdens laden van tijdreeks: " + errorThrown);
+	    	alert("Fout tijdens laden van tijdreeks: " + errorThrown);
 	    },
 	    complete: function(hdr, status) {
-		  	for(var i=0;i<charts.length;i++) {
+	        for (var i=0; i < charts.length; i++) {
 		    	charts[i].hideLoading();
+		    	if (others) {
+		    		for (var j=0;j<others.length;j++) {
+						if (charts[i] !== others[j])
+			    			syncCharts(charts[i].xAxis[0],others[j].xAxis[0]);
+			    	}
+		    	}
 	    	}
 	    }
     });
@@ -152,9 +152,6 @@ function syncExtremes(e) {
 
 $(function () {
 	  var opt1 = {{options1|safe}};
-	  opt1.chart.events.load = function() {
-		  fetchSeries(['#chart1', '#chart2'], "{% url 'chart-json' object.id %}");
-	  };
 	  opt1.xAxis.events.setExtremes = syncExtremes;
 	  opt1.exporting = {
 	        buttons: {
@@ -177,26 +174,19 @@ $(function () {
 
 	  var opt2 = {{options2|safe}};
 	  opt2.xAxis.events = opt1.xAxis.events;
-	  opt2.exporting = {
-	       buttons: {
-	           contextButton: {
-	               menuItems: [{
-	                   text: 'Download figuur',
-	                   onclick: function () {
-	                       this.exportChart();
-	                   }
-	               }, {
-	                   text: 'Download gegevens',
-	                   onclick: function () {
-	           			window.location="{% url 'chart-csv' object.id %}";
-	                   },
-	                   separator: false
-	               }]
-	           }
-	       }
-	   };
-	   $('<div id=chart2 class=chart>').appendTo('#container').highcharts(opt2);
-	   $('<div id=chart1 class=chart>').appendTo('#container').highcharts(opt1);
+	  var opt3 = {{options3|safe}};
+	  opt3.xAxis.events = opt1.xAxis.events;
+	  var opt4 = {{options4|safe}};
+	  opt4.xAxis.events = opt1.xAxis.events;
+
+	  var chart1 = Highcharts.chart("chart1",opt1);
+	  var chart2 = Highcharts.chart("chart2",opt2);
+	  var chart3 = Highcharts.chart("chart3",opt3);
+	  var chart4 = Highcharts.chart("chart4",opt4);
+
+	  fetchSeries("{% url 'chart-json' object.id %}",[chart1,chart2],[chart3,chart4]);
+	  fetchSeries("{% url 'series-json' neerslag.id %}",[chart3],null);
+	  fetchSeries("{% url 'series-json' getij.id %}",[chart4],null);
 
 	  //setTimeout(bindCharts,500);	  
 });
@@ -217,4 +207,8 @@ $(function () {
 
 {% block content %}
 <div id="container" class="container-fluid"></div>
+<div id="chart1" class="chart"></div>
+<div id="chart2" class="chart"></div>
+<div id="chart3" class="chart"></div>
+<div id="chart4" class="chart"></div>
 {% endblock %}
