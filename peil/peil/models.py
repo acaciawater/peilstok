@@ -397,7 +397,7 @@ class PressureSensor(Sensor):
         """ calculates pressure in hPa from raw ADC value in message """
         if m.adc < 1000:
             # Firmware error
-            m.adc = m.adc / 1.2 * 3.3
+            m.adc = int(m.adc / 1.2 * 3.3)
         if m.adc < 4096:
             return round(self.offset + m.adc * self.scale,2)
         else:
@@ -517,7 +517,7 @@ class BatterySensor(Sensor):
     def value(self, m):
         if m.battery < 1500:
             # Firmware error
-            return m.battery / 1.2 * 3.3
+            return int(m.battery / 1.2 * 3.3)
         else:
             return m.battery
 
@@ -563,6 +563,11 @@ class ECMessage(LoraMessage):
         d = LoraMessage.to_dict(self)
         d.update({'adc1': self.adc1, 'adc2': self.adc2, 'temperature': self.temperature})
         return d
+
+    def EC25(self):
+        ''' EC value to display in admin pages '''
+        return self.sensor.ecsensor.value(self)
+    EC25.short_description = 'EC waarde'
     
     class Meta:
         verbose_name = 'EC-meting'

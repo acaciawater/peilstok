@@ -94,8 +94,8 @@ class LoraAdmin(PolymorphicParentModelAdmin):
 @admin.register(ECMessage)
 class ECMessageAdmin(PolymorphicChildModelAdmin):
     base_model = ECMessage
-    list_display = ('device','sensor','time','adc1','adc2', 'temperature')
-    list_filter = ('sensor__device','time',)
+    list_display = ('device','sensor','time','adc1','adc2', 'temperature', 'EC25')
+    list_filter = ('sensor__ident','sensor__device','time',)
     show_in_index = True
     
 @admin.register(PressureMessage)
