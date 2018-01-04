@@ -188,7 +188,7 @@ $(function () {
 	  fetchSeries("{% url 'series-json' neerslag.id %}",[chart3],null);
 	  fetchSeries("{% url 'series-json' getij.id %}",[chart4],null);
 
-	  //setTimeout(bindCharts,500);	  
+	  //setTimeout(bindCharts,500);
 });
 
 </script>
@@ -206,9 +206,11 @@ $(function () {
 {% endblock %}
 
 {% block content %}
-<div id="container" class="container-fluid"></div>
+
+<div id="container" class="container-fluid">
 <div id="chart1" class="chart"></div>
 <div id="chart2" class="chart"></div>
 <div id="chart3" class="chart"></div>
 <div id="chart4" class="chart"></div>
+</div>
 {% endblock %}
