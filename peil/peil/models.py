@@ -395,7 +395,7 @@ class PressureSensor(Sensor):
 
     def value(self, m):
         """ calculates pressure in hPa from raw ADC value in message """
-        if m.adc < 1000:
+        if m.adc < 1200:
             # Firmware error
             m.adc = int(m.adc / 1.2 * 3.3)
         if m.adc < 4096:
