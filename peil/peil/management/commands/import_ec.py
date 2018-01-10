@@ -8,6 +8,7 @@ from csv import DictReader
 from datetime import datetime
 from acacia.data.models import MeetLocatie
 import pytz
+from django.contrib.auth.models import User
 
 class Command(BaseCommand):
     args = ''
@@ -19,6 +20,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         files = options.get('files')
         tz = pytz.timezone('Europe/Amsterdam')
+        user = User.objects.get(username='theo')
         for fname in files:
             print 'Importing '+fname
             with open(fname) as f:
@@ -29,14 +31,23 @@ class Command(BaseCommand):
                     ec2 = row['ECdiep']
                     date = row['Datum']
                     time = row['Tijd']
+                    t1 = row['Tondiep']
+                    t2 = row['Tdiep']
                     date = datetime.strptime(date + ' ' + time,'%d/%m/%Y %H:%M')
                     date = tz.localize(date)
                     displayname='Peilstok{:02d}'.format(int(id))
                     print displayname
                     mloc = MeetLocatie.objects.get(name=displayname)
+                    defaults={'user': user,'timezone':'Europe/Amsterdam','type':'scatter','unit': 'oC'}
                     if ec1:
                         series = mloc.series_set.get(name='ECondiep')
                         series.datapoints.get_or_create(date=date,value=ec1)
                     if ec2:
                         series = mloc.series_set.get(name='ECdiep')
                         series.datapoints.get_or_create(date=date,value=ec2)
+                    if t1:
+                        series,_ = mloc.series_set.get_or_create(name='Tdiep',defaults=defaults)
+                        series.datapoints.get_or_create(date=date,value=t1)
+                    if t2:
+                        series,_ = mloc.series_set.get_or_create(name='Tondiep',defaults=defaults)
+                        series.datapoints.get_or_create(date=date,value=t2)
