@@ -15,6 +15,7 @@ from peil.models import PressureSensor,PressureMessage, GNSS_Sensor, BatterySens
 from datetime import timedelta
 from peil.sensor import create_sensors
 from peil.decoder import decode
+from acacia.data.models import Series, MeetLocatie
 
 logger = logging.getLogger(__name__)
 
@@ -62,27 +63,57 @@ def get_sensor_series(device, sensor_name, **kwargs):
     ''' returns pandas series with calibrated sensor data '''
     try:
         t,x=zip(*list(device.get_sensor(sensor_name,**kwargs).data()))       
-        return pd.Series(x,index=t).resample(rule='H').mean()
+        return pd.Series(x,index=t).resample(rule='4H').mean()
     except Exception as e:
         logger.error('ERROR loading sensor data for {}: {}'.format(sensor_name,e))
         return pd.Series()
+
+def drift_correct(series, manual):
+    ''' correct drift with manual measurements (both args are pandas series)'''
+    left,right=series.align(manual)
+    # interpolate values on index of manual measurements
+    left = left.interpolate(method='time')
+    left = left.interpolate(method='nearest')
+    # calculate difference at manual index
+    diff = left.reindex(manual.index) - manual
+    # interpolate differences to all measurements
+    left,right=series.align(diff)
+    right = right.interpolate(method='time')
+    drift = right.reindex(series.index)
+    drift = drift.fillna(0)
+    return series-drift
         
 def get_ec_series(device):
     """ 
     @return: Pandas dataframe with timeseries of EC
     @param device: the device to query 
     """  
-    return pd.DataFrame({'EC1':get_sensor_series(device,'EC1',position=1),
-                         'EC2': get_sensor_series(device,'EC2',position=2)})
+    ec1 = get_sensor_series(device,'EC1',position=1)
+    ec2 = get_sensor_series(device,'EC2',position=2)
+    df = pd.DataFrame()
+    if not ec1.empty:
+        df['EC1'] = ec1
+    if not ec2.empty:
+        df['EC2'] = ec2
+    return df
+#     return pd.DataFrame({'EC1':get_sensor_series(device,'EC1',position=1),
+#                          'EC2': get_sensor_series(device,'EC2',position=2)})
 
 def get_level_series(device):
     """ 
     @return: Pandas dataframe with timeseries of water level
     @param device: the device to query 
     """  
-    waterpressure=get_sensor_series(device,'Waterdruk',position=3)
+    try:
+        wp2=get_sensor_series(device,'Waterdruk',position=2)
+        wp3=get_sensor_series(device,'Waterdruk',position=3)
+        waterpressure = wp3.append(wp2)
+    except:
+        waterpressure=get_sensor_series(device,'Waterdruk',position=3)
+        
     airpressure=get_sensor_series(device,'Luchtdruk',position=0)
-    # take the nearest air pressure values within a range of 2 hours from the time of water pressure measurements
+    #airpressure=Series.objects.get(name='Luchtdruk de Kooy').to_pandas()
+    # take the nearest air pressure values within a range of 6 hours from the time of water pressure measurements
     airpressure = airpressure.reindex(waterpressure.index,method='nearest',tolerance='2h')
     # calculate water level in cm above the sensor
     waterlevel = (waterpressure-airpressure)/0.980638
@@ -93,8 +124,20 @@ def get_level_series(device):
     if elevation is None:
         # tolerate missing sensor elevation 
         elevation = 0
+    
     # convert to water level in cm to meter to NAP
-    return pd.DataFrame({'Waterhoogte': waterlevel, 'Waterpeil': waterlevel/100.0 + elevation})
+    peil = waterlevel/100.0 + elevation
+    series = {'Waterhoogte': waterlevel, 'Waterpeil': peil}
+
+    # recalibrate peil to fit manual measurements
+    try:
+        mloc = MeetLocatie.objects.get(name=device.displayname)
+        manual = mloc.series_set.get(name='Waterstand').to_pandas()
+        corrected = drift_correct(peil, manual)
+        series['Corrected'] = corrected
+    except Exception as e:
+        logger.exception(e)
+    return pd.DataFrame(series)
     
 def get_chart_series(device):
     """ 
@@ -110,11 +153,18 @@ def get_chart_series(device):
 
 def last_waterlevel(device, hours=2):
     """ returns last known waterlevel for a device """
-    wps = device.get_sensor('Waterdruk',position=3)
-    wp = wps.last_message()
+    try:
+        # after update jan2018 waterdruk sensor is on position 2
+        wps = device.get_sensor('Waterdruk',position=2)
+        wp = wps.last_message()
+    except:
+        wps = device.get_sensor('Waterdruk',position=3)
+        wp = wps.last_message()
+        
     if wp:
         aps = device.get_sensor('Luchtdruk',position=0)
         ap = aps.last_message()
+        #dekooy = Series.objects.get(name='Luchtdruk de Kooy')
         if ap:
             # we have some air pressure and water pressure messages, 
             # now check if messages were sent within time tolerance
@@ -137,6 +187,7 @@ def last_waterlevel(device, hours=2):
             
             if ap and wp:
                 air = aps.value(ap)
+                #air = dekooy.at(wp.time).value
                 water = wps.value(wp)
                 if air and water:
                     level = (water - air) / 0.980638 # convert hPa to cm water column

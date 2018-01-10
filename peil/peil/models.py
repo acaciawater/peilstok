@@ -15,7 +15,9 @@ import json
 from django.utils import timezone
 from django.urls.base import reverse
 from acacia.data.util import toWGS84
-from six import _meth_self
+from datetime import datetime
+import pytz
+from django.db.models.aggregates import Min
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +95,11 @@ class Device(models.Model):
     def get_sensor(self,ident,**kwargs):
         kwargs['ident__iexact'] = ident
         return self.sensor_set.get(**kwargs)
-    
+
+    def get_sensors(self,ident,**kwargs):
+        kwargs['ident__iexact'] = ident
+        return self.sensor_set.filter(**kwargs)
+
     def last_message(self,ident,**kwargs):
         ''' returns last known sensor message '''
         sensor = self.get_sensor(ident,**kwargs)
@@ -469,10 +475,48 @@ class ECSensor(Sensor):
                 ec = (ec1*w1 + ec2*w2)/sumw
             else:
                 ec = None
-        return ec * 1e-3 if ec else None# to mS/cm
+        return ec * 1e-3 if ec else None
 
-    def EC25(self,adc1,adc2,temp):
-        ec = self.EC(adc1,adc2)
+    # Aanpassingen na herijking Jan 2018
+    jan2018 = pytz.utc.localize(datetime(2018,1,1))
+    minadc = {}
+    offsets = {
+        "Peilstok01": [None,7.14],
+        "Peilstok02": [18.25,15.175],
+        "Peilstok03": [9.7175,6.7625],
+        "Peilstok04": [9.3625,7.34],
+        "Peilstok05": [31.93,19.37666667],
+        "Peilstok06": [23.1,20.53],
+        "Peilstok07": [13.1725,12.2225],
+        "Peilstok08": [17.45333333,17.78333333],
+        "Peilstok09": [21.92333333,12.59333333],
+        "Peilstok10": [23.24,13.40666667],
+        "Peilstok11": [None,16.55666667],
+        "Peilstok12": [None,12.62666667],
+        "Peilstok13": [10.505,14.0475],
+        "Peilstok14": [17.8925,11.569],
+        "Peilstok15": [18.8625,15.79333333],
+        "Peilstok16": [25.0635,14.62333333],
+        "Peilstok17": [14.6175,11.135],
+        "Peilstok18": [16.815,12.38]
+        }
+        
+    def EC_alt(self,adc1,adc2):
+        # alternative berekening EC adhv herijking Jan 2018
+        if not self in self.minadc:
+            # cache minadc waarde voor deze sensor
+            agg = self.loramessage_set.aggregate(amin=Min('ecmessage__adc1'))                
+            self.minadc[self] = agg['amin'] 
+        amin = self.minadc[self]
+        if adc1 <= amin:
+            return None
+        return ((adc1 - amin) / 600.0) ** (-2.0/3.0)
+
+    def EC25(self,adc1,adc2,temp,f=EC):
+        try:
+            ec = f(adc1,adc2)
+        except Exception as e:
+            raise
         if ec:
             emin,emax = json.loads(self.ec_range)
             ec25 = ec * (1.0 + (25.0 - temp/100.0) * self.tempfactor)
@@ -482,8 +526,15 @@ class ECSensor(Sensor):
         return None
     
     def value(self, m):
-        ec = self.EC25(m.adc1, m.adc2, m.temperature)
-        return rounds(ec,3) if ec else None # 3 significant digits
+        if m.time < self.jan2018:
+            f = self.EC_alt
+            ofs = ECSensor.offsets[self.device.displayname]
+            offset = (ofs[0] if self.ident == 'EC1' else ofs[1]) or 0
+        else:
+            f = self.EC
+            offset = 0
+        ec = self.EC25(m.adc1, m.adc2, m.temperature, f)
+        return rounds(ec+offset,3) if ec else None # 3 significant digits
         
     class Meta:
         verbose_name = 'EC-Sensor'

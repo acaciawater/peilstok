@@ -287,7 +287,9 @@ def chart_as_json(request,pk):
             'NAP': zip(pts.index,pts['Waterpeil']),
             'H': zip(pts.index,pts['Waterhoogte']),
             }
-
+    if 'Corrected' in pts:
+        data['NAP1'] = zip(pts.index,pts['Corrected'])
+        
 #     try:
 #         # Getijde metingen toevoegen
 #         tide = Series.objects.get(name__iexact='Getij Oudeschild')
@@ -533,6 +535,7 @@ class PeilView2(LoginRequiredMixin, NavDetailView):
             ],
             'series': [
                         {'name': 'Waterpeil', 'id': 'NAP', 'data': [], 'tooltip': {'valueSuffix': ' m NAP'}},
+                        {'name': 'Corrected', 'id': 'NAP1', 'data': [], 'tooltip': {'valueSuffix': ' m NAP'}},
                         {'name': 'Handpeiling', 'id': 'NAP', 'data': stand, 'type': 'scatter', 'tooltip': {
                             'valueSuffix': ' m NAP',
                             'pointFormat': 'Tijdstip: {point.x:%a %d %B %Y %H:%M}<br/>Peil: <b>{point.y}</b><br/>'}},
@@ -562,7 +565,7 @@ class PeilView2(LoginRequiredMixin, NavDetailView):
                              'tooltip': {'valueSuffix': ' m NAP'}},
                         ]
                        })
-            context['options4'] = json.dumps(options,default=lambda x: time.mktime(x.timetuple())*1000.0)
+            context['options3'] = json.dumps(options,default=lambda x: time.mktime(x.timetuple())*1000.0)
         except:
             pass
 
@@ -603,7 +606,7 @@ class PeilView2(LoginRequiredMixin, NavDetailView):
                                    }, 
                         }
                 ]})
-            context['options3'] = json.dumps(options,default=lambda x: time.mktime(x.timetuple())*1000.0)
+            context['options4'] = json.dumps(options,default=lambda x: time.mktime(x.timetuple())*1000.0)
         except:
             pass
         
