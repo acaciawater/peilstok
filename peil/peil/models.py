@@ -401,7 +401,7 @@ class PressureSensor(Sensor):
 
     def value(self, m):
         """ calculates pressure in hPa from raw ADC value in message """
-        if m.adc < 1200:
+        if m.adc < 1000:
             # Firmware error
             m.adc = int(m.adc / 1.2 * 3.3)
         if m.adc < 4096:
@@ -485,7 +485,7 @@ class ECSensor(Sensor):
         "Peilstok02": [18.25,15.175],
         "Peilstok03": [9.7175,6.7625],
         "Peilstok04": [9.3625,7.34],
-        "Peilstok05": [31.93,19.37666667],
+        "Peilstok05": [19.37, 31.93],
         "Peilstok06": [23.1,20.53],
         "Peilstok07": [13.1725,12.2225],
         "Peilstok08": [17.45333333,17.78333333],
