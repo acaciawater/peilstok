@@ -74,11 +74,13 @@ def drift_correct(series, manual):
     # interpolate values on index of manual measurements
     left = left.interpolate(method='time')
     left = left.interpolate(method='nearest')
+    left = left.groupby(left.index).last()
     # calculate difference at manual index
     diff = left.reindex(manual.index) - manual
     # interpolate differences to all measurements
     left,right=series.align(diff)
     right = right.interpolate(method='time')
+    right = right.groupby(right.index).last()
     drift = right.reindex(series.index)
     drift = drift.fillna(0)
     return series-drift
@@ -129,12 +131,12 @@ def get_level_series(device):
     peil = waterlevel/100.0 + elevation
     series = {'Waterhoogte': waterlevel, 'Waterpeil': peil}
 
-    # recalibrate peil to fit manual measurements
+    # recalibrate peil to fit manual measurementsPeil (m NAP)
     try:
         mloc = MeetLocatie.objects.get(name=device.displayname)
         manual = mloc.series_set.get(name='Waterstand').to_pandas()
         corrected = drift_correct(peil, manual)
-        series['Corrected'] = corrected
+        series['Corrected'] = corrected.groupby(corrected.index).last()
     except Exception as e:
         logger.exception(e)
     return pd.DataFrame(series)
@@ -146,7 +148,9 @@ def get_chart_series(device):
     @summary: Query a device for EC and water level resampled per hour
     """  
     ecdata = get_ec_series(device)
+    ecdata = ecdata.groupby(ecdata.index).last()
     wldata = get_level_series(device)
+    wldata = wldata.groupby(wldata.index).last()
     df = pd.concat([ecdata,wldata],axis=1)
     df.index.rename('Datum',inplace=True)
     return df
