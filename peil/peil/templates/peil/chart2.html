@@ -185,8 +185,8 @@ $(function () {
 	  var chart4 = Highcharts.chart("chart4",opt4);
 
 	  fetchSeries("{% url 'chart-json' object.id %}",[chart1,chart2],[chart3,chart4]);
-	  fetchSeries("{% url 'series-json' neerslag.id %}",[chart3],null);
-	  fetchSeries("{% url 'series-json' getij.id %}",[chart4],null);
+	  fetchSeries("{% url 'series-json' getij.id %}",[chart3],null);
+	  fetchSeries("{% url 'series-json' neerslag.id %}",[chart4],null);
 
 	  //setTimeout(bindCharts,500);
 });
@@ -197,9 +197,12 @@ $(function () {
 {% block style %}
 {{block.super}}
 <style>
+html, body, .wrapper, .full {
+	height: 100%;
+}
 .chart {
   width: 90%;
-  height: 380 px;
+  height: 25%;
   margin: 0 auto;
 }
 </style>
