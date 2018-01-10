@@ -62,8 +62,13 @@ def get_raw_data(device, **kwargs):
 def get_sensor_series(device, sensor_name, **kwargs):
     ''' returns pandas series with calibrated sensor data '''
     try:
+        rule = kwargs.pop('resample')
         t,x=zip(*list(device.get_sensor(sensor_name,**kwargs).data()))       
-        return pd.Series(x,index=t).resample(rule='4H').mean()
+        series = pd.Series(x,index=t)
+        if rule:
+            return series.resample(rule=rule).mean()
+        else:
+            return series
     except Exception as e:
         logger.error('ERROR loading sensor data for {}: {}'.format(sensor_name,e))
         return pd.Series()
@@ -71,27 +76,27 @@ def get_sensor_series(device, sensor_name, **kwargs):
 def drift_correct(series, manual):
     ''' correct drift with manual measurements (both args are pandas series)'''
     left,right=series.align(manual)
+
     # interpolate values on index of manual measurements
-    left = left.interpolate(method='time')
-    left = left.interpolate(method='nearest')
-    left = left.groupby(left.index).last()
+    left = left.interpolate(method='time').groupby(left.index).last()
+    
     # calculate difference at manual index
     diff = left.reindex(manual.index) - manual
+    
     # interpolate differences to all measurements
     left,right=series.align(diff)
-    right = right.interpolate(method='time')
-    right = right.groupby(right.index).last()
-    drift = right.reindex(series.index)
-    drift = drift.fillna(0)
+    right = right.interpolate(method='time').groupby(right.index).last()
+    drift = right.reindex(series.index).fillna(0)
+    
     return series-drift
         
-def get_ec_series(device):
+def get_ec_series(device,rule):
     """ 
     @return: Pandas dataframe with timeseries of EC
     @param device: the device to query 
     """  
-    ec1 = get_sensor_series(device,'EC1',position=1)
-    ec2 = get_sensor_series(device,'EC2',position=2)
+    ec1 = get_sensor_series(device,'EC1',position=1,resample=rule)
+    ec2 = get_sensor_series(device,'EC2',position=2,resample=rule)
     df = pd.DataFrame()
     if not ec1.empty:
         df['EC1'] = ec1
@@ -101,22 +106,29 @@ def get_ec_series(device):
 #     return pd.DataFrame({'EC1':get_sensor_series(device,'EC1',position=1),
 #                          'EC2': get_sensor_series(device,'EC2',position=2)})
 
-def get_level_series(device):
+def get_level_series(device,rule,validate=True):
     """ 
     @return: Pandas dataframe with timeseries of water level
     @param device: the device to query 
     """  
     try:
-        wp2=get_sensor_series(device,'Waterdruk',position=2)
-        wp3=get_sensor_series(device,'Waterdruk',position=3)
+        wp2=get_sensor_series(device,'Waterdruk',position=2,resample=rule)
+        wp3=get_sensor_series(device,'Waterdruk',position=3,resample=rule)
         waterpressure = wp3.append(wp2)
     except:
-        waterpressure=get_sensor_series(device,'Waterdruk',position=3)
+        waterpressure=get_sensor_series(device,'Waterdruk',position=3,resample=rule)
         
-    airpressure=get_sensor_series(device,'Luchtdruk',position=0)
-    #airpressure=Series.objects.get(name='Luchtdruk de Kooy').to_pandas()
-    # take the nearest air pressure values within a range of 6 hours from the time of water pressure measurements
+    airpressure=get_sensor_series(device,'Luchtdruk',position=0,resample=rule)
+
+    if validate:
+        airpressure = airpressure.where((airpressure>950) & (airpressure<1050),np.NaN)
+        
+    # take the nearest air pressure values within a range of 2 hours from the time of water pressure measurements
     airpressure = airpressure.reindex(waterpressure.index,method='nearest',tolerance='2h')
+    
+    if validate:
+        waterpressure = waterpressure.where(waterpressure>airpressure,np.NaN)
+    
     # calculate water level in cm above the sensor
     waterlevel = (waterpressure-airpressure)/0.980638
 
@@ -139,17 +151,19 @@ def get_level_series(device):
         series['Corrected'] = corrected.groupby(corrected.index).last()
     except Exception as e:
         logger.exception(e)
+    
     return pd.DataFrame(series)
     
-def get_chart_series(device):
+def get_chart_series(device,rule):
     """ 
     @return: Pandas dataframe with timeseries of EC and water level
     @param device: the device to query 
-    @summary: Query a device for EC and water level resampled per hour
+    @param rule: resample rule 
+    @summary: Query a device for EC and water level
     """  
-    ecdata = get_ec_series(device)
+    ecdata = get_ec_series(device,rule)
     ecdata = ecdata.groupby(ecdata.index).last()
-    wldata = get_level_series(device)
+    wldata = get_level_series(device,rule,validate=True)
     wldata = wldata.groupby(wldata.index).last()
     df = pd.concat([ecdata,wldata],axis=1)
     df.index.rename('Datum',inplace=True)
@@ -596,8 +610,3 @@ def get_ephemeres_files(time, types = ['clk','sp3','erp'], products='sru'):
             files.append(local_file)
             break
     return files
-
-# if __name__ == '__main__':
-#     with open('/home/theo/git/peil/peil/peil/kpnpost.xml') as f:
-#         xml = f.read()
-#         parse_kpn(xml) 

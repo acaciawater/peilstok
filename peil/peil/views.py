@@ -281,7 +281,8 @@ def series_as_json(request, pk):
 def chart_as_json(request,pk):
     """ get chart data as json array for highcharts """
     device = get_object_or_404(Device, pk=pk)
-    pts = util.get_chart_series(device)
+    rule=request.GET.get('rule','H')
+    pts = util.get_chart_series(device,rule)
     data = {'EC1': zip(pts.index,pts['EC1']),        
             'EC2': zip(pts.index,pts['EC2']),
             'NAP': zip(pts.index,pts['Waterpeil']),
@@ -289,34 +290,17 @@ def chart_as_json(request,pk):
             }
     if 'Corrected' in pts:
         data['NAP1'] = zip(pts.index,pts['Corrected'])
+    else:
+        data['NAP1'] = data['NAP']
         
-#     try:
-#         # Getijde metingen toevoegen
-#         tide = Series.objects.get(name__iexact='Getij Oudeschild')
-#         start = pts.index[0]
-#         stop = pts.index[-1]
-#         data['Getij'] = tide.to_array(start=start,stop=stop)
-#     except Exception as e:
-#         pass
-# 
-#     try:
-#         # Neerslag de Kooy toevoegen
-#         dekooy = Datasource.objects.get(name__iexact='Meteostation de Kooy')
-#         rh = dekooy.parameter_set.get(name='RH')
-#         neerslag = rh.series_set.get(name='RH')
-#         start = pts.index[0]
-#         stop = pts.index[-1]
-#         data['Neerslag'] = neerslag.to_array(start=start,stop=stop)
-#     except Exception as e:
-#         pass
-
     return HttpResponse(json.dumps(data, ignore_nan = True, default=lambda x: time.mktime(x.timetuple())*1000.0), content_type='application/json')
 
 @gzip_page
 def chart_as_csv(request,pk):
     """ get chart data as csv for download """
     device = get_object_or_404(Device, pk=pk)
-    data = util.get_chart_series(device)
+    rule=request.GET.get('rule','H')
+    data = util.get_chart_series(device,rule)
     data.dropna(inplace=True,how='all')
     resp = HttpResponse(data.to_csv(float_format='%.2f'), content_type='text/csv')
     resp['Content-Disposition'] = 'attachment; filename=%s.csv' % slugify(unicode(device))
@@ -330,8 +314,9 @@ def to_csv(request):
         device = Device.objects.get(**query)
     except Exception as ex:
         return HttpResponseNotFound(str(ex))
-    
-    data = util.get_chart_series(device)
+
+    rule=request.GET.get('rule','H')
+    data = util.get_chart_series(device,rule)
     data.dropna(inplace=True,how='all')
     
     # fill empty cells, first forward, then backwards
@@ -476,22 +461,22 @@ class PeilView2(LoginRequiredMixin, NavDetailView):
                       },
             'legend': {'enabled': True},
             'tooltip': {'shared': True, 'xDateFormat': '%a %d %B %Y %H:%M:%S', 'valueDecimals': 2},
-            'plotOptions': {'line': {'connectNulls': True, 'marker': {'enabled': True, 'radius': 2}},
-                            'scatter': {'marker': {'radius': 8}}},            
+            'plotOptions': {'line': {'lineWidth': 1, 'connectNulls': False, 'marker': {'enabled': True, 'radius': 2}},
+                            'scatter': {'marker': {'radius': 6}}},            
             'credits': {'enabled': True, 
                         'text': 'acaciawater.com', 
                         'href': 'http://www.acaciawater.com',
                        },
             'yAxis': [{'title': {'text': 'EC (mS/cm)'}}],
             'series': [
-                        {'name': 'Ondiepe sensor', 'id': 'EC1', 'data': [], 'tooltip': {'valueSuffix': ' mS/cm'}},
-                        {'name': 'Ondiepe meting', 'id': 'EC1H', 'data': ec1, 'type': 'scatter', 'tooltip': {
+                        {'name': 'Ondiep', 'id': 'EC1', 'data': [], 'tooltip': {'valueSuffix': ' mS/cm'}},
+                        {'name': 'Controle ondiep', 'id': 'EC1H', 'data': ec1, 'type': 'scatter', 'tooltip': {
                             'shared': True, 
                             'pointFormat': 'Tijdstip: {point.x:%a %d %B %Y %H:%M}<br/>EC: <b>{point.y}</b><br/>',
                             'valueDecimals': 2, 
                             'valueSuffix': ' mS/cm'}},
-                        {'name': 'Diepe sensor', 'id': 'EC2', 'data': [], 'tooltip': {'valueSuffix': ' mS/cm'}},
-                        {'name': 'Diepe meting', 'id': 'EC1H', 'data': ec2, 'type': 'scatter', 'tooltip': {
+                        {'name': 'Diep', 'id': 'EC2', 'data': [], 'tooltip': {'valueSuffix': ' mS/cm'}},
+                        {'name': 'Controle diep', 'id': 'EC1H', 'data': ec2, 'type': 'scatter', 'tooltip': {
                             'shared': True, 
                             'pointFormat': 'Tijdstip: {point.x:%a %d %B %Y %H:%M}<br/>EC: <b>{point.y}</b><br/>',
                             'valueDecimals': 2, 
@@ -505,7 +490,7 @@ class PeilView2(LoginRequiredMixin, NavDetailView):
         sensor2 = device.get_sensor('EC2',position=2).elevation()
         
         options.update({
-            'title': {'text': 'Waterstand '+unicode(device)},
+            'title': {'text': 'Waterpeil '+unicode(device)},
             'yAxis': [
                 {'title': {'text': 'Peil (m NAP)'},
                 'plotLines': [
@@ -534,9 +519,8 @@ class PeilView2(LoginRequiredMixin, NavDetailView):
                                             
             ],
             'series': [
-                        {'name': 'Waterpeil', 'id': 'NAP', 'data': [], 'tooltip': {'valueSuffix': ' m NAP'}},
-                        {'name': 'Corrected', 'id': 'NAP1', 'data': [], 'tooltip': {'valueSuffix': ' m NAP'}},
-                        {'name': 'Handpeiling', 'id': 'NAP', 'data': stand, 'type': 'scatter', 'tooltip': {
+                        {'name': 'Peilstok', 'id': 'NAP1', 'data': [], 'tooltip': {'valueSuffix': ' m NAP'}},
+                        {'name': 'Controlemeting', 'id': 'HAND', 'data': stand, 'type': 'scatter', 'tooltip': {
                             'valueSuffix': ' m NAP',
                             'pointFormat': 'Tijdstip: {point.x:%a %d %B %Y %H:%M}<br/>Peil: <b>{point.y}</b><br/>'}},
                         {'name': 'sensor1', 'showInLegend': False, 'type': 'scatter', 'marker': {'enabled': False}, 'data': [(datetime.datetime.now(),sensor1)]},
