@@ -2,7 +2,7 @@
 <h3><a href="{% url 'chart-detail' object.id %}">{{object|title}}</a>
 {%if battery %}<img class="battery" src={{battery.icon}} title="batterijniveau {{battery.level}}%"></img>{%endif%}</h3>
 Laatste contact: {{object.last_seen}}</br>
-{% if user.is_staff %}
+{% if user.is_authenticated %}
 {% with object.popup_photo as photo %}
 {% thumbnail photo.photo "320" crop="center" as im %}
 <a href="{% url 'device-photos' object.id %}"><img width="320px" src="{{ im.url }}"></img></a>

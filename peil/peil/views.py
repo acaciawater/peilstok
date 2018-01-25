@@ -44,7 +44,7 @@ class HomePage(TemplateView):
 class StaffRequiredMixin(object):
     @method_decorator(login_required)
     def dispatch(self, request, *args, **kwargs):
-        if not request.user.is_staff:
+        if not request.user.is_authenticated:
             messages.error(
                 request,
                 'Je het niet de vereiste rechten om de gevraagde bewerking uit te voeren.')

@@ -32,7 +32,7 @@
   	<li class="nav-item">
   		<a class="nav-link" href="{% url 'chart-detail' object.id %}" title="Toon grafiek van {{object}}">Grafiek</a>
   	</li>
-{% if request.user.is_staff %}
+{% if request.user.is_authenticated %}
   	<li class="nav-item active">
   		<a class="nav-link" href="{% url 'device-detail' object.id %}" title="Toon details van {{object}}">Details</a>
   	</li>
