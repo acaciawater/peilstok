@@ -434,9 +434,9 @@ class PeilView2(LoginRequiredMixin, NavDetailView):
         device = self.get_object()
 
         ec1 = ec2 = stand = None
-        if self.request.user.is_staff:                
+        if self.request.user.is_authenticated:                
             try:
-                # Handmetingen voorlopig alleen voor staff
+                # Handmetingen voorlopig alleen voor ingelogde gebruikers
                 mloc = MeetLocatie.objects.get(name=device.displayname)
                 ec1 = mloc.series_set.get(name='ECondiep').to_array()
                 ec2 = mloc.series_set.get(name='ECdiep').to_array()
