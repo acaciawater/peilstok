@@ -461,7 +461,7 @@ class PeilView2(LoginRequiredMixin, NavDetailView):
                       },
             'legend': {'enabled': True},
             'tooltip': {'shared': True, 'xDateFormat': '%a %d %B %Y %H:%M:%S', 'valueDecimals': 2},
-            'plotOptions': {'line': {'lineWidth': 1, 'connectNulls': False, 'marker': {'enabled': True, 'radius': 2}},
+            'plotOptions': {'line': {'lineWidth': 1, 'connectNulls': True, 'marker': {'enabled': True, 'radius': 2}},
                             'scatter': {'marker': {'radius': 6}}},            
             'credits': {'enabled': True, 
                         'text': 'acaciawater.com', 
