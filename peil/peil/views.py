@@ -509,29 +509,30 @@ class PeilView2(LoginRequiredMixin, NavDetailView):
             'title': {'text': 'Waterpeil '+unicode(device)},
             'yAxis': [
                 {'title': {'text': 'Peil (m NAP)'},
-                'plotLines': [
-                    {
-                     'value': sensor1,
-                     'zIndex': 998,
-                     'color': 'green',
-                     'dashStyle': 'shortdash',
-                     'width': 1,
-                     'label': {
-                         'text': 'ondiepe EC sensor',
-                         'style': {'color': 'green'}
-                     }
-                    },
-                    {
-                     'value': sensor2,
-                     'zIndex': 999,
-                     'color': 'red',
-                     'dashStyle': 'shortdash',
-                     'width': 1,
-                     'label': {
-                         'text': 'diepe EC sensor',
-                         'style': {'color': 'red'}
-                     }
-                    }]},
+#                 'plotLines': [
+#                     {
+#                      'value': sensor1,
+#                      'zIndex': 998,
+#                      'color': 'green',
+#                      'dashStyle': 'shortdash',
+#                      'width': 1,
+#                      'label': {
+#                          'text': 'ondiepe EC sensor',
+#                          'style': {'color': 'green'}
+#                      }
+#                     },
+#                     {
+#                      'value': sensor2,
+#                      'zIndex': 999,
+#                      'color': 'red',
+#                      'dashStyle': 'shortdash',
+#                      'width': 1,
+#                      'label': {
+#                          'text': 'diepe EC sensor',
+#                          'style': {'color': 'red'}
+#                      }
+#                     }]
+                 },
                                             
             ],
             'series': [
