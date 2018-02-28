@@ -11,11 +11,12 @@ import math
 
 from .models import Device, GNSS_MESSAGE, EC_MESSAGE, STATUS_MESSAGE, PRESSURE_MESSAGE, ANGLE_MESSAGE
 from peil.models import PressureSensor,PressureMessage, GNSS_Sensor, BatterySensor, StatusMessage, \
-    AngleSensor, InclinationMessage, LocationMessage, ECSensor, ECMessage, UBXFile
+    AngleSensor, InclinationMessage, LocationMessage, ECSensor, ECMessage, UBXFile,\
+    rounds
 from datetime import timedelta
 from peil.sensor import create_sensors
 from peil.decoder import decode
-from acacia.data.models import Series, MeetLocatie
+from acacia.data.models import Series, MeetLocatie, Datasource
 
 logger = logging.getLogger(__name__)
 
@@ -97,11 +98,28 @@ def get_ec_series(device,rule):
     """  
     ec1 = get_sensor_series(device,'EC1',position=1,resample=rule)
     ec2 = get_sensor_series(device,'EC2',position=2,resample=rule)
+
+    # Feb 2018: find decagon series and append data
+    try:
+        ds = Datasource.objects.get(generator__name='Decagon', name__icontains=device.displayname)
+        for param in ds.parameter_set.filter(name__contains='EC'):
+            for series in param.series_set.all():
+                data = series.to_pandas()
+                if series.name.startswith('EC P1'):
+                    ec1 = ec1.append(data)
+                elif series.name.startswith('EC P2'):
+                    ec2 = ec2.append(data)
+    except Datasource.DoesNotExist:
+        pass
+
     df = pd.DataFrame()
     if not ec1.empty:
-        df['EC1'] = ec1
+        df['EC1'] = ec1.groupby(ec1.index).last()
     if not ec2.empty:
-        df['EC2'] = ec2
+        df['EC2'] = ec2.groupby(ec2.index).last()
+
+
+
     return df
 #     return pd.DataFrame({'EC1':get_sensor_series(device,'EC1',position=1),
 #                          'EC2': get_sensor_series(device,'EC2',position=2)})
@@ -131,6 +149,19 @@ def get_level_series(device,rule,validate=True):
     
     # calculate water level in cm above the sensor
     waterlevel = (waterpressure-airpressure)/0.980638
+
+    # Feb 2018: find decagon level data  and append to waterlevel
+    try:
+        ds = Datasource.objects.get(generator__name='Decagon', name__icontains=device.displayname)
+        for param in ds.parameter_set.filter(name__startswith='Level P1'):
+            for series in param.series_set.all():
+                data = series.to_pandas() / 10  # convert mm to cm
+                # TODO compensate for depth of decagon sensor
+                waterlevel = waterlevel.append(data)
+    except Datasource.DoesNotExist:
+        pass
+
+    waterlevel = waterlevel.groupby(waterlevel.index).last()
 
     # calculate elevation (m to NAP) of sensor
     sensor = device.get_sensor('Waterdruk',position=3)
@@ -220,13 +251,35 @@ def last_ec(device):
     def last(name,pos):
         try:
             sensor = device.get_sensor(name,position=pos)
-            message = sensor.last_message()
+            message = sensor.loramessage_set.filter(ecmessage__adc1__lt=30000,ecmessage__adc2__lt=30000).order_by('time').last()
+            #message = sensor.last_message()
             return {'sensor': sensor, 'time': message.time, 'value': sensor.value(message)}
         except:
             return {}
-    return {'EC1': last('EC1',1),
-            'EC2': last('EC2',2)}
-    
+
+    ec1 = last('EC1',1)
+    ec2 = last('EC2',2)
+
+    # Feb 2018: check if we have decagon data
+    try:
+        ds = Datasource.objects.get(generator__name='Decagon', name__icontains=device.displayname)
+        for param in ds.parameter_set.filter(name__contains='EC'):
+            for series in param.series_set.all():
+                if series.name.startswith('EC P1'):
+                    ec = ec1
+                elif series.name.startswith('EC P2'):
+                    ec = ec2
+                else:
+                    continue
+                last = series.datapoints.latest('date')
+                if last.date > ec['time']:
+                    ec['time'] = last.date
+                    ec['value'] = rounds(last.value,3)
+    except Datasource.DoesNotExist:
+        pass
+
+    return {'EC1': ec1,'EC2': ec2}
+
 def battery_status(battery):
     '''
     < 1% 0 bars 

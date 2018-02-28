@@ -30,6 +30,8 @@ import datetime
 from django.views.generic.base import TemplateView
 from peil.util import last_waterlevel
 from collections import OrderedDict
+import pytz
+from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +133,10 @@ class PopupView(DetailView):
             depth = wl['nap'] - ec[pos]['sensor'].elevation()
             ec[pos]['depth'] = depth * 100
             ec[pos]['dry'] = depth <= 0
+        if ec['EC1']['time'] > ec['EC2']['time']:
+            ec['last'] = ec['EC1']
+        else:
+            ec['last'] = ec['EC2']
         context['lastec'] = ec
         context['lastwl'] = wl
         try:
@@ -208,6 +214,14 @@ class MapView(ListView):
     template_name = 'peil/leaflet_map.html'
     ordering = ('-last_seen',)
     
+    def get_queryset(self):
+        for d in Device.objects.all():
+            d.update_last_seen()
+        queryset = ListView.get_queryset(self)
+        # remove old entries
+        old = datetime.date.today() - timedelta(days=7) 
+        return queryset.filter(last_seen__date__gt=old)
+
     def get_context_data(self, **kwargs):
         context = super(MapView, self).get_context_data(**kwargs)
         context['api_key'] = settings.GOOGLE_MAPS_API_KEY
@@ -240,7 +254,9 @@ class NavMixin(object):
         nxt = nxt.first() if nxt else None
         prv = Device.objects.filter(displayname__lt=device.displayname)
         prv = prv.last() if prv else None
-        return {'next': nxt, 'prev': prv, 'all': Device.objects.order_by('displayname')}
+        today = datetime.date.today()
+        last_week = today - timedelta(days=7)
+        return {'next': nxt, 'prev': prv, 'all': Device.objects.filter(last_seen__date__gt=last_week).order_by('displayname')}
 
 class NavDetailView(NavMixin, DetailView):
     """ Detailview with browsing through devices sorted by name """

@@ -6,7 +6,7 @@ Created on Dec 10, 2017
 from django.core.management.base import BaseCommand
 from csv import DictReader
 from datetime import datetime
-from acacia.data.models import MeetLocatie
+from acacia.data.models import MeetLocatie, ManualSeries
 import pytz
 from django.contrib.auth.models import User
 
@@ -38,16 +38,17 @@ class Command(BaseCommand):
                     displayname='Peilstok{:02d}'.format(int(id))
                     print displayname
                     mloc = MeetLocatie.objects.get(name=displayname)
+                    ec_defaults={'user': user,'timezone':'Europe/Amsterdam','type':'scatter','unit': 'mS/cm'}
                     defaults={'user': user,'timezone':'Europe/Amsterdam','type':'scatter','unit': 'oC'}
                     if ec1:
-                        series = mloc.series_set.get(name='ECondiep')
-                        series.datapoints.get_or_create(date=date,value=ec1)
+                        series,_ = ManualSeries.objects.get_or_create(mlocatie=mloc,name='ECondiep',defaults=ec_defaults)
+                        series.datapoints.update_or_create(date=date,value=ec1)
                     if ec2:
-                        series = mloc.series_set.get(name='ECdiep')
-                        series.datapoints.get_or_create(date=date,value=ec2)
+                        series,_ = ManualSeries.objects.get_or_create(mlocatie=mloc,name='ECdiep',defaults=ec_defaults)
+                        series.datapoints.update_or_create(date=date,value=ec2)
                     if t1:
-                        series,_ = mloc.series_set.get_or_create(name='Tdiep',defaults=defaults)
-                        series.datapoints.get_or_create(date=date,value=t1)
+                        series,_ = ManualSeries.objects.get_or_create(mlocatie=mloc,name='Tdiep',defaults=defaults)
+                        series.datapoints.update_or_create(date=date,value=t1)
                     if t2:
-                        series,_ = mloc.series_set.get_or_create(name='Tondiep',defaults=defaults)
-                        series.datapoints.get_or_create(date=date,value=t2)
+                        series,_ = ManualSeries.objects.get_or_create(mlocatie=mloc,name='Tondiep',defaults=defaults)
+                        series.datapoints.update_or_create(date=date,value=t2)

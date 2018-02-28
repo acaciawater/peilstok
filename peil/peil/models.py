@@ -18,6 +18,7 @@ from acacia.data.util import toWGS84
 from datetime import datetime
 import pytz
 from django.db.models.aggregates import Min
+from acacia.data.models import MeetLocatie
 
 logger = logging.getLogger(__name__)
 
@@ -200,6 +201,22 @@ class Device(models.Model):
         except:
             # no survey
             return {}
+        
+    def update_last_seen(self):
+        try:
+            loc = MeetLocatie.objects.get(name__startswith=self.displayname)
+            tots = [s.tot() for s in loc.series_set.filter(parameter__datasource__generator__name__iexact='Decagon') if s.tot()]
+            latest = LoraMessage.objects.filter(sensor__device=self).latest('time')
+            if latest:
+                tots.append(latest.time)
+            if tots:
+                last_seen = max(filter(lambda x: x is not None, tots))
+                if last_seen != self.last_seen:
+                    self.last_seen = last_seen
+                    self.save(update_fields=('last_seen',)) 
+        except Exception as e:
+            pass
+        return self.last_seen
     
     def __unicode__(self):
         return self.displayname

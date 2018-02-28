@@ -78,11 +78,12 @@ def load_survey(filename):
     # load survey data from csv file
     import pandas as pd
     df = pd.read_csv(filename)
-    amsterdam = pytz.timezone('Europe/Amsterdam')
+    tz = pytz.timezone('Etc/GMT-1')
     for _,r in df.iterrows():
         try:
             stok = r['Peilstok']
-            for device in Device.objects.filter(devid__iexact=stok):
+            for device in Device.objects.filter(displayname__iexact=stok):
+                print device
                 surveyor = r['Waarnemer']
                 date = r['Datum']
                 time = r['Tijd']
@@ -91,7 +92,7 @@ def load_survey(filename):
                 z = r['Meetpunt (m tov NAP)']
                 vacc = r['Nauwkeurigheid (m)'] * 1000
                 time = parse_datetime(date+' '+time)
-                time = amsterdam.localize(time)
+                time = tz.localize(time)
                 device.survey_set.update_or_create(time=time,defaults = {
                     'surveyor': surveyor,
                     'location': Point(x,y),
