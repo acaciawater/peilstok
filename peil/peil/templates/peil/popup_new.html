@@ -11,16 +11,16 @@ Laatste contact: {{object.last_seen}}</br>
 
 <table class="table table-condensed table-sm table-hover table-320">
 <thead>
-<tr><td>Sensor</td><td>Tijdstip</td><td>Waterhoogte</td><td>Waarde</td></tr>
+<tr><td>Sensor</td><td>Tijdstip</td><td>Waarde</td></tr>
 </thead>
 <tbody>
 {% with lastec.EC1 as ec %}
-<tr><td>EC ondiep</td><td>{{ec.time|date:'j M H:i'}}</td><td>{{ec.depth|floatformat:0}} cm</td><td>{{ec.value|default:'-'}} mS/cm</td></tr>
+<tr><td>EC ondiep</td><td>{{ec.time|date:'j M H:i'}}</td><td>{{ec.value|default:'-'}} mS/cm</td></tr>
 {% endwith %}
 {% with lastec.EC2 as ec %}
-<tr><td>EC diep</td><td>{{ec.time|date:'j M H:i'}}</td><td>{{ec.depth|floatformat:0}} cm</td><td>{{ec.value|default:'-'}} mS/cm</td></tr>
+<tr><td>EC diep</td><td>{{ec.time|date:'j M H:i'}}</td><td>{{ec.value|default:'-'}} mS/cm</td></tr>
 {% endwith %}
-<tr><td>Peil</td><td>{{lastwl.time|date:'j M H:i'}}</td><td>{{lastwl.cm|floatformat:0}} cm</td><td>{{lastwl.nap|default:'-'|floatformat:2}} m NAP</td></tr>
+<tr><td>Peil</td><td>{{lastwl.time|date:'j M H:i'}}</td><td>{{lastwl.nap|default:'-'|floatformat:2}} m NAP</td></tr>
 </tbody>
 </table>
 {% endif %}
