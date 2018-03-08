@@ -214,13 +214,13 @@ class MapView(ListView):
     template_name = 'peil/leaflet_map.html'
     ordering = ('-last_seen',)
     
-    def get_queryset(self):
-        for d in Device.objects.all():
-            d.update_last_seen()
-        queryset = ListView.get_queryset(self)
-        # remove old entries
-        old = datetime.date.today() - timedelta(days=7) 
-        return queryset.filter(last_seen__date__gt=old)
+#     def get_queryset(self):
+#         for d in Device.objects.all():
+#             d.update_last_seen()
+#         queryset = ListView.get_queryset(self)
+#         # remove old entries
+#         old = datetime.date.today() - timedelta(days=7) 
+#         return queryset.filter(last_seen__date__gt=old)
 
     def get_context_data(self, **kwargs):
         context = super(MapView, self).get_context_data(**kwargs)
