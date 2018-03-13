@@ -552,7 +552,7 @@ def time2gps(time):
     delta = time - GPST0
     sec = delta.total_seconds()
     week = int(sec/(86400*7))
-    tow = sec - week * 86400*7 + delta.seconds # time of week
+    tow = sec - week * 86400 * 7# time of week
     dow = int(tow / 86400) # day of week
     return week, dow, tow
 
@@ -608,7 +608,7 @@ def getfile(root,path,remote):
                 logger.debug('Download failed')
                 return None
         except Exception as e:
-            logger.exception('Download failed: '+e)
+            logger.exception('Download failed: {}'.format(e))
     return local_file
 
 def get_broadcast_files(time, satcodes='G'):
@@ -638,6 +638,9 @@ def get_ephemeres_files(time, types = ['clk','sp3','erp'], products='sru'):
 
     delta = datetime.datetime.now(pytz.utc) - time
     secs = delta.total_seconds()
+    if secs < 60:
+        # ultra forecast not available
+        products = products.replace('v','')
     if secs < (3*60*60):
         # ultra not available
         products = products.replace('u','')
@@ -649,10 +652,11 @@ def get_ephemeres_files(time, types = ['clk','sp3','erp'], products='sru'):
         products = products.replace('s','')
     
     files = []
-    url = 'ftp://ftp.igs.org/pub/product/'
+    #url = 'ftp://ftp.igs.org/pub/product/'
+    url = 'ftp://igs.ensg.ign.fr/pub/igs/products/'
     for _type in types:
         for product in products:
-            if product == 'u':
+            if product in 'uv':
                 hour = (time.hour // 6) * 6 # 0, 6, 12, 18
                 path = '{week}/ig{product}{week}{dow}_{hour:02}.{type}.Z'.format(week=week,dow=dow,hour=hour,product=product,type=_type)
             else:
