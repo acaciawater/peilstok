@@ -106,10 +106,14 @@ postdevice.short_description='Postprocessing uitvoeren'
 def gpson(modeladmin, request, queryset):
     """ turn GPS on for selected devices"""
     import requests
-    url = 'https://integrations.thethingsnetwork.org/ttn-eu/api/v2/down/peilstok/fiware?key={}'.format(settings.TTN_KEY)
+    #url = 'https://integrations.thethingsnetwork.org/ttn-eu/api/v2/down/peilstok/fiware?key={}'.format(settings.TTN_KEY)
+    url = 'https://integrations.thethingsnetwork.org/ttn-eu/api/v2/down/peilstok_abp/fiware_acacia?key={}'.format(settings.TTN_KEY)
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
     for d in queryset:
         data = {"dev_id": d.devid, "port": 1, "confirmed": False, "payload_fields": { "gpsON": True } }
         response = requests.post(url,json=data,headers=headers)
-        print response, response.reason
+        if response.ok:
+            messages.success(request,'GPS of {} switched on successfully'.format(d.displayname))
+        else:
+            messages.error(request, 'Failed to switch on GPS of {}: {}'.format(d.displayname, response.reason))
 gpson.short_description='GPS aanzetten'
