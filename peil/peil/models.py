@@ -795,8 +795,11 @@ class UBXFile(models.Model):
 @receiver(pre_save, sender=UBXFile)
 def ubxfile_save(sender, instance, **kwargs):
     """ find out time of first and last message when saving to database """
-    from peil.util import ubxtime
-    instance.start, instance.stop = ubxtime(instance.ubxfile)
+    try:
+        from peil.util import ubxtime
+        instance.start, instance.stop = ubxtime(instance.ubxfile)
+    except:
+        pass
 
 QUALITY_CHOICES = (
     (0, 'None'),
